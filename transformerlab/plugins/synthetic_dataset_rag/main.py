@@ -32,6 +32,7 @@ def get_docs_list(docs: str) -> List[dict]:
     """
     docs_list = docs.split(",")
     from transformerlab.plugin import WORKSPACE_DIR
+
     documents_dir = os.path.join(WORKSPACE_DIR, "experiments", tlab_gen.params.experiment_name, "documents")
     # Use the markdown files if they exist
     if os.path.exists(os.path.join(documents_dir, ".tlab_markitdown")):

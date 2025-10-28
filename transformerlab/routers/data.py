@@ -41,6 +41,7 @@ logging.basicConfig(level=logging.ERROR)
 
 # Configure logging
 
+
 def log(msg):
     global_log_path = get_global_log_path()
     with open(global_log_path, "a") as f:

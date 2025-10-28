@@ -594,7 +594,7 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformerlab==0.0.33
+transformerlab==0.0.39
     # via
     #   -r requirements.in
     #   transformerlab-inference

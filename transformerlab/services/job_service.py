@@ -4,7 +4,6 @@ from typing import Optional
 from lab import Experiment, Job
 
 
-
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
     "TRAIN",
@@ -202,7 +201,7 @@ async def job_update_status(
             job.set_error_message(error_msg)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
-        
+
         pass
 
     # Trigger workflows if job status is COMPLETE
@@ -305,7 +304,7 @@ def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, exp
             return
         job.set_type(job_type)
         job.update_status(status)
-        
+
         # Trigger workflows if job status is COMPLETE
         if status == "COMPLETE":
             _trigger_workflows_on_job_completion_sync(job_id)
@@ -327,7 +326,7 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
         job_type = job.get_type()
         # Get experiment_id from job data to match the type expected by workflow functions
         experiment_id = job.get_experiment_id()
-        
+
         if not experiment_id:
             return
 
@@ -339,9 +338,10 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
         # 3. Get workflows with matching trigger using async database operations
         # Note: This is a limitation - we can't easily do async operations in a sync context
         # For now, we'll import the async function and call it
-        
+
         # This is not ideal but necessary for now
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -353,22 +353,23 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
         except RuntimeError:
             # No event loop, create one
             asyncio.run(_trigger_workflows_async(job_id, job_type, experiment_id))
-            
+
     except Exception as e:
         print(f"Error triggering workflows for job {job_id}: {e}")
+
 
 async def _trigger_workflows_async(job_id: str, job_type: str, experiment_id: str):
     """Helper async function to trigger workflows"""
     try:
         from transformerlab.routers.experiment.workflows import workflows_get_by_trigger_type
-        
+
         # Get workflows with matching trigger
         triggered_workflow_ids = await workflows_get_by_trigger_type(experiment_id, job_type)
-        
+
         # Queue workflows
         if triggered_workflow_ids:
             from transformerlab.db.workflows import workflow_queue
-            
+
             for workflow_id in triggered_workflow_ids:
                 await workflow_queue(workflow_id)
     except Exception as e:

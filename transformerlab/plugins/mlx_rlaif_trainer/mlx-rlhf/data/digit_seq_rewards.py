@@ -2,7 +2,15 @@ import random
 
 
 class RewardFunction:
-    def __init__(self, is_positive=False, is_negative=False, is_increasing=False, is_decreasing=False, multiple_of=1, min_length=5):
+    def __init__(
+        self,
+        is_positive=False,
+        is_negative=False,
+        is_increasing=False,
+        is_decreasing=False,
+        multiple_of=1,
+        min_length=5,
+    ):
         self.is_positive = is_positive
         self.is_negative = is_negative
         self.is_increasing = is_increasing
@@ -24,7 +32,7 @@ class RewardFunction:
             input_str_batch = [input_str_batch]
         scores = []
         if query is None:
-            query = ['' for _ in range(len(input_str_batch))]
+            query = ["" for _ in range(len(input_str_batch))]
         for input_str, q in zip(input_str_batch, query):
             q_words = q.split()
             words = input_str.split()
@@ -46,17 +54,10 @@ class RewardFunction:
             for word in words:
                 try:
                     num = int(word)
-                    if (
-                        self.check_positive(num)
-                        and self.check_negative(num)
-                        and self.check_multiple_of(num)
-                    ):
+                    if self.check_positive(num) and self.check_negative(num) and self.check_multiple_of(num):
                         if current_pattern:
                             prev_num = current_pattern[-1]
-                            if (
-                                (self.is_increasing and num > prev_num) or
-                                (self.is_decreasing and num < prev_num)
-                            ):
+                            if (self.is_increasing and num > prev_num) or (self.is_decreasing and num < prev_num):
                                 current_pattern.append(num)
                                 count_matches += 1
                             else:
@@ -97,15 +98,15 @@ def generate_synthetic_data(reward_function, num_samples=100, sequence_length_ra
             start_range = (100, 1000)
 
         first_digit = random.randint(*start_range)
-        first_digit += (reward_function.multiple_of - first_digit % reward_function.multiple_of)
+        first_digit += reward_function.multiple_of - first_digit % reward_function.multiple_of
         sequence = [first_digit]
         for _ in range(sequence_length):
             # Bias the generation towards high-reward samples
-            if random.random() < (1-percent_noise):
+            if random.random() < (1 - percent_noise):
                 # Generate a digit that matches the pattern
                 if reward_function.is_increasing:
                     digit = random.randint(sequence[-1], sequence[-1] + 50)
-                    digit += (reward_function.multiple_of - digit % reward_function.multiple_of)
+                    digit += reward_function.multiple_of - digit % reward_function.multiple_of
                 elif reward_function.is_decreasing:
                     digit = random.randint(sequence[-1] - 10, sequence[-1])
                     digit -= digit % reward_function.multiple_of
@@ -116,7 +117,7 @@ def generate_synthetic_data(reward_function, num_samples=100, sequence_length_ra
 
             sequence.append(digit)
 
-        input_str = ' '.join(map(str, sequence))
+        input_str = " ".join(map(str, sequence))
 
         synthetic_data.append(input_str)
 
@@ -156,9 +157,7 @@ if __name__ == "__main__":
     reward_fn = RewardFunction(is_increasing=True, multiple_of=2)
     input_string = "4 -90 -90 -90 8 12 22 28 99"
     percent_matching = reward_fn(input_string)
-    print(f'String: {input_string} reward: {percent_matching}')
-    gen_data = generate_synthetic_data(reward_function=reward_fn,
-                                       num_samples=10,
-                                       sequence_length_range=(5, 10))
+    print(f"String: {input_string} reward: {percent_matching}")
+    gen_data = generate_synthetic_data(reward_function=reward_fn, num_samples=10, sequence_length_range=(5, 10))
     for seq in gen_data:
-        print(f'String: {seq} reward: {reward_fn(seq)}')
+        print(f"String: {seq} reward: {reward_fn(seq)}")

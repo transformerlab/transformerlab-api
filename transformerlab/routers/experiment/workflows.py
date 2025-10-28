@@ -30,12 +30,12 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
 @router.get("/list", summary="get all workflows in the experiment")
-async def workflows_get_in_experiment(experimentId: int):
+async def workflows_get_in_experiment(experimentId: str):
     workflows = await workflows_get_from_experiment(experimentId)
     return workflows
 
 
-async def workflows_get_by_trigger_type(experimentId: int, trigger_type: str):
+async def workflows_get_by_trigger_type(experimentId: str, trigger_type: str):
     """Internal endpoint to get workflows that should be triggered by a specific trigger type"""
     workflows = await workflows_get_from_experiment(experimentId)
     triggered_workflows = []
@@ -60,13 +60,13 @@ async def workflows_get_by_trigger_type(experimentId: int, trigger_type: str):
 
 
 @router.get("/runs", summary="get all workflow runs in the experiment")
-async def workflow_runs_get_in_experiment(experimentId: int):
+async def workflow_runs_get_in_experiment(experimentId: str):
     workflow_runs = await workflow_runs_get_from_experiment(experimentId)
     return workflow_runs
 
 
 @router.get("/delete/{workflow_id}", summary="delete a workflow")
-async def workflow_delete(workflow_id: str, experimentId: int):
+async def workflow_delete(workflow_id: str, experimentId: str):
     # Delete workflow with experiment enforcement at database level
     success = await workflow_delete_by_id(workflow_id, experimentId)
     if not success:
@@ -75,7 +75,7 @@ async def workflow_delete(workflow_id: str, experimentId: int):
 
 
 @router.get("/create", summary="Create a workflow from config")
-async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
+async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: str = "alpha"):
     config = json.loads(config)
 
     # Check if a START node already exists
@@ -93,7 +93,7 @@ async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experime
 
 
 @router.get("/create_empty", summary="Create an empty workflow")
-async def workflow_create_empty(name: str, experimentId: int = 1):
+async def workflow_create_empty(name: str, experimentId: str = "alpha"):
     name = slugify(name)
     # Check if workflow name already exists in this experiment
     existing_workflows = await workflows_get_from_experiment(experimentId)
@@ -107,7 +107,7 @@ async def workflow_create_empty(name: str, experimentId: int = 1):
 
 
 @router.get("/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow")
-async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str, experimentId: int):
+async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str, experimentId: str):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -130,7 +130,7 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
 
 
 @router.get("/{workflow_id}/update_name", summary="Update the name of a workflow")
-async def workflow_update_name_func(workflow_id: str, new_name: str, experimentId: int):
+async def workflow_update_name_func(workflow_id: str, new_name: str, experimentId: str):
     new_name = slugify(new_name)
     # Update workflow name with experiment enforcement at database level
     # Check if workflow name already exists in this experiment
@@ -146,7 +146,7 @@ async def workflow_update_name_func(workflow_id: str, new_name: str, experimentI
 
 
 @router.put("/{workflow_id}/config", summary="Update the config of a workflow")
-async def workflow_update_config_func(workflow_id: str, experimentId: int, config: dict = Body()):
+async def workflow_update_config_func(workflow_id: str, experimentId: str, config: dict = Body()):
     """
     Update the config of a workflow directly.
     Accepts the config as a JSON object in the request body.
@@ -164,7 +164,7 @@ async def workflow_update_config_func(workflow_id: str, experimentId: int, confi
 
 
 @router.get("/{workflow_id}/add_node", summary="Add a node to a workflow")
-async def workflow_add_node(workflow_id: str, node: str, experimentId: int):
+async def workflow_add_node(workflow_id: str, node: str, experimentId: str):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -196,7 +196,7 @@ async def workflow_add_node(workflow_id: str, node: str, experimentId: int):
 
 
 @router.post("/{workflow_id}/{node_id}/update_node", summary="Update a specific node in a workflow")
-async def workflow_update_node(workflow_id: str, node_id: str, experimentId: int, new_node: dict = Body()):
+async def workflow_update_node(workflow_id: str, node_id: str, experimentId: str, new_node: dict = Body()):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -222,7 +222,7 @@ async def workflow_update_node(workflow_id: str, node_id: str, experimentId: int
 
 
 @router.post("/{workflow_id}/{start_node_id}/remove_edge", summary="Remove an edge between two nodes in a workflow")
-async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str, experimentId: int):
+async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str, experimentId: str):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -250,7 +250,7 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
 
 
 @router.post("/{workflow_id}/{start_node_id}/add_edge", summary="Add an edge between two nodes in a workflow")
-async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str, experimentId: int):
+async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str, experimentId: str):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -277,7 +277,7 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
 
 
 @router.get("/{workflow_id}/{node_id}/delete_node", summary="Delete a node from a workflow")
-async def workflow_delete_node(workflow_id: str, node_id: str, experimentId: int):
+async def workflow_delete_node(workflow_id: str, node_id: str, experimentId: str):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -310,7 +310,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str, experimentId: int
 
 
 @router.get("/{workflow_id}/export_to_yaml", summary="Export a workflow definition to YAML")
-async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
+async def workflow_export_to_yaml(workflow_id: str, experimentId: str):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -337,7 +337,7 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
 
 
 @router.post("/import_from_yaml", summary="Import a workflow definition from YAML")
-async def workflow_import_from_yaml(file: UploadFile, experimentId: int = 1):
+async def workflow_import_from_yaml(file: UploadFile, experimentId: str = "alpha"):
     with open(file.filename, "r") as fileStream:
         workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
     await workflow_create(workflow["name"], json.dumps(workflow["config"]), experimentId)
@@ -345,7 +345,7 @@ async def workflow_import_from_yaml(file: UploadFile, experimentId: int = 1):
 
 
 @router.get("/{workflow_id}/start", summary="Queue a workflow to start execution")
-async def start_workflow(workflow_id: str, experimentId: int):
+async def start_workflow(workflow_id: str, experimentId: str):
     # Verify workflow exists and belongs to experiment
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -413,7 +413,7 @@ async def start_next_step_in_workflow():
 
 
 @router.get("/runs/{workflow_run_id}", summary="get a specific workflow run by id")
-async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: int):
+async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: str):
     workflow_run = await workflow_run_get_by_id(workflow_run_id)
     if not workflow_run:
         return {"error": "Workflow run not found"}
@@ -461,7 +461,7 @@ async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: int):
 
 
 @router.get("/{workflow_run_id}/cancel", summary="Cancel a running workflow")
-async def cancel_workflow_run(workflow_run_id: str, experimentId: int):
+async def cancel_workflow_run(workflow_run_id: str, experimentId: str):
     """
     Cancel a running workflow by stopping all its current jobs.
     The workflow execution engine will automatically detect the stopped jobs
