@@ -22,14 +22,14 @@ elif command -v nvidia-smi &> /dev/null; then
     CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python --force-reinstall --no-cache-dir
 
 elif command -v rocminfo &> /dev/null; then
-    # Linux/Other with AMD GPU detected
+    # Linux/Other with CUDA detected
     echo "AMD GPU detected. Installing based on AMD setup using GGML HIPBLAS"
-    CMAKE_ARGS="-DGGML_HIPBLAS=on" FORCE_CMAKE=1 uv pip install llama-cpp-python --force-reinstall --no-cache-dir
+    CMAKE_ARGS="-DGGML_HIPBLAS=on" FORCE_CMAKE=1  uv pip install llama-cpp-python --force-reinstall --no-cache-dir
 
 else
     # Linux/Other without CUDA - try using OpenBLAS
     echo "No GPU detected - installing with OpenBLAS support"
-    CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" uv pip install llama-cpp-python --upgrade --no-cache-dir --force-reinstall
+    uv pip install llama-cpp-python --upgrade --no-cache-dir --force-reinstall
 fi
 
 echo "llama-cpp-python installation complete."
