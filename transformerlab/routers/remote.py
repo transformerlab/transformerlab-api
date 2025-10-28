@@ -576,6 +576,10 @@ async def check_remote_jobs_status(request: Request):
             "message": f"Checked {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state",
         }
 
+    except Exception as e:
+        print(f"Error checking remote job status: {str(e)}")
+        return {"status": "error", "message": "Error checking remote job status"}
+
 
 @router.post("/{job_id}/resume_from_checkpoint")
 async def resume_from_checkpoint(
