@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-sed -i 's/\r$//' "$0"
-if file "$0" | grep -q "CRLF"; then
-    echo ":wrench: Detected CRLF line endings. Converting to LF..."
-    sed -i 's/\r$//' "$0"
-    exec bash "$0" "$@"
-fi
 # If we install llama-cpp-python[server] it will install
 # Pydantic2 which will break FastChat which depends on Pydantic1
 # So we will install llama-cpp-python only and implement our
