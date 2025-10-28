@@ -70,24 +70,33 @@ num_gpus = torch.cuda.device_count()
 if num_gpus > 1:
     vllm_args.extend(["--tensor-parallel-size", str(num_gpus)])
 
-vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
+# We need to read both STDOUT (to determine when the server is up)
+# and STDOUT (to report on errors)
+vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 # Wait for vLLM server to be ready
-vllm_url = f"http://localhost:{port}/v1/models"
-timeout = 300  # seconds
-start_time = time.time()
-while True:
-    try:
-        resp = requests.get(vllm_url, timeout=3)
-        if resp.status_code == 200:
-            print("vLLM server is ready", file=sys.stderr)
-            break
-    except Exception:
-        pass
-    if time.time() - start_time > timeout:
-        print("ERROR: Timeout waiting for vLLM server to be ready", file=sys.stderr)
-        sys.exit(1)
-    time.sleep(1)
+# This is a magic string we watch for to know the vllm server has started
+watch_string = "init engine"
+start_success = False
+
+# Read over stderr and print out any error output
+# Break as soon as we detect the server is up (based on watch string)
+for line in iter(vllm_proc.stdout.readline, b""):
+    decoded = line.decode()
+    if watch_string in decoded:
+        print("vLLM server started successfully")
+        start_success = True
+        break
+
+    error_msg = decoded.strip()
+    print("[vLLM]", error_msg, file=sys.stderr)
+
+# If we didn't detect the startup string then report the error and exit
+if not start_success:
+    vllm_proc.wait()
+    print("vLLM Startup Failed with exit code", vllm_proc.returncode)
+    print(error_msg)
+    sys.exit(1)
 
 proxy_args = [
     python_executable,
@@ -101,7 +110,7 @@ proxy_args = [
     model,
 ]
 
-proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
+proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 # save both worker process id and vllm process id to file
 # this will allow transformer lab to kill both later
@@ -110,8 +119,8 @@ register_process([proxy_proc.pid, vllm_proc.pid])
 
 # Read output from both processes (vLLM and proxy) simultaneously
 def read_stream(proc, prefix):
-    """Read from a process stderr and print with prefix"""
-    for line in iter(proc.stderr.readline, b""):
+    """Read from a process stdout (which includes stderr) and print with prefix"""
+    for line in iter(proc.stdout.readline, b""):
         if line:
             print(f"[{prefix}]", line.decode().strip(), file=sys.stderr)
 
