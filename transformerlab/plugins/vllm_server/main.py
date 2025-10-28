@@ -133,4 +133,4 @@ if vllm_proc.poll() is not None:
 if proxy_proc.poll() is not None:
     print(f"Proxy process exited with code {proxy_proc.poll()}", file=sys.stderr)
 
-print("Server exited", file=sys.stderr)
+print("Vllm worker exited", file=sys.stderr)
