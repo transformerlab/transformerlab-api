@@ -1,9 +1,12 @@
 import os
 import httpx
+import json
+import re
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
 from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
+from lab.dirs import get_workspace_dir, get_job_checkpoints_dir
 
 
 router = APIRouter(prefix="/remote", tags=["remote"])
@@ -189,6 +192,23 @@ async def launch_remote(
                     job_service.job_update_job_data_insert_key_value(
                         job_id, "cluster_name", response_data["cluster_name"], experimentId
                     )
+
+                # Save the launch_config for potential resume
+                launch_config = {
+                    "command": command,
+                    "setup": setup,
+                    "script_path": script_path,
+                    "cluster_name": cluster_name,
+                    "cpus": cpus,
+                    "memory": memory,
+                    "disk_space": disk_space,
+                    "accelerators": accelerators,
+                    "num_nodes": num_nodes,
+                    "uploaded_dir_path": uploaded_dir_path,
+                }
+                job_service.job_update_job_data_insert_key_value(
+                    job_id, "launch_config", json.dumps(launch_config), experimentId
+                )
 
                 return {
                     "status": "success",
@@ -555,6 +575,90 @@ async def check_remote_jobs_status(request: Request):
             "updated_jobs": updated_jobs,
             "message": f"Checked {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state",
         }
+
+
+@router.post("/{job_id}/resume_from_checkpoint")
+async def resume_from_checkpoint(
+    job_id: str,
+    request: Request,
+):
+    """Resume training from a checkpoint by creating a new job with the checkpoint parameter"""
+    try:
+        body = await request.json()
+        checkpoint_name = body.get("checkpoint_name")
+        experimentId = body.get("experimentId")
+        
+        if not checkpoint_name:
+            return {"status": "error", "message": "checkpoint_name is required"}
+        if not experimentId:
+            return {"status": "error", "message": "experimentId is required"}
+        
+        # Get the original job
+        original_job = job_service.job_get(job_id)
+        if not original_job:
+            return {"status": "error", "message": f"Job {job_id} not found"}
+        
+        original_job_data = original_job.get("job_data", {})
+        
+        # Get the launch_config from the original job
+        launch_config = original_job_data.get("launch_config")
+        if not launch_config:
+            return {"status": "error", "message": "launch_config not found in original job"}
+        
+        # Get the checkpoint directory path
+        checkpoints_dir = get_job_checkpoints_dir(job_id)
+        checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
+        
+        if not os.path.exists(checkpoint_path):
+            return {"status": "error", "message": f"Checkpoint {checkpoint_name} not found at {checkpoint_path}"}
+        
+        # Modify the command to include the checkpoint parameter
+        original_command = launch_config.get("command", "")
+        if not original_command:
+            return {"status": "error", "message": "Original command not found in launch_config"}
+        
+        # Add --resume_from_checkpoint parameter to the command
+        if "--resume_from_checkpoint" not in original_command:
+            resume_command = f"{original_command} --resume_from_checkpoint {checkpoint_path}"
+        else:
+            # Replace existing checkpoint parameter
+            resume_command = re.sub(
+                r'--resume_from_checkpoint\s+\S+',
+                f'--resume_from_checkpoint {checkpoint_path}',
+                original_command
+            )        
+        # Call launch_remote to create and launch the new job
+        launch_result = await launch_remote(
+            request=request,
+            experimentId=experimentId,
+            cluster_name=launch_config.get("cluster_name"),
+            command=resume_command,
+            task_name=f"Resume from {checkpoint_name}",
+            cpus=launch_config.get("cpus"),
+            memory=launch_config.get("memory"),
+            disk_space=launch_config.get("disk_space"),
+            accelerators=launch_config.get("accelerators"),
+            num_nodes=launch_config.get("num_nodes"),
+            setup=launch_config.get("setup"),
+            uploaded_dir_path=launch_config.get("uploaded_dir_path"),
+        )
+        
+        if launch_result.get("status") == "success":
+            new_job_id = launch_result.get("job_id")
+            # Update the new job's job_data to mark it as resumed
+            job_service.job_update_job_data_insert_key_value(new_job_id, "resumed_from_checkpoint", checkpoint_name, experimentId)
+            job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
+            return {
+                "status": "success",
+                "job_id": new_job_id,
+                "message": f"Training resumed from checkpoint {checkpoint_name}",
+                "data": launch_result
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to launch remote job: {launch_result.get('message')}",
+            }
 
     except Exception as e:
         print(f"Error checking remote job status: {str(e)}")
