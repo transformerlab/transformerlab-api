@@ -59,18 +59,10 @@ class MixtralAttention(nn.Module):
 
         self.scale = self.head_dim**-0.5
 
-        self.q_proj = nn.Linear(
-            self.hidden_size, self.num_heads * self.head_dim, bias=False
-        )
-        self.k_proj = nn.Linear(
-            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False
-        )
-        self.v_proj = nn.Linear(
-            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False
-        )
-        self.o_proj = nn.Linear(
-            self.num_heads * self.head_dim, self.hidden_size, bias=False
-        )
+        self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
+        self.k_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
+        self.v_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
+        self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
 
         self.rope = nn.RoPE(
             self.head_dim,
@@ -91,9 +83,7 @@ class MixtralAttention(nn.Module):
         # Prepare the queries, keys and values for the attention computation
         queries = queries.reshape(B, L, self.num_heads, -1).transpose(0, 2, 1, 3)
         keys = keys.reshape(B, L, self.num_key_value_heads, -1).transpose(0, 2, 1, 3)
-        values = values.reshape(B, L, self.num_key_value_heads, -1).transpose(
-            0, 2, 1, 3
-        )
+        values = values.reshape(B, L, self.num_key_value_heads, -1).transpose(0, 2, 1, 3)
 
         def repeat(a):
             a = mx.concatenate([mx.expand_dims(a, 2)] * self.repeats, axis=2)
@@ -149,9 +139,7 @@ class MixtralSparseMoeBlock(nn.Module):
         # gating
         self.gate = nn.Linear(self.hidden_dim, self.num_experts, bias=False)
 
-        self.experts = [
-            MixtralBLockSparseTop2MLP(args=args) for _ in range(self.num_experts)
-        ]
+        self.experts = [MixtralBLockSparseTop2MLP(args=args) for _ in range(self.num_experts)]
 
     def __call__(self, x: mx.array) -> mx.array:
         ne = self.num_experts_per_tok
@@ -212,9 +200,7 @@ class MixtralModel(nn.Module):
         self.args = args
 
         self.embed_tokens = nn.Embedding(args.vocab_size, args.hidden_size)
-        self.layers = [
-            MixtralDecoderLayer(args=args) for _ in range(args.num_hidden_layers)
-        ]
+        self.layers = [MixtralDecoderLayer(args=args) for _ in range(args.num_hidden_layers)]
         self.norm = RMSNorm(args.hidden_size, eps=args.rms_norm_eps)
 
     def __call__(

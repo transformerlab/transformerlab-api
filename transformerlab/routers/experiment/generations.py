@@ -172,7 +172,11 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
 
     if experiment_details is None:
         return {"message": f"Experiment {experimentId} does not exist"}
-    config = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
+    config = (
+        experiment_details["config"]
+        if isinstance(experiment_details["config"], dict)
+        else json.loads(experiment_details["config"] or "{}")
+    )
 
     model_name = config.get("foundation", "")
     if "model_name" in generation_config.keys():
@@ -198,7 +202,11 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
     if "config" in experiment_details:
-        experiment_details["config"] = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
+        experiment_details["config"] = (
+            experiment_details["config"]
+            if isinstance(experiment_details["config"], dict)
+            else json.loads(experiment_details["config"] or "{}")
+        )
         if "inferenceParams" in experiment_details["config"]:
             if isinstance(experiment_details["config"]["inferenceParams"], str):
                 experiment_details["config"]["inferenceParams"] = json.loads(

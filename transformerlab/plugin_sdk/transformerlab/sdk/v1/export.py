@@ -3,6 +3,7 @@ import traceback
 
 from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, DotDict
 
+
 class ExportTLabPlugin(TLabPlugin):
     """Enhanced Decorator class for TransformerLab exporter plugins"""
 
@@ -16,14 +17,14 @@ class ExportTLabPlugin(TLabPlugin):
         """Ensure arguments are parsed and convert self.params to a DotDict"""
         if not self._args_parsed:
             args, unknown_args = self._parser.parse_known_args()
-            
+
             # Transfer all known arguments to attributes of self
             for key, value in vars(args).items():
                 self.params[key] = value
-            
+
             self._parse_unknown_args(unknown_args)
             self._args_parsed = True
-            
+
         if not isinstance(self.params, DotDict):
             self.params = DotDict(self.params)
 
@@ -37,7 +38,7 @@ class ExportTLabPlugin(TLabPlugin):
             elif key:  # Argument value
                 self.params[key] = arg
                 key = None
-                
+
     # Added exporter-specific functionality and removed wandb logging
     def exporter_job_wrapper(self, progress_start: int = 0, progress_end: int = 100):
         """Decorator for wrapping an exporter function with job status updates"""
@@ -49,22 +50,22 @@ class ExportTLabPlugin(TLabPlugin):
                 start_time = time.strftime("%Y-%m-%d %H:%M:%S")
                 self.add_job_data("start_time", start_time)
                 self.add_job_data("model_name", self.params.model_name)
-                
-                #Update starting progress
+
+                # Update starting progress
                 self.job.update_progress(progress_start)
 
                 try:
-                    #Call the wrapped function
+                    # Call the wrapped function
                     result = func(*args, **kwargs)
 
-                    #Update final progress and success status
+                    # Update final progress and success status
                     self.job.update_progress(progress_end)
                     self.job.update_job_data_field("completion_status", "success")
                     self.job.update_job_data_field("completion_details", "Export completed successfully")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     return result
-                
+
                 except Exception as e:
                     # Capture the full erorr
                     error_msg = f"Error in Job: {str(e)}\n{traceback.format_exc()}"
@@ -75,12 +76,12 @@ class ExportTLabPlugin(TLabPlugin):
                     self.job.update_job_data_field("completion_details", f"Error occured: {str(e)}")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
-                    raise 
-                
+                    raise
+
             return wrapper
-        
+
         return decorator
 
-                    
+
 # Create an instance of the ExportTLabPlugin class
 tlab_exporter = ExportTLabPlugin()

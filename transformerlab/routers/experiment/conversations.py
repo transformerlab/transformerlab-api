@@ -20,7 +20,7 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 async def get_conversations(experimentId: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    
+
     conversation_dir = experiment_dir + "/conversations/"
 
     # make directory if it does not exist:
@@ -179,7 +179,7 @@ async def delete_audio(experimentId: str, id: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
     audio_dir = os.path.join(experiment_dir, "audio")
-    
+
     # Delete the metadata file (.json)
     id = secure_filename(id)
     metadata_path = os.path.join(audio_dir, id + ".json")

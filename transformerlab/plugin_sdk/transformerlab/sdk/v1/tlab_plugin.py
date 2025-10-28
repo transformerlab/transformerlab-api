@@ -20,6 +20,7 @@ except ModuleNotFoundError:
 
 from lab import Job
 
+
 class DotDict(dict):
     """Dictionary subclass that allows attribute access to dictionary keys"""
 
