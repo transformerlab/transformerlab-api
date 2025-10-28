@@ -91,7 +91,6 @@ async def launch_remote(
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
-    script_path: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
     memory: Optional[str] = Form(None),
     disk_space: Optional[str] = Form(None),
@@ -196,7 +195,6 @@ async def launch_remote(
                     "data": response_data,
                     "job_id": job_id,
                     "message": "Remote instance launched successfully",
-                    "job_id": job_id,
                 }
             else:
                 return {
