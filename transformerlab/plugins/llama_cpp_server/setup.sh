@@ -3,10 +3,12 @@
 # Pydantic2 which will break FastChat which depends on Pydantic1
 # So we will install llama-cpp-python only and implement our
 # own server using FastAPI
+
 echo "Setting up llama-cpp-python..."
 
 # Detect OS
 if [[ "$(uname)" == "Darwin" ]]; then
+    # macOS - check for Metal support
     if [[ "$(uname -m)" == "arm64" || "$(sysctl -n machdep.cpu.brand_string)" == *"Apple"* ]]; then
         echo "Detected Mac with Apple Silicon - installing with Metal support"
         CMAKE_ARGS="-DGGML_METAL=on" uv pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
@@ -29,4 +31,5 @@ else
     echo "No GPU detected - installing with OpenBLAS support"
     CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" uv pip install llama-cpp-python --upgrade --no-cache-dir --force-reinstall
 fi
+
 echo "llama-cpp-python installation complete."
