@@ -32,13 +32,7 @@ def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
             return str(CERT_PATH), str(KEY_PATH)
         CERT_DIR.mkdir(parents=True, exist_ok=True)
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-<<<<<<< HEAD
-        subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, "TransformerLab-Selfhost")
-        ])
-=======
         subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "TransformerLab-Selfhost")])
->>>>>>> 4d94ff88dec6844ce1dd2075fbf59ae44cb7b101
         cert_builder = (
             x509.CertificateBuilder()
             .subject_name(subject)
