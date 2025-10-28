@@ -8,11 +8,13 @@ def seed_default_experiments():
     """Create a few default experiments if they do not exist (filesystem-backed)."""
     for name in ["alpha", "beta", "gamma"]:
         try:
-            exp = Experiment.get(name)
-            if not exp:
-                Experiment.create(name)
-        except Exception:
+            exp = Experiment(name, create_new=True)
+            # Sanity check to make sure nothing went wrong or no Exception was silently passed
+            if exp.id != name:
+                raise Exception(f"Error creating experiment {name}: {exp.id} != {name}")
+        except Exception as e:
             # Best-effort seeding; ignore errors (e.g., partial setups)
+            print(f"Error creating experiment {name}: {e}")
             pass
 
 
