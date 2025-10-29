@@ -93,9 +93,14 @@ async def create_remote_job(
         for key, value in job_data.items():
             job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
 
+        # Format cluster_name as <user_value>-job-<job_id> and persist it
+        formatted_cluster_name = f"{cluster_name}-job-{job_id}"
+        job_service.job_update_job_data_insert_key_value(job_id, "cluster_name", formatted_cluster_name, experimentId)
+
         return {
             "status": "success",
             "job_id": job_id,
+            "cluster_name": formatted_cluster_name,
             "message": "Remote job created successfully",
         }
     except Exception as e:
@@ -124,8 +129,9 @@ async def launch_remote(
     Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
     """
     # If job_id is provided, use existing job, otherwise create a new one
+    formatted_cluster_name = cluster_name
     if job_id:
-        # Use existing job
+        # Trust the frontend-provided cluster_name when re-launching an existing job.
         pass
     else:
         # Get user information from the authentication identity
@@ -157,6 +163,10 @@ async def launch_remote(
             # Update the job data to add fields from job_data (this ensures default fields stay in the job)
             for key, value in job_data.items():
                 job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
+
+            # Format cluster_name as <user_value>-job-<job_id> and persist it
+            formatted_cluster_name = f"{cluster_name}-job-{job_id}"
+            job_service.job_update_job_data_insert_key_value(job_id, "cluster_name", formatted_cluster_name, experimentId)
         except Exception as e:
             print(f"Failed to create job: {str(e)}")
             return {"status": "error", "message": "Failed to create job"}
@@ -171,13 +181,13 @@ async def launch_remote(
 
     # Prepare the request data for Lattice orchestrator
     request_data = {
-        "cluster_name": cluster_name,
+        "cluster_name": formatted_cluster_name,
         "command": command,
         "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
     }
 
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
-    job_name = task_name if task_name else cluster_name
+    job_name = task_name if task_name else formatted_cluster_name
     request_data["job_name"] = job_name
 
     # Add optional parameters if provided
