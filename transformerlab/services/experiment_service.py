@@ -45,55 +45,50 @@ def experiment_get(id):
 
 
 def experiment_delete(id):
-    if not id or id == "undefined":
-        print(f"Invalid experiment ID provided: {id}")
-        return
     try:
         exp = Experiment.get(id)
         exp.delete()
+    except FileNotFoundError:
+        print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error deleting experiment {id}: {e}")
 
 
 def experiment_update(id, config):
-    if not id or id == "undefined":
-        print(f"Invalid experiment ID provided: {id}")
-        return
     try:
         exp = Experiment.get(id)
         exp.update_config(config)
+    except FileNotFoundError:
+        print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error updating experiment {id}: {e}")
 
 
 def experiment_update_config(id, key, value):
-    if not id or id == "undefined":
-        print(f"Invalid experiment ID provided: {id}")
-        return
     try:
         exp = Experiment.get(id)
         exp.update_config_field(key, value)
+    except FileNotFoundError:
+        print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error updating experiment config key {key}: {e}")
 
 
 def experiment_save_prompt_template(id, template):
-    if not id or id == "undefined":
-        print(f"Invalid experiment ID provided: {id}")
-        return
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config_field("prompt_template", template)
+    except FileNotFoundError:
+        print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error saving prompt template: {e}")
 
 
 def experiment_update_configs(id, updates: dict):
-    if not id or id == "undefined":
-        print(f"Invalid experiment ID provided: {id}")
-        return
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config(updates)
+    except FileNotFoundError:
+        print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error updating experiment config: {e}")
