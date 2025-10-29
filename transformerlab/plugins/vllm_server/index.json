@@ -33,7 +33,8 @@
     "PaliGemmaForConditionalGeneration",
     "DeepseekV2ForCausalLM",
     "LlavaLlamaForCausalLM",
-    "LlavaQwenForCausalLM"
+    "LlavaQwenForCausalLM",
+    "Qwen3VLForConditionalGeneration"
   ],
   "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],
@@ -43,6 +44,17 @@
       "title": "Server Port",
       "type": "integer",
       "default": 8000
+    },
+    "max_model_len": {
+      "title": "Max Model Length",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0
+    }
+  },
+  "parameters_ui": {
+    "max_model_len": {
+      "ui:help": "Max model length to use for the model. If 0, the model will use the default max length."
     }
   }
 }
