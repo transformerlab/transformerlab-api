@@ -603,9 +603,15 @@ async def resume_from_checkpoint(
         original_job_data = original_job.get("job_data", {})
         
         # Get the launch_config from the original job
-        launch_config = original_job_data.get("launch_config")
-        if not launch_config:
+        launch_config_str = original_job_data.get("launch_config")
+        if not launch_config_str:
             return {"status": "error", "message": "launch_config not found in original job"}
+        
+        # Parse the launch_config JSON string
+        try:
+            launch_config = json.loads(launch_config_str)
+        except json.JSONDecodeError:
+            return {"status": "error", "message": "Invalid launch_config format"}
         
         # Get the checkpoint directory path
         checkpoints_dir = get_job_checkpoints_dir(job_id)
@@ -619,16 +625,37 @@ async def resume_from_checkpoint(
         if not original_command:
             return {"status": "error", "message": "Original command not found in launch_config"}
         
-        # Add --resume_from_checkpoint parameter to the command
-        if "--resume_from_checkpoint" not in original_command:
-            resume_command = f"{original_command} --resume_from_checkpoint {checkpoint_path}"
-        else:
+        # Parse the command to find the python execution part and add --resume_from_checkpoint
+        command_parts = original_command.split(' && ')
+        python_part_index = None
+        for i, part in enumerate(command_parts):
+            if part.strip().startswith('python '):
+                python_part_index = i
+                break
+        
+        if python_part_index is None:
+            return {"status": "error", "message": "Could not find python execution command in original command"}
+        
+        # Modify the python part to include --resume_from_checkpoint
+        python_command = command_parts[python_part_index].strip()
+        
+        # Check if --resume_from_checkpoint already exists
+        if "--resume_from_checkpoint" in python_command:
             # Replace existing checkpoint parameter
-            resume_command = re.sub(
+            resume_python_command = re.sub(
                 r'--resume_from_checkpoint\s+\S+',
                 f'--resume_from_checkpoint {checkpoint_path}',
-                original_command
-            )        
+                python_command
+            )
+        else:
+            # Add the checkpoint parameter
+            resume_python_command = f"{python_command} --resume_from_checkpoint {checkpoint_path}"
+        
+        # Replace the python part in the command_parts
+        command_parts[python_part_index] = resume_python_command
+        
+        # Rejoin the command parts
+        resume_command = ' && '.join(command_parts)        
         # Call launch_remote to create and launch the new job
         launch_result = await launch_remote(
             request=request,
