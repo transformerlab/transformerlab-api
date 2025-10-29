@@ -6,6 +6,15 @@ from lab.dirs import get_jobs_dir
 
 def seed_default_experiments():
     """Create a few default experiments if they do not exist (filesystem-backed)."""
+    # Only seed default experiments if there are no experiments at all
+    try:
+        existing_experiments = Experiment.get_all()
+        if len(existing_experiments) > 0:
+            return
+    except Exception as e:
+        print(f"Error getting existing experiments: {e}, will seed default experiments")
+        pass
+    
     for name in ["alpha", "beta", "gamma"]:
         try:
             exp = Experiment(name, create_new=True)
