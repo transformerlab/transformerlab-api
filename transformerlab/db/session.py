@@ -78,24 +78,11 @@ async def init():
 
     print("✅ Database initialized")
 
-    await create_default_experiments()
     # Run migrations
     await migrate_workflows_non_preserving()
     # await init_sql_model()
 
     return
-
-
-async def create_default_experiments():
-    workspace_dir = get_workspace_dir()
-    experiments_dir = os.path.join(workspace_dir, "experiments")
-    os.makedirs(experiments_dir, exist_ok=True)
-
-    for experiment in ["alpha", "beta", "gamma"]:
-        experiment_path = os.path.join(experiments_dir, experiment)
-        if not os.path.exists(experiment_path):
-            os.makedirs(experiment_path)
-            print(f"Created default experiement: {experiment}")
 
 
 async def migrate_workflows_non_preserving():

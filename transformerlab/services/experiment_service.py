@@ -24,10 +24,11 @@ def experiment_create(name: str, config: dict) -> str:
 
 
 def experiment_get(id):
-    try:
-        if not id or id == "undefined":
-            id = "alpha"
+    if not id or id == "undefined":
+        print(f"Invalid experiment ID provided: {id}")
+        return None
 
+    try:
         exp = Experiment.get(id)
         data = exp.get_json_data()
         # Parse config field from JSON string to dict if needed
@@ -40,9 +41,13 @@ def experiment_get(id):
         return data
     except Exception as e:
         print(f"Error getting experiment {id}: {e}")
+        return None
 
 
 def experiment_delete(id):
+    if not id or id == "undefined":
+        print(f"Invalid experiment ID provided: {id}")
+        return
     try:
         exp = Experiment.get(id)
         exp.delete()
@@ -51,6 +56,9 @@ def experiment_delete(id):
 
 
 def experiment_update(id, config):
+    if not id or id == "undefined":
+        print(f"Invalid experiment ID provided: {id}")
+        return
     try:
         exp = Experiment.get(id)
         exp.update_config(config)
@@ -59,6 +67,9 @@ def experiment_update(id, config):
 
 
 def experiment_update_config(id, key, value):
+    if not id or id == "undefined":
+        print(f"Invalid experiment ID provided: {id}")
+        return
     try:
         exp = Experiment.get(id)
         exp.update_config_field(key, value)
@@ -67,6 +78,9 @@ def experiment_update_config(id, key, value):
 
 
 def experiment_save_prompt_template(id, template):
+    if not id or id == "undefined":
+        print(f"Invalid experiment ID provided: {id}")
+        return
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config_field("prompt_template", template)
@@ -75,6 +89,9 @@ def experiment_save_prompt_template(id, template):
 
 
 def experiment_update_configs(id, updates: dict):
+    if not id or id == "undefined":
+        print(f"Invalid experiment ID provided: {id}")
+        return
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config(updates)
