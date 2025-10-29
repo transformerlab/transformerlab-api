@@ -49,6 +49,7 @@ async def list_prompts():
 
     batched_prompts = []
     from lab.dirs import get_batched_prompts_dir
+
     batched_prompts_dir = get_batched_prompts_dir()
     for file in os.listdir(batched_prompts_dir):
         if file.endswith(".json"):
@@ -72,6 +73,7 @@ async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list
     name = secure_filename(name)
     slug = slugify(name)
     from lab.dirs import get_batched_prompts_dir
+
     prompts_dir = get_batched_prompts_dir()
     prompt_file = os.path.join(prompts_dir, f"{slug}.json")
 
@@ -88,6 +90,7 @@ async def delete_prompt(prompt_id: str):
 
     prompt_id = secure_filename(prompt_id)
     from lab.dirs import get_batched_prompts_dir
+
     prompts_dir = get_batched_prompts_dir()
     prompt_file = os.path.join(prompts_dir, f"{prompt_id}.json")
 
@@ -141,7 +144,7 @@ async def batch_audio_speech(request: BatchAudioRequest):
             "model": request.model,
             "adaptor": request.adaptor,
             "text": text,
-            "file_prefix": f"{request.file_prefix}_{idx+1:03d}",
+            "file_prefix": f"{request.file_prefix}_{idx + 1:03d}",
             "sample_rate": request.sample_rate,
             "temperature": request.temperature,
             "speed": request.speed,

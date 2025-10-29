@@ -79,6 +79,7 @@ def run_evaluation():
 
         if tlab_evals.params.model_adapter and tlab_evals.params.model_adapter.strip() != "":
             from transformerlab.plugin import WORKSPACE_DIR
+
             adapter_path = os.path.join(
                 WORKSPACE_DIR,
                 "adaptors",
@@ -105,6 +106,7 @@ def run_evaluation():
 
         if tlab_evals.params.model_adapter and tlab_evals.params.model_adapter.strip() != "":
             from transformerlab.plugin import WORKSPACE_DIR
+
             adapter_path = os.path.join(
                 WORKSPACE_DIR,
                 "adaptors",

@@ -20,7 +20,6 @@ import time
 import requests
 
 
-
 worker_id = str(uuid.uuid4())[:8]
 
 OLLAMA_STARTUP_TIMEOUT = 180  # seconds
@@ -43,8 +42,7 @@ if os.path.exists(args.model_path):
     model_path = args.model_path
 else:
     raise FileNotFoundError(
-        f"The specified GGUF model '{args.model_path}' was not found."
-        "Please select a valid GGUF model file to proceed."
+        f"The specified GGUF model '{args.model_path}' was not found.Please select a valid GGUF model file to proceed."
     )
 
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
@@ -180,15 +178,20 @@ if model_architecture:
 
 
 proxy_args = [
-    python_executable, 
-    "-m", 
+    python_executable,
+    "-m",
     "fastchat.serve.openai_api_proxy_worker",
-    "--model-path", model_path,
-    "--proxy-url", f"http://localhost:{port}/v1",
-   "--model", ollama_model_name,
-    "--context-len", str(context_len),
-    "--image-payload-encoding", "base64",
-    ]
+    "--model-path",
+    model_path,
+    "--proxy-url",
+    f"http://localhost:{port}/v1",
+    "--model",
+    ollama_model_name,
+    "--context-len",
+    str(context_len),
+    "--image-payload-encoding",
+    "base64",
+]
 
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 

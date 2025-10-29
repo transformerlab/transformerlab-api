@@ -12,22 +12,31 @@ except ImportError or ModuleNotFoundError:
 
 tlab_exporter.add_argument("--q_bits", default="4", type=str, help="Bits per weight for quantization.")
 
+
 @tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
 def mlx_export():
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
     python_executable = get_python_executable(plugin_dir)
 
     command = [
-        python_executable, "-u", "-m", "mlx_lm", "convert",
-        "--hf-path", tlab_exporter.params.get("model_name"),
-        "--mlx-path", tlab_exporter.params.get("output_dir"),
-        "-q", "--q-bits", str(tlab_exporter.params.get("q_bits")),
+        python_executable,
+        "-u",
+        "-m",
+        "mlx_lm",
+        "convert",
+        "--hf-path",
+        tlab_exporter.params.get("model_name"),
+        "--mlx-path",
+        tlab_exporter.params.get("output_dir"),
+        "-q",
+        "--q-bits",
+        str(tlab_exporter.params.get("q_bits")),
     ]
 
     print("Starting MLX conversion...")
     print(f"Running command: {' '.join(command)}")
     tlab_exporter.add_job_data("command", " ".join(command))
-    
+
     tlab_exporter.progress_update(5)
     tlab_exporter.add_job_data("status", "Starting MLX conversion")
 
@@ -38,9 +47,8 @@ def mlx_export():
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
-            bufsize=1
+            bufsize=1,
         ) as process:
-
             all_output_lines = []
             progress_value = 5
 
@@ -48,7 +56,7 @@ def mlx_export():
                 line = line.strip()
                 all_output_lines.append(line)
                 print(line, flush=True)
-                
+
                 # Determining progress based on MLX export command output
                 # WARNING: If output from MLX command changes, this will need to be updated
                 if "Loading" in line:
@@ -90,5 +98,5 @@ def mlx_export():
 
     return "Successful export to MLX format"
 
-  
+
 mlx_export()

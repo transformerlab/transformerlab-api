@@ -5,6 +5,7 @@ import contextlib
 import io
 
 from huggingface_hub import snapshot_download
+
 try:
     from transformerlab.sdk.v1.export import tlab_exporter
     from transformerlab.plugin import get_python_executable
@@ -12,9 +13,11 @@ except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
-    
+
 tlab_exporter.add_argument("--output_model_id", type=str, help="Filename for the GGUF model.")
-tlab_exporter.add_argument("--outtype", default="q8_0", type=str, help="GGUF output format. q8_0 quantizes the model to 8 bits.")
+tlab_exporter.add_argument(
+    "--outtype", default="q8_0", type=str, help="GGUF output format. q8_0 quantizes the model to 8 bits."
+)
 
 
 @tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
@@ -43,8 +46,11 @@ def gguf_export():
             model_path = snapshot_download(
                 repo_id=input_model,
                 allow_patterns=[
-                    "*.json", "*.safetensors", "*.py",
-                    "tokenizer.model", "*.tiktoken",
+                    "*.json",
+                    "*.safetensors",
+                    "*.py",
+                    "tokenizer.model",
+                    "*.tiktoken",
                 ],
             )
 
@@ -54,15 +60,17 @@ def gguf_export():
     command = [
         python_executable,
         os.path.join(plugin_dir, "llama.cpp", "convert_hf_to_gguf.py"),
-        "--outfile", output_dir,
-        "--outtype", outtype,
+        "--outfile",
+        output_dir,
+        "--outtype",
+        outtype,
         model_path,
     ]
 
     print(f"Running command to convert model to GGUF format: {' '.join(command)}")
     tlab_exporter.add_job_data("command", " ".join(command))
     tlab_exporter.progress_update(10)
-    
+
     try:
         with subprocess.Popen(
             command,
@@ -72,7 +80,6 @@ def gguf_export():
             universal_newlines=True,
             bufsize=1,
         ) as process:
-
             output_lines = []
             progress_value = 10
 
@@ -84,6 +91,7 @@ def gguf_export():
                 # Detect writing progress
                 if line.startswith("Writing:"):
                     import re
+
                     match = re.search(r"(\d+)%\|", line)
                     if match:
                         writing_percent = int(match.group(1))
@@ -113,5 +121,5 @@ def gguf_export():
 
     return "Successful export to GGUF format"
 
-  
+
 gguf_export()

@@ -75,7 +75,7 @@ async def workflow_delete(workflow_id: str, experimentId: str):
 
 
 @router.get("/create", summary="Create a workflow from config")
-async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: str = 'alpha'):
+async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: str = "alpha"):
     config = json.loads(config)
 
     # Check if a START node already exists
@@ -93,7 +93,7 @@ async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experime
 
 
 @router.get("/create_empty", summary="Create an empty workflow")
-async def workflow_create_empty(name: str, experimentId: str = 'alpha'):
+async def workflow_create_empty(name: str, experimentId: str = "alpha"):
     name = slugify(name)
     # Check if workflow name already exists in this experiment
     existing_workflows = await workflows_get_from_experiment(experimentId)
@@ -337,7 +337,7 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: str):
 
 
 @router.post("/import_from_yaml", summary="Import a workflow definition from YAML")
-async def workflow_import_from_yaml(file: UploadFile, experimentId: str = 'alpha'):
+async def workflow_import_from_yaml(file: UploadFile, experimentId: str = "alpha"):
     with open(file.filename, "r") as fileStream:
         workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
     await workflow_create(workflow["name"], json.dumps(workflow["config"]), experimentId)

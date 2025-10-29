@@ -26,8 +26,7 @@ def quantize(weights, config, args):
         model,
         args.q_group_size,
         args.q_bits,
-        linear_class_predicate=lambda m: isinstance(m, nn.Linear)
-        and m.weight.shape[0] != 8,
+        linear_class_predicate=lambda m: isinstance(m, nn.Linear) and m.weight.shape[0] != 8,
     )
 
     # Update the config:
@@ -41,9 +40,7 @@ def quantize(weights, config, args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Convert Hugging Face model to MLX format"
-    )
+    parser = argparse.ArgumentParser(description="Convert Hugging Face model to MLX format")
     parser.add_argument(
         "--hf-path",
         type=str,
