@@ -9,7 +9,8 @@ def experiment_get_all():
     experiments = []
     experiments_dir = lab_dirs.get_experiments_dir()
     if os.path.exists(experiments_dir):
-        for exp_dir in os.listdir(experiments_dir):
+        exp_dirs = sorted(os.listdir(experiments_dir))
+        for exp_dir in exp_dirs:
             exp_path = os.path.join(experiments_dir, exp_dir)
             if os.path.isdir(exp_path):
                 exp_dict = experiment_get(exp_dir)
