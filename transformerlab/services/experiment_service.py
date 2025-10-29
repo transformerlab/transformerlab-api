@@ -24,10 +24,6 @@ def experiment_create(name: str, config: dict) -> str:
 
 
 def experiment_get(id):
-    if not id or id == "undefined":
-        print(f"Invalid experiment ID provided: {id}")
-        return None
-
     try:
         exp = Experiment.get(id)
         data = exp.get_json_data()
@@ -39,6 +35,9 @@ def experiment_get(id):
             except json.JSONDecodeError:
                 data["config"] = {}
         return data
+    except FileNotFoundError:
+        print(f"Experiment with id '{id}' not found")
+        return None
     except Exception as e:
         print(f"Error getting experiment {id}: {e}")
         return None
