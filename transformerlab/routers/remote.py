@@ -2,7 +2,7 @@ import os
 import httpx
 import json
 import re
-from fastapi import APIRouter, Form, Request, File, UploadFile
+from fastapi import APIRouter, Form, Request, File, UploadFile, HTTPException
 from typing import Optional, List
 from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
@@ -591,39 +591,39 @@ async def resume_from_checkpoint(
         experimentId = body.get("experimentId")
         
         if not checkpoint_name:
-            return {"status": "error", "message": "checkpoint_name is required"}
+            raise HTTPException(status_code=400, detail="checkpoint_name is required")
         if not experimentId:
-            return {"status": "error", "message": "experimentId is required"}
+            raise HTTPException(status_code=400, detail="experimentId is required")
         
         # Get the original job
         original_job = job_service.job_get(job_id)
         if not original_job:
-            return {"status": "error", "message": f"Job {job_id} not found"}
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
         
         original_job_data = original_job.get("job_data", {})
         
         # Get the launch_config from the original job
         launch_config_str = original_job_data.get("launch_config")
         if not launch_config_str:
-            return {"status": "error", "message": "launch_config not found in original job"}
+            raise HTTPException(status_code=400, detail="launch_config not found in original job")
         
         # Parse the launch_config JSON string
         try:
             launch_config = json.loads(launch_config_str)
         except json.JSONDecodeError:
-            return {"status": "error", "message": "Invalid launch_config format"}
+            raise HTTPException(status_code=400, detail="Invalid launch_config format")
         
         # Get the checkpoint directory path
         checkpoints_dir = get_job_checkpoints_dir(job_id)
         checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
         
         if not os.path.exists(checkpoint_path):
-            return {"status": "error", "message": f"Checkpoint {checkpoint_name} not found at {checkpoint_path}"}
+            raise HTTPException(status_code=404, detail=f"Checkpoint {checkpoint_name} not found at {checkpoint_path}")
         
         # Modify the command to include the checkpoint parameter
         original_command = launch_config.get("command", "")
         if not original_command:
-            return {"status": "error", "message": "Original command not found in launch_config"}
+            raise HTTPException(status_code=400, detail="Original command not found in launch_config")
         
         # Parse the command to find the python execution part and add --resume_from_checkpoint
         command_parts = original_command.split(' && ')
@@ -634,7 +634,7 @@ async def resume_from_checkpoint(
                 break
         
         if python_part_index is None:
-            return {"status": "error", "message": "Could not find python execution command in original command"}
+            raise HTTPException(status_code=400, detail="Could not find python execution command in original command")
         
         # Modify the python part to include --resume_from_checkpoint
         python_command = command_parts[python_part_index].strip()
@@ -684,10 +684,7 @@ async def resume_from_checkpoint(
                 "data": launch_result
             }
         else:
-            return {
-                "status": "error",
-                "message": f"Failed to launch remote job: {launch_result.get('message')}",
-            }
+            raise HTTPException(status_code=500, detail=f"Failed to launch remote job: {launch_result.get('message')}")
 
     except Exception as e:
         print(f"Error checking remote job status: {str(e)}")
