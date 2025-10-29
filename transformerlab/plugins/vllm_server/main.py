@@ -6,6 +6,8 @@ import sys
 import time
 import requests
 import torch
+import site
+import shutil
 
 from fastchat.constants import TEMP_IMAGE_DIR
 
@@ -14,6 +16,29 @@ try:
     from transformerlab.plugin import get_python_executable, register_process
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
+
+
+def inject_ninja_into_path():
+    venv_bin = os.path.join(sys.prefix, "bin")
+    user_bin = os.path.join(site.USER_BASE, "bin")
+
+    candidate_paths = [
+        os.path.join(venv_bin, "ninja"),
+        os.path.join(user_bin, "ninja"),
+        shutil.which("ninja"),
+    ]
+
+    for path in candidate_paths:
+        if path and os.path.isfile(path):
+            ninja_dir = os.path.dirname(path)
+            os.environ["PATH"] = ninja_dir + os.pathsep + os.environ["PATH"]
+            print(f"[bootstrap] Injected ninja into PATH: {ninja_dir}")
+            return
+
+    print("[bootstrap] ERROR: ninja binary not found in venv or user path", file=sys.stderr)
+
+
+inject_ninja_into_path()
 
 
 parser = argparse.ArgumentParser()
@@ -42,6 +67,11 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 python_executable = get_python_executable(real_plugin_dir)
 
 port = int(parameters.get("port", 8000))
+max_model_len = int(parameters.get("max_model_len", 0))
+if max_model_len <= 0:
+    max_model_len = None
+else:
+    max_model_len = str(max_model_len)
 print("Starting vLLM server...", file=sys.stderr)
 
 os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
@@ -63,6 +93,10 @@ vllm_args = [
     "--allowed-local-media-path",
     str(TEMP_IMAGE_DIR),
 ]
+
+# Add max model length if provided
+if max_model_len is not None:
+    vllm_args.extend(["--max-model-len", max_model_len])
 
 # Add tensor parallel size if multiple GPUs are available
 num_gpus = torch.cuda.device_count()
