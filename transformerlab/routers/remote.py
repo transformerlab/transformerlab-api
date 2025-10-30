@@ -677,4 +677,4 @@ async def resume_from_checkpoint(
 
     except Exception as e:
         print(f"Error checking remote job status: {str(e)}")
-        return {"status": "error", "message": "Error checking remote job status"}
+        return {"status": "error", "message": f"Error checking remote job status: {str(e)}"}
