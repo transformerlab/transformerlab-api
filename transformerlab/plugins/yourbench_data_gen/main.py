@@ -18,8 +18,10 @@ def generate_config():
     print("Model loaded successfully")
     tlab_gen.progress_update(30)
 
+    from transformerlab.plugin import WORKSPACE_DIR
+
     tlab_gen.params.documents_dir = os.path.join(
-        os.environ.get("_TFL_WORKSPACE_DIR"), "experiments", tlab_gen.params.experiment_name, "documents", docs
+        WORKSPACE_DIR, "experiments", tlab_gen.params.experiment_name, "documents", docs
     )
     if not os.path.isdir(tlab_gen.params.documents_dir):
         raise FileNotFoundError("Please provide a directory containing all your files instead of individual files")
@@ -142,7 +144,9 @@ def run_yourbench():
     tlab_gen.progress_update(30)
 
     # Get the yourbench directory path
-    current_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "plugins", "yourbench_data_gen")
+    from transformerlab.plugin import WORKSPACE_DIR
+
+    current_dir = os.path.join(WORKSPACE_DIR, "plugins", "yourbench_data_gen")
 
     # Run yourbench with the configuration
     try:

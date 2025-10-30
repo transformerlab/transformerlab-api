@@ -4,6 +4,7 @@ import pytest
 
 from transformerlab.plugin_sdk.transformerlab import plugin
 
+
 def test_register_process_single_and_multiple_pids():
     original_env = os.environ.get("LLM_LAB_ROOT_PATH")
 
@@ -34,4 +35,4 @@ def test_register_process_single_and_multiple_pids():
             plugin.register_process(1)
     finally:
         if original_env is not None:
-            os.environ["LLM_LAB_ROOT_PATH"] = original_env 
+            os.environ["LLM_LAB_ROOT_PATH"] = original_env

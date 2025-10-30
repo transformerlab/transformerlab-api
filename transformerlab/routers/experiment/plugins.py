@@ -7,10 +7,11 @@ from typing import Annotated
 from fastapi import APIRouter, Body
 import httpx
 
-from transformerlab.db.db import experiment_get, save_plugin
+from transformerlab.db.db import save_plugin
+from transformerlab.services.experiment_service import experiment_get
 
-from transformerlab.shared import shared
-from transformerlab.shared import dirs
+from transformerlab.shared import shared, dirs
+from lab import dirs as lab_dirs
 
 from werkzeug.utils import secure_filename
 
@@ -21,10 +22,10 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 
 
 @router.get("/list")
-async def experiment_list_scripts(id: int, type: str = None, filter: str = None):
+async def experiment_list_scripts(id: str, type: str = None, filter: str = None):
     """List all the scripts in the experiment"""
     # first get the experiment name:
-    data = await experiment_get(id)
+    data = experiment_get(id)
 
     # if the experiment does not exist, return an error:
     if data is None:
@@ -43,7 +44,14 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
 
     # print(f"Filtering by {filter_key} with value {filter_value}")
 
-    scripts_dir = dirs.PLUGIN_DIR
+    from lab.dirs import get_plugin_dir
+
+    scripts_dir = get_plugin_dir()
+
+    # Return empty if multitenant mode is enabled as we don't need plugins in this mode.
+    # TODO: Optimize this later on with similar index as jobs.json
+    if os.getenv("TFL_MULTITENANT") == "true":
+        return []
 
     # now get a list of all the directories in the scripts directory:
     scripts_full_json = []
@@ -141,7 +149,7 @@ async def plugin_download(id: int, plugin_slug: str):
         response = await client.get(url + file)
         file_contents = response.text
         # Save each file to workspace/plugins/<plugin_slug>/<file>
-        p = dirs.plugin_dir_by_name(plugin_slug)
+        p = lab_dirs.plugin_dir_by_name(plugin_slug)
         os.makedirs(p, mode=0o755, exist_ok=True)
         with open(f"{p}/{file}", "w") as f:
             f.write(file_contents)
@@ -168,7 +176,7 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
 
     filename = secure_filename(filename)
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -185,7 +193,7 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = dirs.plugin_dir_by_name(pluginId)
+    script_path = lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -205,7 +213,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 
     filename = secure_filename(filename)
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -219,7 +227,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
         return {"message": f"File extension {file_ext} for {filename} not supported"}
 
     # The following prevents path traversal attacks:
-    plugin_dir = dirs.plugin_dir_by_name((pluginId))
+    plugin_dir = lab_dirs.plugin_dir_by_name((pluginId))
     final_path = Path(plugin_dir).joinpath(filename + file_ext).resolve().relative_to(plugin_dir)
 
     final_path = plugin_dir + "/" + str(final_path)
@@ -238,13 +246,13 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 async def plugin_list_files(id: str, pluginId: str):
     global allowed_extensions
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
 
     # experiment_name = data["name"]
-    scripts_dir = dirs.plugin_dir_by_name(pluginId)
+    scripts_dir = lab_dirs.plugin_dir_by_name(pluginId)
 
     # check if directory exists:
     if not os.path.exists(scripts_dir):
@@ -266,7 +274,7 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
 
     filename = secure_filename(filename)
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -286,7 +294,7 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = dirs.plugin_dir_by_name(pluginId)
+    script_path = lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -306,7 +314,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
 
     filename = secure_filename(filename)
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -326,7 +334,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = dirs.plugin_dir_by_name(pluginId)
+    script_path = lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -342,7 +350,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
 async def plugin_new_plugin_directory(id: str, pluginId: str):
     global allowed_extensions
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -352,7 +360,7 @@ async def plugin_new_plugin_directory(id: str, pluginId: str):
     # clean the file name:
     pluginId = shared.slugify(value=pluginId)
 
-    script_path = dirs.plugin_dir_by_name(pluginId)
+    script_path = lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):

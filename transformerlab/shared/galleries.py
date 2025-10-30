@@ -15,11 +15,14 @@ MODEL_GALLERY_FILE = "model-gallery.json"
 DATA_GALLERY_FILE = "dataset-gallery.json"
 MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
 EXP_RECIPES_GALLERY_FILE = "exp-recipe-gallery.json"
+# Tasks gallery main file
+TASKS_GALLERY_FILE = "task-gallery.json"
 GALLERY_FILES = [
     MODEL_GALLERY_FILE,
     DATA_GALLERY_FILE,
     MODEL_GROUP_GALLERY_FILE,
     EXP_RECIPES_GALLERY_FILE,
+    TASKS_GALLERY_FILE,
 ]
 
 TLAB_REMOTE_GALLERIES_URL = "https://raw.githubusercontent.com/transformerlab/galleries/main/"
@@ -51,13 +54,19 @@ def get_exp_recipe_gallery():
     return get_gallery_file(EXP_RECIPES_GALLERY_FILE)
 
 
+def get_tasks_gallery():
+    return get_gallery_file(TASKS_GALLERY_FILE)
+
+
 ######################
 # INTERNAL SUBROUTINES
 ######################
 
 
 def gallery_cache_file_path(filename: str):
-    return os.path.join(dirs.GALLERIES_CACHE_DIR, filename)
+    from lab.dirs import get_galleries_cache_dir
+
+    return os.path.join(get_galleries_cache_dir(), filename)
 
 
 def update_gallery_cache_file(filename: str):

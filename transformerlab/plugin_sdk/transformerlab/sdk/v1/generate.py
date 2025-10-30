@@ -167,7 +167,8 @@ class GenTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
-        workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
+        from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
+
         experiment_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name)
         dataset_dir = os.path.join(experiment_dir, "datasets")
 

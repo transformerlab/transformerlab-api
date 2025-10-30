@@ -14,7 +14,8 @@ from huggingface_hub import snapshot_download
 @tlab_gen.job_wrapper()
 def run_generation():
     # ----- Constants -----
-    workspace = os.environ["_TFL_WORKSPACE_DIR"]
+    from transformerlab.plugin import WORKSPACE_DIR as workspace
+
     REPO_ROOT = f"{workspace}/plugins/wd14_captioner/sd-caption-wd14/sd-scripts"
     SCRIPT_PATH = f"{workspace}/plugins/wd14_captioner/sd-caption-wd14/sd-scripts/finetune/tag_images_by_wd14_tagger.py"
     TMP_DATASET_DIR = Path(f"{workspace}/plugins/wd14_captioner/tmp_dataset")
@@ -127,7 +128,9 @@ def run_generation():
     dataset_id = tlab_gen.params.get("output_dataset_name")
     print(f"Saving generated dataset with ID: {dataset_id}")
     output_path, dataset_name = tlab_gen.save_generated_dataset(df_output, is_image=True, dataset_id=dataset_id)
-    output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "datasets", dataset_id)
+    from transformerlab.plugin import WORKSPACE_DIR
+
+    output_dir = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
     for src, dst in zip(local_paths, df_output["file_name"]):
         final_dst = os.path.join(output_dir, dst)
         shutil.copy2(src, final_dst)

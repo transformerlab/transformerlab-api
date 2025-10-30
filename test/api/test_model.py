@@ -92,7 +92,7 @@ def test_install_peft_success(client):
         patch("json.load", return_value={"architectures": "MockArch", "model_type": "MockType"}),
         patch("huggingface_hub.HfApi.model_info", return_value=make_mock_adapter_info()),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
-        patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
+        patch("transformerlab.routers.model.job_service.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
@@ -138,7 +138,7 @@ def test_install_peft_architecture_detection_unknown(client):
         patch("json.load", return_value={"architectures": "A", "model_type": "B"}),
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
-        patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
+        patch("transformerlab.routers.model.job_service.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
@@ -156,7 +156,7 @@ def test_install_peft_unknown_field_status(client):
         patch("json.load", return_value={}),
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
-        patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
+        patch("transformerlab.routers.model.job_service.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
@@ -192,3 +192,22 @@ def test_chat_template_invalid_model(client):
         assert data["status"] == "error"
         assert "Invalid model name" in data["message"]
         assert data["data"] is None
+
+
+def test_logout_from_huggingface_success(client):
+    """Test successful logout from Hugging Face"""
+    with (
+        patch("huggingface_hub.logout") as mock_logout,
+        patch("os.path.exists", return_value=True),
+        patch("os.remove") as mock_remove,
+    ):
+        response = client.get("/model/logout_from_huggingface")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["message"] == "OK"
+
+        # Verify logout was called
+        mock_logout.assert_called_once()
+        # Verify token file removal was attempted
+        mock_remove.assert_called_once()

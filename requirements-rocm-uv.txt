@@ -27,10 +27,6 @@ anyio==4.9.0
     #   sse-starlette
     #   starlette
     #   watchfiles
-argon2-cffi==23.1.0
-    # via pwdlib
-argon2-cffi-bindings==21.2.0
-    # via argon2-cffi
 attrs==25.3.0
     # via aiohttp
 audioread==3.0.1
@@ -43,8 +39,6 @@ azure-core==1.33.0
     #   azure-identity
 azure-identity==1.21.0
     # via markitdown
-bcrypt==4.3.0
-    # via pwdlib
 beautifulsoup4==4.13.4
     # via
     #   markdownify
@@ -57,7 +51,6 @@ certifi==2022.12.7
     #   sentry-sdk
 cffi==1.17.1
     # via
-    #   argon2-cffi-bindings
     #   cryptography
     #   soundfile
 charset-normalizer==2.1.1
@@ -84,6 +77,7 @@ cryptography==44.0.2
     #   msal
     #   pdfminer-six
     #   pyjwt
+    #   workos
 datasets==3.6.0
     # via
     #   -r requirements-rocm.in
@@ -99,16 +93,12 @@ dill==0.3.8
     #   datasets
     #   evaluate
     #   multiprocess
-dnspython==2.7.0
-    # via email-validator
 docker-pycreds==0.4.0
     # via wandb
 einops==0.8.1
     # via
     #   -r requirements-rocm.in
     #   controlnet-aux
-email-validator==2.2.0
-    # via fastapi-users
 et-xmlfile==2.0.0
     # via openpyxl
 evaluate==0.4.3
@@ -116,14 +106,7 @@ evaluate==0.4.3
 fastapi==0.115.12
     # via
     #   -r requirements-rocm.in
-    #   fastapi-users
     #   transformerlab-inference
-fastapi-users==14.0.1
-    # via
-    #   -r requirements-rocm.in
-    #   fastapi-users-db-sqlalchemy
-fastapi-users-db-sqlalchemy==7.0.0
-    # via fastapi-users
 filelock==3.13.1
     # via
     #   controlnet-aux
@@ -166,6 +149,7 @@ httpx==0.28.1
     # via
     #   mcp
     #   transformerlab-inference
+    #   workos
 httpx-sse==0.4.0
     # via mcp
 huggingface-hub==0.34.3
@@ -185,7 +169,6 @@ humanfriendly==10.0
 idna==3.4
     # via
     #   anyio
-    #   email-validator
     #   httpx
     #   requests
     #   yarl
@@ -195,6 +178,8 @@ importlib-metadata==7.1.0
     # via
     #   controlnet-aux
     #   diffusers
+iniconfig==2.1.0
+    # via pytest
 isodate==0.7.2
     # via azure-ai-documentintelligence
 jinja2==3.1.4
@@ -220,8 +205,6 @@ macmon-python==0.1.2
     # via -r requirements-rocm.in
 magika==0.6.1
     # via markitdown
-makefun==1.16.0
-    # via fastapi-users
 mammoth==1.9.0
     # via markitdown
 markdown==3.8
@@ -317,6 +300,7 @@ packaging==24.1
     #   onnxruntime
     #   peft
     #   pooch
+    #   pytest
     #   scikit-image
     #   tensorboard
     #   tensorboardx
@@ -343,6 +327,8 @@ platformdirs==4.3.7
     # via
     #   pooch
     #   wandb
+pluggy==1.6.0
+    # via pytest
 pooch==1.8.2
     # via librosa
 prompt-toolkit==3.0.51
@@ -364,8 +350,6 @@ psutil==7.0.0
     #   peft
     #   transformerlab-inference
     #   wandb
-pwdlib==0.2.1
-    # via fastapi-users
 pyarrow==20.0.0
     # via datasets
 pycparser==2.22
@@ -379,6 +363,7 @@ pydantic==2.11.7
     #   pydantic-settings
     #   transformerlab-inference
     #   wandb
+    #   workos
 pydantic-core==2.33.2
     # via pydantic
 pydantic-settings==2.9.1
@@ -390,13 +375,16 @@ pydub==0.25.1
 pygments==2.19.1
     # via
     #   markdown2
+    #   pytest
     #   rich
 pyjwt==2.10.1
     # via
-    #   fastapi-users
     #   msal
+    #   workos
 pyrsmi==0.2.0
     # via -r requirements-rocm.in
+pytest==8.4.2
+    # via transformerlab
 python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.1.0
@@ -408,7 +396,6 @@ python-dotenv==1.1.0
 python-multipart==0.0.20
     # via
     #   -r requirements-rocm.in
-    #   fastapi-users
     #   mcp
 python-pptx==1.0.2
     # via markitdown
@@ -512,9 +499,7 @@ soxr==0.5.0.post1
 speechrecognition==3.14.2
     # via markitdown
 sqlalchemy==2.0.40
-    # via
-    #   -r requirements-rocm.in
-    #   fastapi-users-db-sqlalchemy
+    # via -r requirements-rocm.in
 sse-starlette==2.3.5
     # via mcp
 starlette==0.46.2
@@ -546,7 +531,7 @@ timm==1.0.15
     # via
     #   -r requirements-rocm.in
     #   controlnet-aux
-tokenizers==0.21.1
+tokenizers==0.22.1
     # via transformers
 torch==2.8.0
     # via
@@ -574,9 +559,13 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformerlab-inference==0.2.48
+transformerlab==0.0.39
+    # via
+    #   -r requirements-rocm.in
+    #   transformerlab-inference
+transformerlab-inference==0.2.51
     # via -r requirements-rocm.in
-transformers==4.55.2
+transformers==4.57.1
     # via
     #   -r requirements-rocm.in
     #   peft
@@ -630,6 +619,9 @@ werkzeug==3.1.3
     # via
     #   -r requirements-rocm.in
     #   tensorboard
+    #   transformerlab
+workos==5.28.0
+    # via -r requirements-rocm.in
 xlrd==2.0.1
     # via markitdown
 xlsxwriter==3.2.3

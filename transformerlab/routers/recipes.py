@@ -1,12 +1,13 @@
 from fastapi import APIRouter, BackgroundTasks
-from transformerlab.db.datasets import get_datasets
+from lab import Dataset
 from transformerlab.shared import galleries
-import transformerlab.db.db as db
-import transformerlab.db.jobs as db_jobs
+import transformerlab.services.job_service as job_service
+from transformerlab.services.tasks_service import tasks_service
 from transformerlab.models import model_helper
 import json
 from transformerlab.routers.experiment import workflows
 from transformerlab.services.job_service import job_update_status
+import transformerlab.services.experiment_service as experiment_service
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -43,7 +44,7 @@ async def check_recipe_dependencies(id: str):
     # Get local models and datasets
     local_models = await model_helper.list_installed_models()
     local_model_names = set(model["model_id"] for model in local_models)
-    local_datasets = await get_datasets()
+    local_datasets = Dataset.list_all()
     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
 
     # Get installed plugins using the same logic as /plugins/gallery
@@ -76,7 +77,7 @@ async def _install_recipe_dependencies_job(job_id, id):
     from transformerlab.routers import plugins as plugins_router
 
     try:
-        job = await db_jobs.job_get(job_id)
+        job = job_service.job_get(job_id)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -94,7 +95,7 @@ async def _install_recipe_dependencies_job(job_id, id):
             await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return
 
-        local_datasets = await get_datasets()
+        local_datasets = Dataset.list_all()
         local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
         total = len(non_model_deps)
         progress = 0
@@ -125,8 +126,8 @@ async def _install_recipe_dependencies_job(job_id, id):
                 result["status"] = str(e)
             results.append(result)
             progress += 1
-            await db_jobs.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
-            await db_jobs.job_update_job_data_insert_key_value(job_id, "results", results, experiment_id)
+            job_service.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
+            job_service.job_update_job_data_insert_key_value(job_id, "results", results, experiment_id)
         await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
     except Exception as e:
         await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
@@ -154,7 +155,7 @@ async def install_recipe_model_dependencies(id: str):
             dep_name = dep.get("name")
             if dep_name not in local_model_names:
                 # Create a DOWNLOAD_MODEL job for this model
-                job_id = await db_jobs.job_create(
+                job_id = job_service.job_create(
                     type="DOWNLOAD_MODEL",
                     status="QUEUED",
                     job_data=json.dumps({"model_id": dep_name}),
@@ -193,7 +194,7 @@ async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks
         return model_result
 
     # Install other dependencies as a background job
-    job_id = await db_jobs.job_create(
+    job_id = job_service.job_create(
         type="INSTALL_RECIPE_DEPS",
         status="QUEUED",
         job_data=json.dumps({"recipe_id": id, "results": [], "progress": 0}),
@@ -231,7 +232,7 @@ async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks
 @router.get("/jobs/{job_id}/status")
 async def get_install_job_status(job_id: int):
     """Get the status and progress of a dependency installation job."""
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if not job:
         return {"error": f"Job {job_id} not found."}
     return {
@@ -249,11 +250,11 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     from transformerlab.routers.experiment import experiment as experiment_router
 
     # Check if experiment already exists
-    existing = await db.experiment_get_by_name(experiment_name)
+    existing = experiment_service.experiment_get(experiment_name)
     if existing:
         return {"status": "error", "message": f"Experiment '{experiment_name}' already exists.", "data": {}}
     # Create experiment with blank config
-    experiment_id = await db.experiment_create(name=experiment_name, config={})
+    experiment_id = experiment_service.experiment_create(name=experiment_name, config={})
 
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -436,14 +437,14 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                 # Get plugin name
                 plugin_name = parsed_config.get("plugin_name", "")
 
-                # Create task in database
-                await db.add_task(
+                # Create task in filesystem
+                tasks_service.add_task(
                     name=task_name,
-                    Type=task_type,
-                    inputs=json.dumps(inputs),
-                    config=json.dumps(parsed_config),
+                    task_type=task_type,
+                    inputs=inputs,
+                    config=parsed_config,
                     plugin=plugin_name,
-                    outputs=json.dumps(outputs),
+                    outputs=outputs,
                     experiment_id=experiment_id,
                 )
 
@@ -514,60 +515,3 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             "notes_result": notes_result,
         },
     }
-
-
-## OLDER CODE WITHOUT A JOB SYSTEM
-
-# @router.get("/{id}/install_dependencies")
-# async def install_recipe_dependencies(id: int):
-#     """Install model and dataset dependencies for a recipe."""
-#     from transformerlab.routers import model as model_router
-#     from transformerlab.routers import data as data_router
-
-#     # Get the recipe
-#     recipes_gallery = galleries.get_exp_recipe_gallery()
-#     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
-#     if not recipe:
-#         return {"error": f"Recipe with id {id} not found."}
-
-#     if len(recipe.get("dependencies", [])) == 0:
-#         return {"results": []}
-
-#     # Get local models and datasets
-#     local_models = await model_helper.list_installed_models()
-#     local_model_names = set(model["model_id"] for model in local_models)
-#     local_datasets = await get_datasets()
-#     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
-
-#     install_results = []
-#     for dep in recipe.get("dependencies", []):
-#         dep_type = dep.get("type")
-#         dep_name = dep.get("name")
-#         if dep_type == "workflow":
-#             # Skip workflow installation in this background job
-#             continue
-#         result = {"type": dep_type, "name": dep_name, "action": None, "status": None}
-#         if dep_type == "model":
-#             if dep_name not in local_model_names:
-#                 download_result = await model_router.download_model_by_huggingface_id(model=dep_name)
-#                 result["action"] = "download_model"
-#                 result["status"] = download_result.get("status", "unknown")
-#             else:
-#                 result["action"] = "already_installed"
-#                 result["status"] = "success"
-#         elif dep_type == "dataset":
-#             if dep_name not in local_dataset_ids:
-#                 download_result = await data_router.dataset_download(dataset_id=dep_name)
-#                 result["action"] = "download_dataset"
-#                 result["status"] = download_result.get("status", "unknown")
-#             else:
-#                 result["action"] = "already_installed"
-#                 result["status"] = "success"
-#         elif dep_type == "plugin":
-#             from transformerlab.routers import plugins as plugins_router
-
-#             install_result = await plugins_router.install_plugin(plugin_id=dep_name)
-#             result["action"] = "install_plugin"
-#             result["status"] = install_result.get("status", "unknown")
-#         install_results.append(result)
-#     return {"results": install_results}

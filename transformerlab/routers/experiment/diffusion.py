@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from huggingface_hub import model_info
 from fastapi.responses import FileResponse, JSONResponse
@@ -8,12 +8,12 @@ import json
 import uuid
 from typing import List
 import shutil
-from transformerlab.db.datasets import get_dataset, create_local_dataset, delete_dataset
-from transformerlab.db import db
+from transformerlab.services.dataset_service import create_local_dataset
 from transformerlab.models import model_helper
-from transformerlab.shared import dirs
+from lab import Dataset
+from lab.dirs import get_workspace_dir
 from transformerlab.shared.shared import slugify
-import transformerlab.db.jobs as db_jobs
+from transformerlab.services.job_service import job_create
 import logging
 
 
@@ -152,7 +152,9 @@ def _setup_diffusion_logger():
 
     # File handler
     try:
-        file_handler = logging.FileHandler(dirs.GLOBAL_LOG_PATH, encoding="utf-8")
+        from lab.dirs import get_global_log_path
+
+        file_handler = logging.FileHandler(get_global_log_path(), encoding="utf-8")
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     except Exception:
@@ -275,40 +277,34 @@ class CreateDatasetRequest(BaseModel):
 HISTORY_FILE = "history.json"
 
 
-async def get_experiment_name(experiment_id: int) -> str:
-    """Get experiment name from experiment ID"""
-    experiment_data = await db.experiment_get(experiment_id)
-    if experiment_data is None:
-        raise HTTPException(status_code=404, detail=f"Experiment {experiment_id} not found")
-    return experiment_data["name"]
-
-
-def get_diffusion_dir(experiment_name: str = None):
+def get_diffusion_dir(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the diffusion directory path"""
+    base = workspace_dir or get_workspace_dir()
+
     if experiment_name is not None:
         # New experiment-specific path
-        return os.path.join(os.environ.get("_TFL_WORKSPACE_DIR", ""), "experiments", experiment_name, "diffusion")
+        return os.path.join(base, "experiments", secure_filename(experiment_name), "diffusion")
     else:
         # Legacy global path for backward compatibility
-        return os.path.join(os.environ.get("_TFL_WORKSPACE_DIR", ""), "diffusion")
+        return os.path.join(base, "diffusion")
 
 
-def get_images_dir(experiment_name: str = None):
+def get_images_dir(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the images directory path"""
-    return os.path.join(get_diffusion_dir(experiment_name), "images")
+    return os.path.join(get_diffusion_dir(experiment_name, workspace_dir), "images")
 
 
-def get_history_file_path(experiment_name: str = None):
+def get_history_file_path(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the history file path"""
     # Create a history file in the diffusion directory if it doesn't exist
-    return os.path.join(get_diffusion_dir(experiment_name), HISTORY_FILE)
+    return os.path.join(get_diffusion_dir(experiment_name, workspace_dir), HISTORY_FILE)
 
 
-def ensure_directories(experiment_name: str = None):
+def ensure_directories(experiment_name: str = None, workspace_dir: str | None = None):
     """Ensure diffusion and images directories exist"""
-    diffusion_dir = get_diffusion_dir(experiment_name)
-    images_dir = get_images_dir(experiment_name)
-    history_file_path = get_history_file_path(experiment_name)
+    diffusion_dir = get_diffusion_dir(experiment_name, workspace_dir)
+    images_dir = get_images_dir(experiment_name, workspace_dir)
+    history_file_path = get_history_file_path(experiment_name, workspace_dir)
 
     os.makedirs(diffusion_dir, exist_ok=True)
     os.makedirs(images_dir, exist_ok=True)
@@ -318,14 +314,16 @@ def ensure_directories(experiment_name: str = None):
             pass
 
 
-def load_history(limit: int = 50, offset: int = 0, experiment_name: str = None) -> HistoryResponse:
+def load_history(
+    limit: int = 50, offset: int = 0, experiment_name: str = None, workspace_dir: str | None = None
+) -> HistoryResponse:
     """Load image generation history from both new and old paths for backward compatibility"""
     all_images = []
 
     # Load from new experiment-specific path if experiment info is provided
     if experiment_name is not None:
         try:
-            new_history_file = get_history_file_path(experiment_name)
+            new_history_file = get_history_file_path(experiment_name, workspace_dir)
             if os.path.exists(new_history_file):
                 with open(new_history_file, "r") as f:
                     new_history_data = json.load(f)
@@ -335,7 +333,7 @@ def load_history(limit: int = 50, offset: int = 0, experiment_name: str = None) 
 
     # Load from legacy global path for backward compatibility
     try:
-        legacy_history_file = get_history_file_path()  # No params = legacy path
+        legacy_history_file = get_history_file_path(None, workspace_dir)  # No experiment → legacy path
         if os.path.exists(legacy_history_file):
             with open(legacy_history_file, "r") as f:
                 legacy_history_data = json.load(f)
@@ -364,13 +362,15 @@ def load_history(limit: int = 50, offset: int = 0, experiment_name: str = None) 
     return HistoryResponse(images=items, total=total_items)
 
 
-def find_image_by_id(image_id: str, experiment_name: str = None) -> ImageHistoryItem | None:
+def find_image_by_id(
+    image_id: str, experiment_name: str = None, workspace_dir: str | None = None
+) -> ImageHistoryItem | None:
     """Find a specific image by ID without loading all history, searching both new and old paths"""
 
     # Search in new experiment-specific path first if experiment info is provided
     if experiment_name is not None:
         try:
-            new_history_file = get_history_file_path(experiment_name)
+            new_history_file = get_history_file_path(experiment_name, workspace_dir)
             if os.path.exists(new_history_file):
                 with open(new_history_file, "r") as f:
                     history = json.load(f)
@@ -382,7 +382,7 @@ def find_image_by_id(image_id: str, experiment_name: str = None) -> ImageHistory
 
     # Search in legacy global path for backward compatibility
     try:
-        legacy_history_file = get_history_file_path()  # No params = legacy path
+        legacy_history_file = get_history_file_path(None, workspace_dir)  # No experiment → legacy path
         if os.path.exists(legacy_history_file):
             with open(legacy_history_file, "r") as f:
                 history = json.load(f)
@@ -396,7 +396,7 @@ def find_image_by_id(image_id: str, experiment_name: str = None) -> ImageHistory
 
 
 @router.post("/generate", summary="Generate image with Stable Diffusion")
-async def generate_image(experimentId: int, request: DiffusionRequest):
+async def generate_image(experimentId: str, request: DiffusionRequest, http_request: Request):
     try:
         # Validate num_images parameter
         if request.num_images < 1 or request.num_images > 10:
@@ -411,7 +411,7 @@ async def generate_image(experimentId: int, request: DiffusionRequest):
             raise HTTPException(status_code=400, detail="Plugin not installed")
 
         if request.plugin == "image_diffusion":
-            request_dict = request.dict()
+            request_dict = request.model_dump()
             if request.generation_id:
                 generation_id = request.generation_id
             else:
@@ -424,15 +424,12 @@ async def generate_image(experimentId: int, request: DiffusionRequest):
                 "config": request_dict,
             }
 
-            job_id = await db_jobs.job_create(
-                type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId
-            )
+            job_id = job_create(type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId)
 
             # Get experiment name for experiment-specific paths
-            experiment_name = await get_experiment_name(experimentId)
-            images_folder = os.path.join(get_images_dir(experiment_name), generation_id)
+            images_folder = os.path.join(get_images_dir(experimentId), generation_id)
             images_folder = os.path.normpath(images_folder)  # Normalize path
-            if not images_folder.startswith(get_images_dir(experiment_name)):  # Validate containment
+            if not images_folder.startswith(get_images_dir(experimentId)):  # Validate containment
                 raise HTTPException(status_code=400, detail="Invalid generation_id: Path traversal detected.")
             tmp_json_path = os.path.join(images_folder, "tmp_json.json")
             # Normalize and validate the path
@@ -458,7 +455,7 @@ async def generate_image(experimentId: int, request: DiffusionRequest):
 
 
 @router.post("/is_valid_diffusion_model", summary="Check if model is Stable Diffusion")
-async def is_valid_diffusion(request: DiffusionRequest):
+async def is_valid_diffusion(experimentId: str, request: DiffusionRequest):
     """
     Returns {"is_valid_diffusion_model": True/False, "reason": "..."}
     """
@@ -467,30 +464,35 @@ async def is_valid_diffusion(request: DiffusionRequest):
         return {"is_valid_diffusion_model": False, "reason": "Model ID is empty"}
 
     try:
-        # First try to get architecture from database
-        model_data = await db.model_local_get(model_id)
         architectures = []
 
-        if model_data and model_data.get("json_data"):
-            json_data = model_data["json_data"]
+        # First try to get architecture from filesystem; if it fails, fall back gracefully
+        try:
+            from lab.model import Model as ModelService
 
-            # Try to get architecture from various possible locations in json_data
-            arch = json_data.get("architecture")
-            if not arch:
-                # Try model_index fallback
-                model_index = json_data.get("model_index", {})
-                arch = model_index.get("_class_name")
+            model_service = ModelService.get(model_id)
+            model_data = model_service.get_metadata()
 
-            if arch:
-                if isinstance(arch, str):
-                    architectures = [arch]
-                elif isinstance(arch, list):
-                    architectures = arch
-                else:
-                    architectures = [str(arch)]
+            if model_data and model_data.get("json_data"):
+                json_data = model_data["json_data"]
 
-            else:
-                print(f"No architecture found in database for {model_id}, falling back to Hugging Face API")
+                # Try to get architecture from various possible locations in json_data
+                arch = json_data.get("architecture")
+                if not arch:
+                    # Try model_index fallback
+                    model_index = json_data.get("model_index", {})
+                    arch = model_index.get("_class_name")
+
+                if arch:
+                    if isinstance(arch, str):
+                        architectures = [arch]
+                    elif isinstance(arch, list):
+                        architectures = arch
+                    else:
+                        architectures = [str(arch)]
+        except Exception:
+            # Ignore filesystem errors and proceed to HF fallback
+            pass
 
         # If no architecture found in database, fetch from Hugging Face
         if not architectures:
@@ -532,7 +534,7 @@ async def is_valid_diffusion(request: DiffusionRequest):
 
 
 @router.get("/history", summary="Get image generation history", response_model=HistoryResponse)
-async def get_history(experimentId: int, limit: int = 50, offset: int = 0):
+async def get_history(experimentId: str, limit: int = 50, offset: int = 0, http_request: Request = None):
     """
     Get paginated history of generated images
 
@@ -550,19 +552,20 @@ async def get_history(experimentId: int, limit: int = 50, offset: int = 0):
         raise HTTPException(status_code=400, detail="Offset must be non-negative")
 
     # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
-    return load_history(limit=limit, offset=offset, experiment_name=experiment_name)
+    workspace_dir = get_workspace_dir()
+    return load_history(limit=limit, offset=offset, experiment_name=experimentId, workspace_dir=workspace_dir)
 
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
 async def get_image_by_id(
-    experimentId: int,
+    experimentId: str,
     image_id: str,
     index: int = 0,
     input_image: bool = False,
     mask_image: bool = False,
     step: bool = False,
     preprocessed: bool = False,
+    http_request: Request = None,
 ):
     """
     Get an image from history by ID and index
@@ -574,11 +577,11 @@ async def get_image_by_id(
         mask_image: Whether to return the mask image instead of generated image
     """
     # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
+    workspace_dir = get_workspace_dir()
 
     if step:
         # If step is requested, we need to check if intermediate images were saved
-        images_dir = get_images_dir(experiment_name)
+        images_dir = get_images_dir(experimentId, workspace_dir)
         image_dir_based_on_id = os.path.normpath(os.path.join(images_dir, image_id))
 
         # Ensure the constructed path is within the intended base directory
@@ -600,7 +603,7 @@ async def get_image_by_id(
         return FileResponse(step_image_path)
 
     # Use the efficient function to find the specific image
-    image_item = find_image_by_id(image_id, experiment_name)
+    image_item = find_image_by_id(image_id, experimentId, workspace_dir)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -672,7 +675,7 @@ async def get_image_by_id(
 
 
 @router.get("/history/{image_id}/info", summary="Get image metadata by ID")
-async def get_image_info_by_id(image_id: str, experimentId: int):
+async def get_image_info_by_id(image_id: str, experimentId: str, http_request: Request = None):
     """
     Get metadata for a specific image set by its ID
 
@@ -683,9 +686,8 @@ async def get_image_info_by_id(image_id: str, experimentId: int):
         Image metadata including number of images available
     """
     # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
-    # Use the efficient function to find the specific image
-    image_item = find_image_by_id(image_id, experiment_name)
+    workspace_dir = get_workspace_dir()
+    image_item = find_image_by_id(image_id, experimentId, workspace_dir)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -711,7 +713,7 @@ async def get_image_info_by_id(image_id: str, experimentId: int):
 
 
 @router.get("/history/{image_id}/count", summary="Get image count for an image set")
-async def get_image_count(image_id: str, experimentId: int):
+async def get_image_count(image_id: str, experimentId: str, http_request: Request = None):
     """
     Get the number of images available for a given image_id
 
@@ -722,9 +724,8 @@ async def get_image_count(image_id: str, experimentId: int):
         Number of images available
     """
     # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
-    # Use the efficient function to find the specific image
-    image_item = find_image_by_id(image_id, experiment_name)
+    workspace_dir = get_workspace_dir()
+    image_item = find_image_by_id(image_id, experimentId, workspace_dir)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -746,7 +747,7 @@ async def get_image_count(image_id: str, experimentId: int):
 
 
 @router.get("/history/{image_id}/all", summary="Get all images for an image set as a zip file")
-async def get_all_images(image_id: str, experimentId: int):
+async def get_all_images(image_id: str, experimentId: str, http_request: Request = None):
     """
     Get all images for a given image_id as a zip file
 
@@ -760,9 +761,8 @@ async def get_all_images(image_id: str, experimentId: int):
     import tempfile
 
     # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
-    # Use the efficient function to find the specific image
-    image_item = find_image_by_id(image_id, experiment_name)
+    workspace_dir = get_workspace_dir()
+    image_item = find_image_by_id(image_id, experimentId, workspace_dir)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -802,7 +802,7 @@ async def get_all_images(image_id: str, experimentId: int):
 
 
 @router.delete("/history/{image_id}", summary="Delete image from history")
-async def delete_image_from_history(experimentId: int, image_id: str):
+async def delete_image_from_history(experimentId: str, image_id: str, http_request: Request = None):
     """
     Delete a specific image set from history and remove the image files
 
@@ -811,8 +811,8 @@ async def delete_image_from_history(experimentId: int, image_id: str):
         image_id: The unique ID of the image set to delete
     """
     # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
-    history_file = get_history_file_path(experiment_name)
+    workspace_dir = get_workspace_dir()
+    history_file = get_history_file_path(experimentId, workspace_dir)
 
     if not os.path.exists(history_file):
         raise HTTPException(status_code=404, detail="No history found")
@@ -863,15 +863,15 @@ async def delete_image_from_history(experimentId: int, image_id: str):
 
 
 @router.delete("/history", summary="Clear all history")
-async def clear_history(experimentId: int):
+async def clear_history(experimentId: str, http_request: Request = None):
     """
     Clear all image generation history and remove all image files
     """
     try:
         # Get experiment name for experiment-specific paths
-        experiment_name = await get_experiment_name(experimentId)
-        history_file = get_history_file_path(experiment_name)
-        images_dir = get_images_dir(experiment_name)
+        workspace_dir = get_workspace_dir()
+        history_file = get_history_file_path(experimentId, workspace_dir)
+        images_dir = get_images_dir(experimentId, workspace_dir)
 
         # Load current history to get image paths
         deleted_count = 0
@@ -924,7 +924,7 @@ async def clear_history(experimentId: int):
 
 
 @router.post("/dataset/create", summary="Create dataset from history images")
-async def create_dataset_from_history(request: CreateDatasetRequest, experimentId: int = None):
+async def create_dataset_from_history(request: CreateDatasetRequest, experimentId: str = None):
     """
     Create a dataset from selected images in history
 
@@ -934,8 +934,6 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
     Returns:
         JSON response with dataset details
     """
-    # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
     image_ids = request.image_ids
     if not image_ids or not isinstance(image_ids, list):
         raise HTTPException(status_code=400, detail="Invalid image IDs list")
@@ -946,14 +944,18 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
         raise HTTPException(status_code=400, detail="Invalid dataset name")
 
     # Check if dataset already exists
-    existing_dataset = await get_dataset(dataset_id)
-    if existing_dataset:
+    try:
+        Dataset.get(dataset_id)
+        # If we get here, the dataset exists
         raise HTTPException(status_code=400, detail=f"Dataset '{dataset_id}' already exists")
+    except FileNotFoundError:
+        # Dataset doesn't exist, which is what we want
+        pass
 
     # Find selected images efficiently
     selected_images = []
     for image_id in image_ids:
-        image_item = find_image_by_id(image_id, experiment_name)
+        image_item = find_image_by_id(image_id, experimentId)
         if image_item:
             selected_images.append(image_item)
 
@@ -982,12 +984,12 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
             "image_count": total_image_count,
             "created_from_image_ids": image_ids,
         }
-        await create_local_dataset(dataset_id, json_data=json_data)
+        new_dataset = create_local_dataset(dataset_id, json_data=json_data)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create dataset in database: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create dataset: {str(e)}")
 
     # Create dataset directory
-    dataset_dir = dirs.dataset_dir_by_id(dataset_id)
+    dataset_dir = new_dataset.get_dir()
     images_dir = os.path.join(dataset_dir, "train")
     os.makedirs(images_dir, exist_ok=True)
 
@@ -1107,8 +1109,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
 
     if not dataset_records:
         # Clean up if no images were successfully processed
-        await delete_dataset(dataset_id)
-        shutil.rmtree(dataset_dir, ignore_errors=True)
+        new_dataset.delete()
         raise HTTPException(status_code=500, detail="Failed to process any images")
 
     # Save dataset as JSONL file
@@ -1121,8 +1122,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
                 f.write(json.dumps(record) + "\n")
     except Exception as e:
         # Clean up on failure
-        await delete_dataset(dataset_id)
-        shutil.rmtree(dataset_dir, ignore_errors=True)
+        new_dataset.delete()
         raise HTTPException(status_code=500, detail=f"Failed to save dataset: {str(e)}")
 
     return JSONResponse(
@@ -1165,30 +1165,27 @@ async def list_controlnets():
 
 
 @router.post("/generate_id", summary="Get a new generation ID for image generation")
-async def get_new_generation_id(experimentId: int):
+async def get_new_generation_id(experimentId: str, http_request: Request = None):
     """
     Returns a new unique generation ID and creates the images folder for it.
     """
-    # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
     generation_id = str(uuid.uuid4())
-    ensure_directories(experiment_name)
-    images_folder = os.path.join(get_images_dir(experiment_name), generation_id)
+    workspace_dir = get_workspace_dir()
+    ensure_directories(experimentId, workspace_dir)
+    images_folder = os.path.join(get_images_dir(experimentId, workspace_dir), generation_id)
     os.makedirs(images_folder, exist_ok=True)
     return {"generation_id": generation_id, "images_folder": images_folder}
 
 
 @router.get("/get_file/{generation_id}")
-async def get_file(experimentId: int, generation_id: str):
+async def get_file(experimentId: str, generation_id: str):
     # Sanitize and validate generation_id
     sanitized_id = secure_filename(generation_id)
     try:
         uuid.UUID(sanitized_id)  # Validate UUID format
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid generation ID format")
-    # Get experiment name for experiment-specific paths
-    experiment_name = await get_experiment_name(experimentId)
-    root_dir = get_images_dir(experiment_name)
+    root_dir = get_images_dir(experimentId)
     file_path = os.path.normpath(os.path.join(root_dir, sanitized_id, "tmp_json.json"))
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Output JSON file not found at {file_path}")

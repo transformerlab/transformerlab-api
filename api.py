@@ -30,10 +30,11 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
 
-from transformerlab.db.jobs import job_create, job_update_status
-from transformerlab.db import jobs as db_jobs
-from transformerlab.db.db import experiment_get
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_create, job_get, job_update_status
+from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs
 import transformerlab.db.session as db
+
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
 from transformerlab.routers import (
     data,
@@ -48,7 +49,7 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
     recipes,
-    users,
+    remote,
 )
 import torch
 
@@ -64,9 +65,19 @@ from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
-from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
+from lab.dirs import get_workspace_dir
+from lab import dirs as lab_dirs
+from transformerlab.shared import dirs
+from transformerlab.db.filesystem_migrations import (
+    migrate_datasets_table_to_filesystem,
+    migrate_models_table_to_filesystem,
+    migrate_tasks_table_to_filesystem,
+    migrate_job_and_experiment_to_filesystem,
+)
+from transformerlab.shared.request_context import set_current_org_id
+from lab.dirs import set_organization_id as lab_set_org_id
 
 from dotenv import load_dotenv
 
@@ -78,13 +89,16 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # environment variables that start with _ are
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
-os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
-# The temporary image directory for transformerlab
-temp_image_dir = os.path.join(dirs.WORKSPACE_DIR, "temp", "images")
+# The temporary image directory for transformerlab (default; per-request overrides computed in routes)
+temp_image_dir = os.path.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
-from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
+# Check if anything is stored in GPU_ORCHESTRATION_SERVER, and if so, print a message
+if os.getenv("GPU_ORCHESTRATION_SERVER"):
+    print(
+        f"🚀 GPU Orchestration Server mode enabled. Using server: {os.getenv('GPU_ORCHESTRATION_SERVER')}:{os.getenv('GPU_ORCHESTRATION_SERVER_PORT', '80')}"
+    )
 
 
 @asynccontextmanager
@@ -95,10 +109,18 @@ async def lifespan(app: FastAPI):
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()
+    print("✅ SEED DATA")
+    # Initialize experiments and cancel any running jobs
+    seed_default_experiments()
+    cancel_in_progress_jobs()
+
     if "--reload" in sys.argv:
         await install_all_plugins()
-    # run the migration
-    asyncio.create_task(migrate())
+    # run the migrations
+    asyncio.create_task(migrate_models_table_to_filesystem())
+    asyncio.create_task(migrate_datasets_table_to_filesystem())
+    asyncio.create_task(migrate_job_and_experiment_to_filesystem())
+    asyncio.create_task(migrate_tasks_table_to_filesystem())
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
@@ -107,13 +129,6 @@ async def lifespan(app: FastAPI):
     # Run the clean up function
     cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
-
-
-# the migrate function only runs the conversion function if no tasks are already present
-async def migrate():
-    if len(await tasks.tasks_get_all()) == 0:
-        for exp in await experiment.experiments_get_all():
-            await tasks.convert_all_to_tasks(exp["id"])
 
 
 async def run_over_and_over():
@@ -125,7 +140,6 @@ async def run_over_and_over():
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
-
 tags_metadata = [
     {
         "name": "datasets",
@@ -159,11 +173,32 @@ app = fastapi.FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
+    # Restrict origins so credentialed requests (cookies) are allowed
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Middleware to set context var for organization id per request (multitenant)
+@app.middleware("http")
+async def set_org_context(request: Request, call_next):
+    try:
+        org_id = None
+        if os.getenv("TFL_MULTITENANT") == "true":
+            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
+            org_id = request.cookies.get(org_cookie_name)
+        set_current_org_id(org_id)
+        if lab_set_org_id is not None:
+            lab_set_org_id(org_id)
+        response = await call_next(request)
+        return response
+    finally:
+        # Clear at end of request
+        set_current_org_id(None)
+        if lab_set_org_id is not None:
+            lab_set_org_id(None)
 
 
 def create_error_response(code: int, message: str) -> JSONResponse:
@@ -192,12 +227,14 @@ app.include_router(prompts.router)
 app.include_router(tools.router)
 app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
+app.include_router(remote.router)
 app.include_router(fastchat_openai_api.router)
-app.include_router(get_xmlrpc_router())
-app.include_router(get_trainer_xmlrpc_router())
 
-# This includes the FastAPI Users routers
-app.include_router(users.router)
+# Authentication and session management routes
+if os.getenv("TFL_MULTITENANT") == "true":
+    from transformerlab.routers import auth  # noqa: E402
+
+    app.include_router(auth.router)
 
 
 controller_process = None
@@ -265,8 +302,9 @@ async def server_worker_start(
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
-    experiment_id: int = None,
+    experiment_id: str = None,
     inference_params: str = "",
+    request: Request = None,
 ):
     # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
     # first we check to see if any inference params were passed in
@@ -278,10 +316,12 @@ async def server_worker_start(
     # then we check to see if we are an experiment
     elif experiment_id is not None:
         try:
-            experiment = await experiment_get(experiment_id)
-            experiment_config = experiment["config"]
-            if not isinstance(experiment_config, dict):
-                experiment_config = json.loads(experiment_config)
+            experiment = experiment_get(experiment_id)
+            experiment_config = (
+                experiment["config"]
+                if isinstance(experiment["config"], dict)
+                else json.loads(experiment["config"] or "{}")
+            )
             try:
                 inference_params = experiment_config["inferenceParams"]
             except KeyError:
@@ -308,14 +348,16 @@ async def server_worker_start(
     model_architecture = model_architecture
 
     plugin_name = inference_engine
-    plugin_location = dirs.plugin_dir_by_name(plugin_name)
+    plugin_location = lab_dirs.plugin_dir_by_name(plugin_name)
 
     model = model_name
     if model_filename is not None and model_filename != "":
         model = model_filename
 
     if adaptor != "":
-        adaptor = f"{dirs.WORKSPACE_DIR}/adaptors/{secure_filename(model)}/{adaptor}"
+        # Resolve per-request workspace if multitenant
+        workspace_dir = get_workspace_dir()
+        adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
 
     params = [
         dirs.PLUGIN_HARNESS,
@@ -331,11 +373,13 @@ async def server_worker_start(
         json.dumps(inference_params),
     ]
 
-    job_id = await job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
+    job_id = job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
     print("Loading plugin loader instead of default worker")
 
-    with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+    from lab.dirs import get_global_log_path
+
+    with open(get_global_log_path(), "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
     process = await shared.async_run_python_daemon_and_update_status(
@@ -346,7 +390,9 @@ async def server_worker_start(
     )
     exitcode = process.returncode
     if exitcode == 99:
-        with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+        from lab.dirs import get_global_log_path
+
+        with open(get_global_log_path(), "a") as global_log:
             global_log.write(
                 "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
             )
@@ -355,17 +401,21 @@ async def server_worker_start(
             "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.",
         }
     if exitcode is not None and exitcode != 0:
-        with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+        from lab.dirs import get_global_log_path
+
+        with open(get_global_log_path(), "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        job = await db_jobs.job_get(job_id)
+        job = job_get(job_id)
         error_msg = None
         if job and job.get("job_data"):
             error_msg = job["job_data"].get("error_msg")
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
+            job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
-    with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+    from lab.dirs import get_global_log_path
+
+    with open(get_global_log_path(), "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
 
@@ -395,17 +445,17 @@ async def server_worker_stop():
                     print(f"Error killing process {pid}: {e}")
         # delete the worker.pid file:
         os.remove("worker.pid")
-    
+
     # Wait a bit for the worker to fully terminate
     await asyncio.sleep(1)
-    
+
     # Refresh the controller to remove the stopped worker immediately
     try:
         async with httpx.AsyncClient() as client:
             await client.post(fastchat_openai_api.app_settings.controller_address + "/refresh_all_workers")
     except Exception as e:
         print(f"Error refreshing controller after stopping worker: {e}")
-    
+
     return {"message": "OK"}
 
 
@@ -430,6 +480,25 @@ async def server_worker_health(request: Request):
     return result
 
 
+@app.get("/healthz")
+async def healthz():
+    """
+    Health check endpoint to verify server status and mode.
+    """
+    gpu_orchestration_server = os.getenv("GPU_ORCHESTRATION_SERVER", "")
+    mode = "gpu_orchestration" if gpu_orchestration_server else "local"
+
+    # Get the port from the environment or use default
+    port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT", "")
+
+    return {
+        "message": "OK",
+        "mode": mode,
+        "gpu_orchestration_server": gpu_orchestration_server,
+        "gpu_orchestration_server_port": port,
+    }
+
+
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
 app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="application")
 
@@ -448,7 +517,12 @@ def cleanup_at_exit():
         with open("worker.pid", "r") as f:
             pids = [line.strip() for line in f if line.strip()]
             for pid in pids:
-                os.kill(int(pid), signal.SIGTERM)
+                try:
+                    os.kill(int(pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    print(f"Process {pid} doesn't exist so nothing to kill")
+                except Exception as e:
+                    print(f"Error killing process {pid}: {e}")
             os.remove("worker.pid")
     # Perform NVML Shutdown if CUDA is available
     if torch.cuda.is_available():

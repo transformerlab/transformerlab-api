@@ -1,3 +1,8 @@
+import pytest
+
+pytestmark = pytest.mark.skip(reason="Moving to another auth method")
+
+
 def test_register_user(client):
     new_user = {
         "email": "pytest@test.com",
