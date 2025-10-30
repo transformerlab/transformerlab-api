@@ -589,14 +589,67 @@ async def resume_from_checkpoint(
         checkpoint_name = body.get("checkpoint_name")
         experimentId = body.get("experimentId")
         
+        print(f"DEBUG: resume_from_checkpoint called with job_id={job_id}, checkpoint_name={checkpoint_name}, experimentId={experimentId}")
+        
         if not checkpoint_name:
             raise HTTPException(status_code=400, detail="checkpoint_name is required")
         if not experimentId:
             raise HTTPException(status_code=400, detail="experimentId is required")
         
         # Get the original job
+        print(f"DEBUG: Attempting to get job with id: {job_id} (type: {type(job_id)})")
+        
+        # Try with string first
         original_job = job_service.job_get(job_id)
+        print(f"DEBUG: job_service.job_get with string returned: {original_job}")
+        
+        # If that didn't work, try converting to int
         if not original_job:
+            try:
+                job_id_int = int(job_id)
+                print(f"DEBUG: Trying with job_id as int: {job_id_int}")
+                original_job = job_service.job_get(job_id_int)
+                print(f"DEBUG: job_service.job_get with int returned: {original_job}")
+            except ValueError:
+                print(f"DEBUG: Could not convert job_id {job_id} to int")
+        
+        if not original_job:
+            # Try alternative method: get all jobs for the experiment and find the matching one
+            try:
+                from lab import Experiment
+                print(f"DEBUG: Trying to get jobs for experiment {experimentId}")
+                exp = Experiment(experimentId)
+                all_jobs = exp.get_jobs()
+                print(f"DEBUG: Found {len(all_jobs)} jobs in experiment {experimentId}")
+                
+                # Look for the job with matching ID
+                for job_data in all_jobs:
+                    job_data_id = str(job_data.get('id', ''))
+                    print(f"DEBUG: Checking job {job_data_id} against {job_id}")
+                    if job_data_id == job_id or str(job_data.get('id', '')) == str(job_id):
+                        original_job = job_data
+                        print(f"DEBUG: Found matching job: {original_job}")
+                        break
+                        
+            except Exception as e:
+                print(f"DEBUG: Error getting jobs from experiment: {e}")
+        
+        if not original_job:
+            # Let's try to debug why the job wasn't found
+            from lab.dirs import get_workspace_dir, get_jobs_dir, get_job_dir
+            workspace_dir = get_workspace_dir()
+            jobs_dir = get_jobs_dir()
+            job_dir = get_job_dir(job_id)
+            
+            print(f"DEBUG: Workspace dir: {workspace_dir}")
+            print(f"DEBUG: Jobs dir: {jobs_dir}")
+            print(f"DEBUG: Job dir for {job_id}: {job_dir}")
+            print(f"DEBUG: Job dir exists: {os.path.exists(job_dir)}")
+            
+            # List all jobs in the jobs directory
+            if os.path.exists(jobs_dir):
+                print(f"DEBUG: Contents of jobs dir: {os.listdir(jobs_dir)}")
+            
             raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
         
         # Get the parent job data
@@ -605,6 +658,10 @@ async def resume_from_checkpoint(
         # Get the checkpoint directory path
         checkpoints_dir = get_job_checkpoints_dir(job_id)
         checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
+        
+        print(f"DEBUG: Checkpoint dir: {checkpoints_dir}")
+        print(f"DEBUG: Checkpoint path: {checkpoint_path}")
+        print(f"DEBUG: Checkpoint exists: {os.path.exists(checkpoint_path)}")
         
         if not os.path.exists(checkpoint_path):
             raise HTTPException(status_code=404, detail=f"Checkpoint {checkpoint_name} not found at {checkpoint_path}")
