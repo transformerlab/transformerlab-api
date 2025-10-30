@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import AsyncGenerator
 
 from transformerlab.shared.models import models
-from transformerlab.shared.models.models import Config, Plugin
+from transformerlab.shared.models.models import Config
 from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
 from transformerlab.db.session import async_session
@@ -129,57 +129,6 @@ async def training_jobs_get_all():
                 row["config"] = None
             data.append(row)
         return data
-
-
-###############
-# PLUGINS MODEL
-###############
-
-
-async def get_plugins():
-    async with async_session() as session:
-        result = await session.execute(select(Plugin))
-        plugins = result.scalars().all()
-        # Convert ORM objects to dicts
-        return sqlalchemy_list_to_dict(plugins)
-
-
-async def get_plugins_of_type(type: str):
-    async with async_session() as session:
-        result = await session.execute(select(Plugin).where(Plugin.type == type))
-        plugins = result.scalars().all()
-        return sqlalchemy_list_to_dict(plugins)
-
-
-async def get_plugin(slug: str):
-    async with async_session() as session:
-        result = await session.execute(select(Plugin).where(Plugin.name == slug))
-        plugin = result.scalar_one_or_none()
-        return sqlalchemy_to_dict(plugin) if plugin else None
-
-
-async def save_plugin(name: str, type: str):
-    async with async_session() as session:
-        # Plugin primary key is integer id, so we must query by unique name
-        result = await session.execute(select(Plugin).where(Plugin.name == name))
-        plugin = result.scalar_one_or_none()
-        if plugin is None:
-            plugin = Plugin(name=name, type=type)
-            session.add(plugin)
-        else:
-            plugin.type = type
-        await session.commit()
-    return
-
-
-async def delete_plugin(name: str):
-    async with async_session() as session:
-        plugin = await session.get(Plugin, name)
-        if plugin:
-            await session.delete(plugin)
-            await session.commit()
-            return True
-    return False
 
 
 ###############

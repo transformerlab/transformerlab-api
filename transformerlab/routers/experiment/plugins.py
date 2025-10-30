@@ -7,7 +7,6 @@ from typing import Annotated
 from fastapi import APIRouter, Body
 import httpx
 
-from transformerlab.db.db import save_plugin
 from transformerlab.services.experiment_service import experiment_get
 
 from transformerlab.shared import shared, dirs
@@ -125,7 +124,6 @@ async def plugin_download(id: int, plugin_slug: str):
 
     # We hardcode this to the first object -- fix later
     url = plugin_gallery[0]["url"]
-    plugin_type = plugin_gallery[0]["type"]
 
     client = httpx.AsyncClient()
 
@@ -153,8 +151,6 @@ async def plugin_download(id: int, plugin_slug: str):
         os.makedirs(p, mode=0o755, exist_ok=True)
         with open(f"{p}/{file}", "w") as f:
             f.write(file_contents)
-
-    await save_plugin(plugin_slug, plugin_type)
 
     await client.aclose()
 
