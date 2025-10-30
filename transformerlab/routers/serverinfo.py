@@ -15,7 +15,6 @@ from fastapi import APIRouter
 from lab.dirs import get_global_log_path
 
 
-
 try:
     from pynvml import (
         nvmlDeviceGetCount,
@@ -31,7 +30,6 @@ except Exception:
     from pyrsmi import rocml
 
     HAS_AMD = True
-
 
 
 pyTorch_version = torch.__version__
@@ -279,8 +277,6 @@ async def get_pytorch_collect_env():
     # run python -m torch.utils.collect_env and return the output
     output = subprocess.check_output(sys.executable + " -m torch.utils.collect_env", shell=True)
     return output.decode("utf-8")
-
-
 
 
 async def watch_file(filename: str, start_from_beginning=False, force_polling=True) -> AsyncGenerator[str, None]:

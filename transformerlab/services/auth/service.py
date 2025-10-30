@@ -44,13 +44,13 @@ class AuthService:
     ) -> None:
         self._provider = provider or WorkOSProvider()
         self._session_cookie_name = session_cookie_name or os.getenv("AUTH_SESSION_COOKIE_NAME", "tlab_session")
-        self._refresh_cookie_name = refresh_cookie_name or os.getenv(
-            "AUTH_REFRESH_COOKIE_NAME", "tlab_refresh_token"
-        )
+        self._refresh_cookie_name = refresh_cookie_name or os.getenv("AUTH_REFRESH_COOKIE_NAME", "tlab_refresh_token")
         self._organization_cookie_name = organization_cookie_name or os.getenv(
             "AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id"
         )
-        self._cookie_password = cookie_password or os.getenv("AUTH_COOKIE_PASSWORD", "3qHvlqlA5zNAFUWmA4PFXhNy AxksRnmcgV8fgCpp62Y=")
+        self._cookie_password = cookie_password or os.getenv(
+            "AUTH_COOKIE_PASSWORD", "3qHvlqlA5zNAFUWmA4PFXhNy AxksRnmcgV8fgCpp62Y="
+        )
         self._seal_session = self._env_bool(os.getenv("AUTH_SEAL_SESSION", "true"))
         self._cookie_secure = self._env_bool(os.getenv("AUTH_COOKIE_SECURE", "false"))
         self._cookie_domain = os.getenv("AUTH_COOKIE_DOMAIN") or None

@@ -14,18 +14,10 @@ LAYER_PATTERNS = [
 class BaseModelArgs:
     @classmethod
     def from_dict(cls, params):
-        return cls(
-            **{
-                k: v
-                for k, v in params.items()
-                if k in inspect.signature(cls).parameters
-            }
-        )
+        return cls(**{k: v for k, v in params.items() if k in inspect.signature(cls).parameters})
 
 
-def create_reference_model(
-    model, num_shared_layers: int = None, pattern: str = None
-):
+def create_reference_model(model, num_shared_layers: int = None, pattern: str = None):
     """
     Creates a static reference copy of a model. Note that model will be in `.eval()` mode.
 
@@ -107,4 +99,3 @@ class Dataset:
 
     def __len__(self):
         raise NotImplementedError
-

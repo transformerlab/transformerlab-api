@@ -12,7 +12,6 @@ tlab_trainer.add_argument(
 )
 
 
-
 def setup_accelerate_environment():
     """Set up the environment for the accelerate launch subprocess"""
     current_dir = os.path.dirname(os.path.abspath(__file__))

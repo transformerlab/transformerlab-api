@@ -9,7 +9,8 @@ except ImportError or ModuleNotFoundError:
 
 
 tlab_exporter.add_argument(
-    "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model.")
+    "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model."
+)
 
 
 @tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
@@ -38,7 +39,7 @@ def llamafile_export():
                 -ngl
                 9999
                 """
-    
+
     with open(argsfile, "w") as f:
         f.write(argsoutput)
 
@@ -58,7 +59,7 @@ def llamafile_export():
     export_process = subprocess.run(
         subprocess_cmd, cwd=plugin_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     )
-    
+
     stdout = export_process.stdout
     for line in stdout.strip().splitlines():
         print(line)

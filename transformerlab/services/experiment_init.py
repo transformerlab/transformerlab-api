@@ -33,5 +33,3 @@ def cancel_in_progress_jobs():
             except Exception:
                 # If we can't access the job, continue to the next one
                 pass
-
-

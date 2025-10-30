@@ -22,6 +22,7 @@ def run_generation():
 
     dataset_id = tlab_gen.params.get("output_dataset_name")
     from transformerlab.plugin import WORKSPACE_DIR
+
     output_dir = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
     os.makedirs(output_dir, exist_ok=True)
 

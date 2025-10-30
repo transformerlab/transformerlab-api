@@ -8,7 +8,6 @@ from lab import Experiment, Job, dirs as lab_dirs
 from datetime import datetime
 
 
-
 async def migrate_datasets_table_to_filesystem():
     """
     One-time migration: copy rows from the legacy dataset DB table into the filesystem
@@ -104,6 +103,7 @@ async def migrate_models_table_to_filesystem():
         from lab.model import Model as model_service
         from sqlalchemy import text as sqlalchemy_text
         from transformerlab.db.session import async_session
+
         models_dir = get_models_dir()
 
         # Initialize the exists variable
@@ -187,6 +187,7 @@ async def migrate_models_table_to_filesystem():
         # have info.json but are missing index.json, and create SDK metadata.
         try:
             from lab.dirs import get_models_dir
+
             models_dir = get_models_dir()
             if os.path.isdir(models_dir):
                 fs_migrated = 0
@@ -293,7 +294,7 @@ async def migrate_tasks_table_to_filesystem():
                     sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'")
                 )
                 experiments_table_exists = result.fetchone() is not None
-                
+
                 if experiments_table_exists:
                     result = await session.execute(sqlalchemy_text("SELECT * FROM experiment"))
                     experiments = result.mappings().all()
@@ -323,7 +324,9 @@ async def migrate_tasks_table_to_filesystem():
                 experiment_name = experiments_map.get(str(experiment_id))
                 if experiment_name:
                     experiment_id = experiment_name
-                    print(f"Converting task {task_id} experiment_id from {row.get('experiment_id')} to {experiment_name}")
+                    print(
+                        f"Converting task {task_id} experiment_id from {row.get('experiment_id')} to {experiment_name}"
+                    )
 
             try:
                 try:

@@ -16,14 +16,13 @@ def validate_gpu_orchestrator_env_vars():
     """
     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-    
+
     if not gpu_orchestrator_url:
         return None, {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
-    
+
     if not gpu_orchestrator_port:
         return None, {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
-    
-    
+
     return gpu_orchestrator_url, gpu_orchestrator_port
 
 
@@ -47,12 +46,8 @@ async def create_remote_job(
     Create a remote job without launching it. Returns job info for frontend to show placeholder.
     """
     # First, create a REMOTE job
-    job_data = {
-        "task_name": task_name,
-        "command": command,
-        "cluster_name": cluster_name
-    }
-    
+    job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+
     # Add optional parameters if provided
     if cpus:
         job_data["cpus"] = cpus
@@ -78,13 +73,13 @@ async def create_remote_job(
     try:
         job_id = job_service.job_create(
             type="REMOTE",
-            status="LAUNCHING", 
+            status="LAUNCHING",
             experiment_id=experimentId,
         )
         # Update the job data to add fields from job_data (this ensures default fields stay in the job)
         for key, value in job_data.items():
             job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
-        
+
         return {
             "status": "success",
             "job_id": job_id,
@@ -131,10 +126,11 @@ async def launch_remote(
         if shutdown_after_completion:
             job_data["shutdown_after_completion"] = shutdown_after_completion
         
+
         try:
             job_id = job_service.job_create(
                 type="REMOTE",
-                status="LAUNCHING", 
+                status="LAUNCHING",
                 experiment_id=experimentId,
             )
             # Update the job data to add fields from job_data (this ensures default fields stay in the job)
@@ -143,7 +139,7 @@ async def launch_remote(
         except Exception as e:
             print(f"Failed to create job: {str(e)}")
             return {"status": "error", "message": "Failed to create job"}
-    
+
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -151,18 +147,18 @@ async def launch_remote(
         return gpu_orchestrator_url  # Error response
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
-    
+
     # Prepare the request data for Lattice orchestrator
     request_data = {
         "cluster_name": cluster_name,
         "command": command,
         "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
     }
-    
+
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
     job_name = task_name if task_name else cluster_name
     request_data["job_name"] = job_name
-    
+
     # Add optional parameters if provided
     if cpus:
         request_data["cpus"] = cpus
@@ -178,16 +174,14 @@ async def launch_remote(
         request_data["setup"] = setup
     if uploaded_dir_path:
         request_data["uploaded_dir_path"] = uploaded_dir_path
-    
+
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
-    
+
     try:
         # Make the request to the Lattice orchestrator
         async with httpx.AsyncClient() as client:
             # Build headers: prefer configured API key, otherwise forward incoming Authorization header
-            outbound_headers = {
-                "Content-Type": "application/x-www-form-urlencoded"
-            }
+            outbound_headers = {"Content-Type": "application/x-www-form-urlencoded"}
             incoming_auth = request.headers.get("AUTHORIZATION")
             if incoming_auth:
                 outbound_headers["AUTHORIZATION"] = incoming_auth
@@ -197,10 +191,9 @@ async def launch_remote(
                 headers=outbound_headers,
                 data=request_data,
                 cookies=request.cookies,
-                timeout=30.0
+                timeout=30.0,
             )
-            
-            
+
             if response.status_code == 200:
                 response_data = response.json()
                 # Store the request_id in job data for later use
@@ -213,7 +206,7 @@ async def launch_remote(
                     job_service.job_update_job_data_insert_key_value(
                         job_id, "cluster_name", response_data["cluster_name"], experimentId
                     )
-                
+
                 return {
                     "status": "success",
                     "data": response_data,
@@ -222,10 +215,10 @@ async def launch_remote(
                 }
             else:
                 return {
-                    "status": "error", 
-                    "message": f"Lattice orchestrator returned status {response.status_code}: {response.text}"
+                    "status": "error",
+                    "message": f"Lattice orchestrator returned status {response.status_code}: {response.text}",
                 }
-                
+
     except httpx.TimeoutException:
         return {"status": "error", "message": "Request to Lattice orchestrator timed out"}
     except httpx.RequestError:
@@ -251,21 +244,19 @@ async def stop_remote(
         return gpu_orchestrator_url  # Error response
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
-    
+
     # First, cancel the job on the cluster
     down_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/down"
-    
+
     try:
         # Make the request to the Lattice orchestrator
         async with httpx.AsyncClient() as client:
             # Build headers: prefer configured API key, otherwise forward incoming Authorization header
-            outbound_headers = {
-                "Content-Type": "application/json"
-            }
+            outbound_headers = {"Content-Type": "application/json"}
             incoming_auth = request.headers.get("AUTHORIZATION")
             if incoming_auth:
                 outbound_headers["AUTHORIZATION"] = incoming_auth
-            
+
             # Bring down the cluster
             print(f"Bringing down cluster {cluster_name}")
             # Prepare JSON payload for the orchestrator
@@ -275,17 +266,13 @@ async def stop_remote(
             }
 
             response = await client.post(
-                down_url,
-                headers=outbound_headers,
-                json=payload,
-                cookies=request.cookies,
-                timeout=30.0
+                down_url, headers=outbound_headers, json=payload, cookies=request.cookies, timeout=30.0
             )
-            
+
             if response.status_code == 200 and mark_stopped:
                 # Update job status to STOPPED on successful down request
                 await job_update_status(job_id, "STOPPED")
-                
+
                 return {
                     "status": "success",
                     "data": response.json(),
@@ -293,10 +280,10 @@ async def stop_remote(
                 }
             else:
                 return {
-                    "status": "error", 
-                    "message": f"Lattice orchestrator returned status {response.status_code}: {response.text}"
+                    "status": "error",
+                    "message": f"Lattice orchestrator returned status {response.status_code}: {response.text}",
                 }
-                
+
     except httpx.TimeoutException:
         return {"status": "error", "message": "Request to Lattice orchestrator timed out"}
     except httpx.RequestError:
@@ -316,7 +303,7 @@ async def upload_directory(
     Files are stored locally first, then sent to orchestrator.
     """
     from lab.dirs import get_workspace_dir
-    
+
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -325,7 +312,7 @@ async def upload_directory(
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
-    
+
     # Store files locally first
     local_storage_dir = None
     try:
@@ -333,40 +320,41 @@ async def upload_directory(
         workspace_dir = get_workspace_dir()
         local_uploads_dir = os.path.join(workspace_dir, "uploads")
         os.makedirs(local_uploads_dir, exist_ok=True)
-        
+
         # Create unique directory for this upload
         import uuid
+
         upload_id = str(uuid.uuid4())
         base_upload_dir = f"upload_{upload_id}"
         local_storage_dir = os.path.join(local_uploads_dir, base_upload_dir)
         os.makedirs(local_storage_dir, exist_ok=True)
-        
+
         # Store files locally
         for file in dir_files:
             # Reset file pointer to beginning
             await file.seek(0)
             content = await file.read()
-            
+
             # Create directory structure if filename contains path separators
             file_path = os.path.join(local_storage_dir, file.filename)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            
+
             with open(file_path, "wb") as f:
                 f.write(content)
-        
+
         # Prepare the request data for Lattice orchestrator
         files_data = []
         form_data = {}
-        
+
         # Add dir_name if provided
         if dir_name:
             form_data["dir_name"] = dir_name
-        
+
         # Prepare files for upload (reset file pointers)
         for file in dir_files:
             await file.seek(0)
             files_data.append(("dir_files", (file.filename, await file.read(), file.content_type)))
-        
+
         # Make the request to the Lattice orchestrator
         async with httpx.AsyncClient() as client:
             # Build headers: prefer configured API key, otherwise forward incoming Authorization header
@@ -381,9 +369,9 @@ async def upload_directory(
                 files=files_data,
                 data=form_data,
                 cookies=request.cookies,
-                timeout=60.0  # Longer timeout for file uploads
+                timeout=60.0,  # Longer timeout for file uploads
             )
-            
+
             if response.status_code == 200:
                 response_data = response.json()
                 # Add local storage path to response (just the folder name)
@@ -392,14 +380,14 @@ async def upload_directory(
                     "status": "success",
                     "data": response_data,
                     "message": "Directory uploaded successfully",
-                    "local_storage_path": base_upload_dir
+                    "local_storage_path": base_upload_dir,
                 }
             else:
                 return {
-                    "status": "error", 
-                    "message": f"Lattice orchestrator returned status {response.status_code}: {response.text}"
+                    "status": "error",
+                    "message": f"Lattice orchestrator returned status {response.status_code}: {response.text}",
                 }
-                
+
     except httpx.TimeoutException:
         return {"status": "error", "message": "Request to Lattice orchestrator timed out"}
     except httpx.RequestError:
@@ -421,27 +409,20 @@ async def check_remote_job_status(request: Request, cluster_name: str):
         return gpu_orchestrator_url  # Error response
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
-    
+
     # Build the jobs endpoint URL
     jobs_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{cluster_name}"
-    
+
     try:
         async with httpx.AsyncClient() as client:
             # Build headers: prefer configured API key, otherwise forward incoming Authorization header
-            outbound_headers = {
-                "Content-Type": "application/json"
-            }
+            outbound_headers = {"Content-Type": "application/json"}
             incoming_auth = request.headers.get("AUTHORIZATION")
             if incoming_auth:
                 outbound_headers["AUTHORIZATION"] = incoming_auth
 
-            response = await client.get(
-                jobs_url,
-                headers=outbound_headers,
-                cookies=request.cookies,
-                timeout=30.0
-            )
-            
+            response = await client.get(jobs_url, headers=outbound_headers, cookies=request.cookies, timeout=30.0)
+
             if response.status_code == 200:
                 return {
                     "status": "success",
@@ -450,10 +431,10 @@ async def check_remote_job_status(request: Request, cluster_name: str):
                 }
             else:
                 return {
-                    "status": "error", 
-                    "message": f"Orchestrator returned status {response.status_code}: {response.text}"
+                    "status": "error",
+                    "message": f"Orchestrator returned status {response.status_code}: {response.text}",
                 }
-                
+
     except httpx.TimeoutException:
         return {"status": "error", "message": "Request to orchestrator timed out"}
     except httpx.RequestError:
@@ -475,27 +456,20 @@ async def get_orchestrator_logs(request: Request, request_id: str):
         return gpu_orchestrator_url  # Error response
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
-    
+
     # Build the logs endpoint URL
     logs_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/requests/{request_id}/logs"
-    
+
     try:
         async with httpx.AsyncClient() as client:
             # Build headers: prefer configured API key, otherwise forward incoming Authorization header
-            outbound_headers = {
-                "Content-Type": "application/json"
-            }
+            outbound_headers = {"Content-Type": "application/json"}
             incoming_auth = request.headers.get("AUTHORIZATION")
             if incoming_auth:
                 outbound_headers["AUTHORIZATION"] = incoming_auth
 
-            response = await client.get(
-                logs_url,
-                headers=outbound_headers,
-                cookies=request.cookies,
-                timeout=30.0
-            )
-            
+            response = await client.get(logs_url, headers=outbound_headers, cookies=request.cookies, timeout=30.0)
+
             if response.status_code == 200:
                 return {
                     "status": "success",
@@ -504,10 +478,10 @@ async def get_orchestrator_logs(request: Request, request_id: str):
                 }
             else:
                 return {
-                    "status": "error", 
-                    "message": f"Orchestrator returned status {response.status_code}: {response.text}"
+                    "status": "error",
+                    "message": f"Orchestrator returned status {response.status_code}: {response.text}",
                 }
-                
+
     except httpx.TimeoutException:
         return {"status": "error", "message": "Request to orchestrator timed out"}
     except httpx.RequestError:
@@ -525,8 +499,9 @@ async def check_remote_jobs_status(request: Request):
     try:
         # Get all REMOTE jobs in LAUNCHING state across all experiments
         import transformerlab.services.experiment_service as experiment_service
+
         launching_remote_jobs = []
-        
+
         # Get all experiments and check for REMOTE jobs in LAUNCHING state
         experiments = experiment_service.experiment_get_all()
         for exp in experiments:
@@ -535,29 +510,29 @@ async def check_remote_jobs_status(request: Request):
                 continue
             exp_jobs = job_service.jobs_get_all(exp["id"], type="REMOTE", status="LAUNCHING")
             launching_remote_jobs.extend(exp_jobs)
-        
+
         if not launching_remote_jobs:
             return {"message": "No REMOTE jobs in LAUNCHING state", "updated_jobs": []}
-        
+
         updated_jobs = []
         print(f"Checking {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state")
-        
+
         for job in launching_remote_jobs:
             job_id = job["id"]
             job_data = job.get("job_data", {})
             cluster_name = job_data.get("cluster_name")
-            
+
             if not cluster_name:
                 print(f"Warning: Job {job_id} has no cluster_name in job_data")
                 continue
-            
+
             # Check the status of jobs on this cluster using the actual request
             status_response = await check_remote_job_status(request, cluster_name)
-            
+
             if status_response["status"] == "success":
                 orchestrator_data = status_response["data"]
                 jobs_on_cluster = orchestrator_data.get("jobs", [])
-                
+
                 # Check if all jobs on the cluster are in a terminal state (SUCCEEDED or FAILED)
                 all_jobs_finished = True
                 for cluster_job in jobs_on_cluster:
@@ -566,7 +541,7 @@ async def check_remote_jobs_status(request: Request):
                     if job_status not in ["JobStatus.SUCCEEDED", "JobStatus.FAILED", "SUCCEEDED", "FAILED"]:
                         all_jobs_finished = False
                         break
-                
+
                 if all_jobs_finished and jobs_on_cluster:
                     # All jobs on the cluster are finished, mark our LAUNCHING job as COMPLETE
                     await job_update_status(job_id, "COMPLETE", experiment_id=job["experiment_id"])
@@ -609,21 +584,25 @@ async def check_remote_jobs_status(request: Request):
                         })
                 else:
                     # Jobs are still running on the cluster
-                    updated_jobs.append({
-                        "job_id": job_id,
-                        "cluster_name": cluster_name,
-                        "status": "LAUNCHING",
-                        "message": "Jobs still running on cluster"
-                    })
+                    updated_jobs.append(
+                        {
+                            "job_id": job_id,
+                            "cluster_name": cluster_name,
+                            "status": "LAUNCHING",
+                            "message": "Jobs still running on cluster",
+                        }
+                    )
             else:
-                print(f"Error checking status for job {job_id} on cluster {cluster_name}: {status_response.get('message', 'Unknown error')}")
-        
+                print(
+                    f"Error checking status for job {job_id} on cluster {cluster_name}: {status_response.get('message', 'Unknown error')}"
+                )
+
         return {
             "status": "success",
             "updated_jobs": updated_jobs,
-            "message": f"Checked {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state"
+            "message": f"Checked {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state",
         }
-        
+
     except Exception as e:
         print(f"Error checking remote job status: {str(e)}")
         return {"status": "error", "message": "Error checking remote job status"}
