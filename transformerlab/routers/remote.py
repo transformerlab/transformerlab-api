@@ -1,7 +1,6 @@
 import os
 import httpx
 import re
-import shlex
 from fastapi import APIRouter, Form, Request, File, UploadFile, HTTPException
 from typing import Optional, List
 from transformerlab.services import job_service
@@ -615,41 +614,17 @@ async def resume_from_checkpoint(
         if not original_command:
             raise HTTPException(status_code=400, detail="Original command not found in job data")
         
-        # Quote the checkpoint path to handle spaces
-        quoted_checkpoint_path = shlex.quote(checkpoint_path)
-        
-        # Parse the command to find the python execution part and add --resume_from_checkpoint
+        # Simple approach: find the python command and add the checkpoint parameter
         command_parts = original_command.split(' && ')
-        python_part_index = None
+        
         for i, part in enumerate(command_parts):
-            if part.strip().startswith('python '):
-                python_part_index = i
+            part = part.strip()
+            if part.startswith('python ') and '.py' in part:
+                # Add the checkpoint parameter to this python command
+                command_parts[i] = f"{part} --resume_from_checkpoint {checkpoint_path}"
                 break
         
-        if python_part_index is None:
-            raise HTTPException(status_code=400, detail="Could not find python execution command in original command")
-        
-        # Modify the python part to include --resume_from_checkpoint
-        python_command = command_parts[python_part_index].strip()
-        
-        # Check if --resume_from_checkpoint already exists
-        if "--resume_from_checkpoint" in python_command:
-            # Replace existing checkpoint parameter - use a more robust pattern that handles quoted paths
-            # Match --resume_from_checkpoint followed by either a quoted string or unquoted path until next --
-            resume_pattern = r'--resume_from_checkpoint\s+(?:"[^"]*"|\'[^\']*\'|[^\'"\s]+)'
-            resume_python_command = re.sub(
-                resume_pattern,
-                f'--resume_from_checkpoint {quoted_checkpoint_path}',
-                python_command
-            )
-        else:
-            # Add the checkpoint parameter
-            resume_python_command = f"{python_command} --resume_from_checkpoint {quoted_checkpoint_path}"
-        
-        # Replace the python part in the command_parts
-        command_parts[python_part_index] = resume_python_command
-        
-        # Rejoin the command parts
+        # Rejoin the command
         resume_command = ' && '.join(command_parts)
         
         # Create a simple, meaningful task name for the resumed training
