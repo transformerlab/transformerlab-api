@@ -2,6 +2,7 @@ import os
 import httpx
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
+import json
 from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
 
@@ -25,6 +26,77 @@ def validate_gpu_orchestrator_env_vars():
 
     return gpu_orchestrator_url, gpu_orchestrator_port
 
+
+async def handle_remote_shutdown_if_enabled(request: Request, job_json: dict):
+    """
+    If a job has shutdown_after_completion enabled and is COMPLETE/FAILED, request shutdown
+    from the orchestrator, then remove the shutdown flag from job_data to avoid repeats.
+    """
+    try:
+        if not job_json:
+            return
+        status = job_json.get("status", "")
+        if status not in ["COMPLETE", "FAILED"]:
+            return
+
+        job_data = job_json.get("job_data", {})
+        if not isinstance(job_data, dict):
+            try:
+                job_data = json.loads(job_data)
+            except Exception:
+                job_data = {}
+
+        if not job_data.get("shutdown_after_completion", False):
+            return
+
+        cluster_name = job_data.get("cluster_name")
+        if not cluster_name:
+            print(
+                f"Warning: Job {job_json.get('id')} has shutdown_after_completion enabled but no cluster_name"
+            )
+            return
+
+        job_id = job_json.get("id")
+        print(f"Requesting shutdown for job {job_id} with cluster_name {cluster_name}")
+        # Request orchestrator to bring the instance down; don't change job status here
+        shutdown_response = await stop_remote(
+            request, job_id=job_id, cluster_name=cluster_name, mark_stopped=False
+        )
+
+        if isinstance(shutdown_response, dict) and shutdown_response.get("status") == "success":
+            # Remove the flag from job_data to avoid repeated shutdown attempts
+            try:
+                from lab import Job, Experiment
+                from lab.dirs import get_workspace_dir
+
+                job_obj = Job.get(job_id)
+                current_data = job_obj.get_job_data()
+                if not isinstance(current_data, dict):
+                    try:
+                        current_data = json.loads(current_data)
+                    except Exception:
+                        current_data = {}
+                if "shutdown_after_completion" in current_data:
+                    current_data.pop("shutdown_after_completion", None)
+                    job_obj.set_job_data(current_data)
+
+                    # Trigger cache rebuild so cached jobs.json reflects updated job_data
+                    try:
+                        exp = Experiment(job_obj.get_experiment_id())
+                        exp._trigger_cache_rebuild(get_workspace_dir())
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"Error updating job data after shutdown for job {job_id}: {e}")
+        else:
+            # Log failure; do not remove the flag so we can retry on next list
+            print(
+                f"Failed to shutdown cluster {cluster_name} for job {job_json.get('id')}: {shutdown_response}"
+            )
+    except Exception as e:
+        print(
+            f"Error handling remote shutdown for job {job_json.get('id')}: {e}"
+        )
 
 @router.post("/create-job")
 async def create_remote_job(
@@ -269,9 +341,10 @@ async def stop_remote(
                 down_url, headers=outbound_headers, json=payload, cookies=request.cookies, timeout=30.0
             )
 
-            if response.status_code == 200 and mark_stopped:
-                # Update job status to STOPPED on successful down request
-                await job_update_status(job_id, "STOPPED")
+            if response.status_code == 200:
+                if mark_stopped:
+                    # Update job status to STOPPED on successful down request
+                    await job_update_status(job_id, "STOPPED")
 
                 return {
                     "status": "success",

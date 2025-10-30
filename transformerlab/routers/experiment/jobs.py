@@ -23,13 +23,32 @@ import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
 from lab import dirs, Job
 from lab.dirs import get_workspace_dir
+from transformerlab.routers.remote import handle_remote_shutdown_if_enabled
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
 async def jobs_get_all(experimentId: str, type: str = "", status: str = "", request: Request = None):
-    jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId, cookies=request.cookies if request else None)
+    jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+
+    # After fetching jobs, trigger remote shutdowns for completed/failed jobs with the flag set
+    if request and jobs:
+        for job in jobs:
+            try:
+                if job.get("status") in ["COMPLETE", "FAILED"]:
+                    job_data = job.get("job_data", {})
+                    if not isinstance(job_data, dict):
+                        try:
+                            job_data = json.loads(job_data)
+                        except Exception:
+                            job_data = {}
+                    if job_data.get("shutdown_after_completion", False):
+                        await handle_remote_shutdown_if_enabled(request, job)
+            except Exception:
+                # Best-effort; do not block listing on shutdown errors
+                pass
+
     return jobs
 
 
