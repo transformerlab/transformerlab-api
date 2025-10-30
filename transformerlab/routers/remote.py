@@ -113,6 +113,22 @@ async def launch_remote(
         # Create a new REMOTE job
         job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
 
+        # Add optional parameters if provided
+        if cpus:
+            job_data["cpus"] = cpus
+        if memory:
+            job_data["memory"] = memory
+        if disk_space:
+            job_data["disk_space"] = disk_space
+        if accelerators:
+            job_data["accelerators"] = accelerators
+        if num_nodes:
+            job_data["num_nodes"] = num_nodes
+        if setup:
+            job_data["setup"] = setup
+        if uploaded_dir_path:
+            job_data["uploaded_dir_path"] = uploaded_dir_path
+
         try:
             job_id = job_service.job_create(
                 type="REMOTE",
@@ -192,22 +208,6 @@ async def launch_remote(
                     job_service.job_update_job_data_insert_key_value(
                         job_id, "cluster_name", response_data["cluster_name"], experimentId
                     )
-
-                # Save the launch_config for potential resume
-                launch_config = {
-                    "command": command,
-                    "setup": setup,
-                    "cluster_name": cluster_name,
-                    "cpus": cpus,
-                    "memory": memory,
-                    "disk_space": disk_space,
-                    "accelerators": accelerators,
-                    "num_nodes": num_nodes,
-                    "uploaded_dir_path": uploaded_dir_path,
-                }
-                job_service.job_update_job_data_insert_key_value(
-                    job_id, "launch_config", json.dumps(launch_config), experimentId
-                )
 
                 return {
                     "status": "success",
@@ -600,18 +600,8 @@ async def resume_from_checkpoint(
         if not original_job:
             raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
         
-        original_job_data = original_job.get("job_data", {})
-        
-        # Get the launch_config from the original job
-        launch_config_str = original_job_data.get("launch_config")
-        if not launch_config_str:
-            raise HTTPException(status_code=400, detail="launch_config not found in original job")
-        
-        # Parse the launch_config JSON string
-        try:
-            launch_config = json.loads(launch_config_str)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid launch_config format")
+        # Get the parent job data
+        parent_job_data = original_job.get("job_data", {})
         
         # Get the checkpoint directory path
         checkpoints_dir = get_job_checkpoints_dir(job_id)
@@ -621,9 +611,9 @@ async def resume_from_checkpoint(
             raise HTTPException(status_code=404, detail=f"Checkpoint {checkpoint_name} not found at {checkpoint_path}")
         
         # Modify the command to include the checkpoint parameter
-        original_command = launch_config.get("command", "")
+        original_command = parent_job_data.get("command", "")
         if not original_command:
-            raise HTTPException(status_code=400, detail="Original command not found in launch_config")
+            raise HTTPException(status_code=400, detail="Original command not found in job data")
         
         # Parse the command to find the python execution part and add --resume_from_checkpoint
         command_parts = original_command.split(' && ')
@@ -660,16 +650,16 @@ async def resume_from_checkpoint(
         launch_result = await launch_remote(
             request=request,
             experimentId=experimentId,
-            cluster_name=launch_config.get("cluster_name"),
+            cluster_name=parent_job_data.get("cluster_name"),
             command=resume_command,
             task_name=f"Resume from {checkpoint_name}",
-            cpus=launch_config.get("cpus"),
-            memory=launch_config.get("memory"),
-            disk_space=launch_config.get("disk_space"),
-            accelerators=launch_config.get("accelerators"),
-            num_nodes=launch_config.get("num_nodes"),
-            setup=launch_config.get("setup"),
-            uploaded_dir_path=launch_config.get("uploaded_dir_path"),
+            cpus=parent_job_data.get("cpus"),
+            memory=parent_job_data.get("memory"),
+            disk_space=parent_job_data.get("disk_space"),
+            accelerators=parent_job_data.get("accelerators"),
+            num_nodes=parent_job_data.get("num_nodes"),
+            setup=parent_job_data.get("setup"),
+            uploaded_dir_path=parent_job_data.get("uploaded_dir_path"),
         )
         
         if launch_result.get("status") == "success":
