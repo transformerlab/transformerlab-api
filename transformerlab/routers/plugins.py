@@ -136,6 +136,28 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
         await log_file.write(f"## Running setup script for {plugin_id} in virtual environment...\n")
 
         setup_script_name = plugin_index["setup-script"]
+        setup_script_path = os.path.join(new_directory, setup_script_name)
+
+        # Normalize CRLF -> LF centrally before running any setup script so each installer
+        # doesn't need to include the conversion itself.
+        try:
+            if os.path.exists(setup_script_path):
+                with open(setup_script_path, "rb") as f:
+                    data = f.read()
+                if b"\r" in data:
+                    normalized = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+                    with open(setup_script_path, "wb") as f:
+                        f.write(normalized)
+                    # Ensure the script is executable
+                    try:
+                        os.chmod(setup_script_path, os.stat(setup_script_path).st_mode | 0o111)
+                    except Exception:
+                        pass
+                    await log_file.write(f"## Normalized line endings for {setup_script_name}\n")
+        except Exception as e:
+            print(f"Failed to normalize line endings for {setup_script_name}: {e}")
+            await log_file.write(f"## Failed to normalize line endings for {setup_script_name}: {e}\n")
+
         # Use bash -c to properly source the activation script before running setup script
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
