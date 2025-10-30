@@ -1,6 +1,6 @@
 # This workflow will install Python dependencies and run tests
 
-name: Test for Install and Serving
+name: Test for Install and Serving (Ubuntu)
 
 on:
   push:
@@ -11,6 +11,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      AUTH_CLIENT_ID: ${{ secrets.AUTH_CLIENT_ID }}
+      AUTH_API_KEY: ${{ secrets.AUTH_API_KEY }}
+      FRONTEND_URL: http://localhost:8338
+      AUTH_SUCCESS_REDIRECT_URL: /
+      AUTH_ERROR_REDIRECT_URL: /
+      AUTH_LOGOUT_REDIRECT_URL: /
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +46,7 @@ jobs:
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
           ./run.sh &
-          sleep 20  # Wait for the server to start
+          sleep 30  # Wait for the server to start
       - name: Test the API Server and DB Setup
         run: |
           pytest -m live_server test/server/

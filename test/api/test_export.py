@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch, AsyncMock, MagicMock
 import pytest
-from transformerlab.routers.experiment.export import get_output_file_name
+from transformerlab.shared.shared import get_job_output_file_name as get_output_file_name
 import asyncio
 
 pytestmark = pytest.mark.skip("skipping these as they need to be fixed")
@@ -19,7 +19,7 @@ def test_export_job(client):
 
 
 @patch("transformerlab.db.experiment_get")
-@patch("transformerlab.db.export_job_create")
+@patch("transformerlab.services.job_service.job_create")
 @patch("asyncio.create_subprocess_exec")
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
 @patch("transformerlab.db.job_update_status")
@@ -83,7 +83,7 @@ def test_run_exporter_script_invalid_experiment(client, mock_experiment_get):
 
 
 @patch("transformerlab.db.experiment_get")
-@patch("transformerlab.db.export_job_create")
+@patch("transformerlab.services.job_service.job_create")
 @patch("asyncio.create_subprocess_exec")
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
 @patch("transformerlab.db.job_update_status")
@@ -114,7 +114,7 @@ def test_run_exporter_script_process_error(
 
 
 @patch("transformerlab.db.experiment_get")
-@patch("transformerlab.db.export_job_create")
+@patch("transformerlab.services.job_service.job_create")
 @patch("asyncio.create_subprocess_exec")
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
 @patch("transformerlab.db.job_update_status")
@@ -255,7 +255,7 @@ def test_watch_export_log_retry_success(client, mock_get_output_file, mock_sleep
 
 
 @patch("transformerlab.db.experiment_get")
-@patch("transformerlab.db.export_job_create")
+@patch("transformerlab.services.job_service.job_create")
 @patch("asyncio.create_subprocess_exec")
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
 @patch("builtins.open")

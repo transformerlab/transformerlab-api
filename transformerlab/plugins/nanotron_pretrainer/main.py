@@ -8,6 +8,7 @@ from typing import Dict, Tuple
 
 from transformerlab.sdk.v1.train import tlab_trainer
 
+
 def get_gpu_count():
     """Get the number of available GPUs using PyTorch"""
     try:
@@ -32,9 +33,9 @@ def generate_nanotron_config():
     """
     # Format the run name with job ID
     run_name = tlab_trainer.params.get("template_name", "nanotron_run") + "_" + str(tlab_trainer.params.job_id)
-    checkpoint_path = os.path.join(
-        os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "checkpoints"
-    )
+    from transformerlab.plugin import WORKSPACE_DIR
+
+    checkpoint_path = os.path.join(WORKSPACE_DIR, "models", "pretrained", run_name, "checkpoints")
 
     MODEL_SIZES: Dict[str, Tuple[int, int, int, int, int]] = {
         # (layers, hidden, heads, kv_heads, ffn_size)
@@ -205,9 +206,9 @@ def train_model():
     run_name = tlab_trainer.params.get("template_name", "nanotron_run") + "_" + str(tlab_trainer.params.job_id)
 
     # Create output directories
-    output_path = os.path.join(
-        os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "nanotron_config_files"
-    )
+    from transformerlab.plugin import WORKSPACE_DIR
+
+    output_path = os.path.join(WORKSPACE_DIR, "models", "pretrained", run_name, "nanotron_config_files")
     os.makedirs(output_path, exist_ok=True)
     # Save the configuration to a YAML file
     config_path = os.path.join(output_path, f"{run_name}.yaml")
@@ -224,9 +225,9 @@ def train_model():
         # Get GPU count
         num_gpus = get_gpu_count()
     # Create run_train.py script
-    run_train_path = os.path.join(
-        os.environ["_TFL_WORKSPACE_DIR"], "plugins", "nanotron_pretrainer", "nanotron", "run_train.py"
-    )
+    from transformerlab.plugin import WORKSPACE_DIR
+
+    run_train_path = os.path.join(WORKSPACE_DIR, "plugins", "nanotron_pretrainer", "nanotron", "run_train.py")
 
     # Run training with torchrun
     env = os.environ.copy()
@@ -306,25 +307,23 @@ def train_model():
     tlab_trainer.progress_update(100)
 
     # Convert Nanotron checkpoint to HF format
-    checkpoint_path = os.path.join(
-        os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "checkpoints"
-    )
+    from transformerlab.plugin import WORKSPACE_DIR
+
+    checkpoint_path = os.path.join(WORKSPACE_DIR, "models", "pretrained", run_name, "checkpoints")
     try:
         with open(os.path.join(checkpoint_path, "latest.txt"), "r") as f:
             latest_checkpoint = f.read().strip()
 
-        save_path = os.path.join(
-            os.environ.get("_TFL_WORKSPACE_DIR", "."),
-            "models",
-            run_name,
-        )
+        from transformerlab.plugin import WORKSPACE_DIR
+
+        save_path = os.path.join(WORKSPACE_DIR, "models", run_name)
         latest_checkpoint_path = os.path.join(checkpoint_path, latest_checkpoint)
         print("Latest checkpoint path:", latest_checkpoint_path)
         print("Save path:", save_path)
 
-        convert_script_path = os.path.join(
-            os.environ["_TFL_WORKSPACE_DIR"], "plugins", "nanotron_pretrainer", "convert_nanotron_to_hf.py"
-        )
+        from transformerlab.plugin import WORKSPACE_DIR
+
+        convert_script_path = os.path.join(WORKSPACE_DIR, "plugins", "nanotron_pretrainer", "convert_nanotron_to_hf.py")
 
         cmd_convert = [
             "torchrun",

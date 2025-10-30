@@ -4,11 +4,11 @@
   "description": "Generate images using a text-to-image model from a set of user-provided prompts.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
-  "supported_hardware_architectures": ["cpu", "cuda", "amd"],
+  "supported_hardware_architectures": [],
   "_dataset": true,
   "setup-script": "setup.sh",
   "parameters": {

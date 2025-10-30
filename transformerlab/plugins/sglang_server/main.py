@@ -6,7 +6,6 @@ import sys
 import signal
 import psutil
 import torch
-import gc
 import threading
 import shutil
 import site
@@ -36,15 +35,6 @@ def kill_sglang_subprocesses():
                 proc.kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
-
-
-# Clear CUDA memory (if CUDA is available)
-def clear_vram():
-    gc.collect()
-    if torch.cuda.is_available():
-        print(">>> [main] Emptying CUDA memory cache and collecting garbage...")
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
 
 
 def inject_ninja_into_path():
@@ -188,12 +178,10 @@ try:
         print(decoded, file=sys.stderr)
         if "torch.cuda.OutOfMemoryError" in decoded:
             print("CUDA Out of memory error", file=sys.stderr)
-            clear_vram()
             kill_sglang_subprocesses()
             sys.exit(99)
 finally:
     print(">>> [main] model_worker exited. Cleaning up...", file=sys.stderr)
-    clear_vram()
     kill_sglang_subprocesses()
     print(">>> [main] Cleanup done.", file=sys.stderr)
     sys.exit(1)

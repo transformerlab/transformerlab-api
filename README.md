@@ -62,15 +62,14 @@ Dependencies are managed with uv (installed separately). Add new requirements to
 
 ```bash
 # GPU enabled requirements for CUDA
-uv pip compile requirements.in -o requirements-uv.txt --index=https://download.pytorch.org/whl/cu128
-sed -i 's/\+cu128//g' requirements-uv.txt
+uv pip compile requirements.in -o requirements-uv.txt
 
 # GPU enabled requirements for ROCm
-uv pip compile requirements-rocm.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
-sed -i 's/\+rocm6\.3//g' requirements-rocm-uv.txt
+uv pip compile requirements-rocm.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match
+sed -i 's/\+rocm6\.4//g' requirements-rocm-uv.txt
 
 # On a Linux or Windows (non-Mac) system without GPU support (CPU only), run:
-uv pip compile requirements.in -o requirements-no-gpu-uv.txt --index=https://download.pytorch.org/whl/cpu
+uv pip compile requirements.in -o requirements-no-gpu-uv.txt --index=https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
 sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
 
 # On a MacOS system (Apple Silicon), run:

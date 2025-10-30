@@ -4,6 +4,7 @@ import subprocess
 from huggingface_hub import get_token, HfApi
 from datasets import load_from_disk
 from transformerlab.sdk.v1.generate import tlab_gen
+from transformerlab.plugin import get_python_executable
 
 
 def generate_config():
@@ -17,11 +18,17 @@ def generate_config():
     print("Model loaded successfully")
     tlab_gen.progress_update(30)
 
+    from transformerlab.plugin import WORKSPACE_DIR
+
     tlab_gen.params.documents_dir = os.path.join(
-        os.environ.get("_TFL_WORKSPACE_DIR"), "experiments", tlab_gen.params.experiment_name, "documents", docs
+        WORKSPACE_DIR, "experiments", tlab_gen.params.experiment_name, "documents", docs
     )
     if not os.path.isdir(tlab_gen.params.documents_dir):
         raise FileNotFoundError("Please provide a directory containing all your files instead of individual files")
+
+    base_url = getattr(trlab_model, "base_url", None)
+    if not base_url:
+        base_url = "http://localhost:8338/v1"
     config = {
         "settings": {"debug": True},
         "hf_configuration": {
@@ -37,7 +44,7 @@ def generate_config():
                 "model_name": trlab_model.generation_model_name,
                 "api_key": trlab_model.api_key,
                 "max_concurrent_requests": 8,
-                "base_url": trlab_model.base_url,
+                "base_url": base_url,
             },
         ],
         "model_roles": {
@@ -137,21 +144,33 @@ def run_yourbench():
     tlab_gen.progress_update(30)
 
     # Get the yourbench directory path
-    current_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "plugins", "yourbench_data_gen")
-    yourbench_dir = os.path.join(current_dir, "yourbench")
+    from transformerlab.plugin import WORKSPACE_DIR
+
+    current_dir = os.path.join(WORKSPACE_DIR, "plugins", "yourbench_data_gen")
 
     # Run yourbench with the configuration
     try:
         print(f"Executing YourBench with config: {config_path}")
         tlab_gen.progress_update(40)
 
+        plugin_dir = os.path.dirname(os.path.realpath(__file__))
+        env = os.environ.copy()
+        python_executable = get_python_executable(plugin_dir)
+        env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
+        if "venv" in python_executable:
+            yourbench_executable = python_executable.replace("venv/bin/python", "venv/bin/yourbench")
+        else:
+            yourbench_executable = "yourbench"
+
         command = f"""
-            yourbench run --config {config_path}
+            {yourbench_executable} run {config_path}
             """
+        print("")
 
         process = subprocess.Popen(
             command,
-            cwd=yourbench_dir,
+            cwd=current_dir,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,

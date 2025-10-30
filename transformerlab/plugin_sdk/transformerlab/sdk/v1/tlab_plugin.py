@@ -12,11 +12,13 @@ from typing import Any, List
 from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
 
 try:
-    from transformerlab.plugin import Job, get_dataset_path
+    from transformerlab.plugin import get_dataset_path
     import transformerlab.plugin as tlab_core
 except ModuleNotFoundError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import Job, get_dataset_path
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_dataset_path
     import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
+
+from lab import Job
 
 
 class DotDict(dict):
@@ -103,7 +105,8 @@ class TLabPlugin:
 
                     # Update final progress and success status
                     self.progress_update(progress_end)
-                    self.job.set_job_completion_status("success", "Job completed successfully")
+                    self.job.update_job_data_field("completion_status", "success")
+                    self.job.update_job_data_field("completion_details", "Job completed successfully")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
@@ -120,7 +123,8 @@ class TLabPlugin:
                     print(error_msg)
 
                     # Update job with failure status
-                    self.job.set_job_completion_status("failed", "Error occurred while executing job")
+                    self.job.update_job_data_field("completion_status", "failed")
+                    self.job.update_job_data_field("completion_details", "Error occurred while executing job")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
@@ -179,7 +183,8 @@ class TLabPlugin:
 
                         # Update final progress and success status
                         self.progress_update(progress_end)
-                        self.job.set_job_completion_status("success", "Job completed successfully")
+                        self.job.update_job_data_field("completion_status", "success")
+                        self.job.update_job_data_field("completion_details", "Job completed successfully")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -196,7 +201,8 @@ class TLabPlugin:
                         print(error_msg)
 
                         # Update job with failure status
-                        self.job.set_job_completion_status("failed", "Error occurred while executing job")
+                        self.job.update_job_data_field("completion_status", "failed")
+                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -216,15 +222,17 @@ class TLabPlugin:
         return decorator
 
     def progress_update(self, progress: int):
-        """Update job progress"""
+        """Update job progress using SDK directly"""
         job_data = self.job.get_job_data()
         if job_data.get("sweep_progress") is not None:
             if int(job_data.get("sweep_progress")) != 100:
-                self.job.update_job_data("sweep_subprogress", progress)
+                self.job.update_job_data_field("sweep_subprogress", progress)
                 return
 
         self.job.update_progress(progress)
-        if self.job.should_stop:
+        # Check stop status using SDK
+        job_data = self.job.get_job_data()
+        if job_data.get("stop", False):
             self.job.update_status("STOPPED")
             raise KeyboardInterrupt("Job stopped by user")
 
@@ -233,8 +241,8 @@ class TLabPlugin:
         return tlab_core.get_experiment_config(experiment_name)
 
     def add_job_data(self, key: str, value: Any):
-        """Add data to job"""
-        self.job.add_to_job_data(key, value)
+        """Add data to job using SDK directly"""
+        self.job.update_job_data_field(key, value)
 
     def load_dataset(self, dataset_types: List[str] = ["train"], config_name: str = None):
         """Decorator for loading datasets with error handling"""
@@ -242,7 +250,8 @@ class TLabPlugin:
         self._ensure_args_parsed()
 
         if not self.params.dataset_name:
-            self.job.set_job_completion_status("failed", "Dataset name not provided")
+            self.job.update_job_data_field("completion_status", "failed")
+            self.job.update_job_data_field("completion_details", "Dataset name not provided")
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise ValueError("Dataset name not provided")
 
@@ -317,7 +326,8 @@ class TLabPlugin:
         except Exception as e:
             error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            self.job.set_job_completion_status("failed", "Failed to load dataset")
+            self.job.update_job_data_field("completion_status", "failed")
+            self.job.update_job_data_field("completion_details", "Failed to load dataset")
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
@@ -469,7 +479,7 @@ class TLabPlugin:
 
         # Add experiment_id if we have one
         if experiment_id is not None:
-            params["experiment_id"] = int(experiment_id)
+            params["experiment_id"] = experiment_id
 
         # Add optional parameters if they exist
         if self.params.get("model_adapter"):
@@ -594,6 +604,9 @@ class TLabPlugin:
             def __init__(self, model_type="claude", model_name="claude-3-7-sonnet-latest"):
                 self.model_type = model_type
                 self.generation_model_name = model_name
+                # Dealing with the new {"provider": "<model_name>"} output format
+                if isinstance(model_name, dict):
+                    self.generation_model_name = model_name.get("provider", model_name)
 
                 if model_type == "claude":
                     self.chat_completions_url = "https://api.anthropic.com/v1/chat/completions"
@@ -655,6 +668,8 @@ class TLabPlugin:
 
             def generate(self, prompt: str, schema=None):
                 client = self.load_model()
+                if isinstance(self.generation_model_name, dict):
+                    self.generation_model_name = self.generation_model_name.get("provider", self.generation_model_name)
                 if schema:
                     import instructor
 
@@ -675,6 +690,7 @@ class TLabPlugin:
                         model=self.generation_model_name,
                         messages=[{"role": "user", "content": prompt}],
                     )
+
                     return response.choices[0].message.content
 
             async def a_generate(self, prompt: str, schema=None):

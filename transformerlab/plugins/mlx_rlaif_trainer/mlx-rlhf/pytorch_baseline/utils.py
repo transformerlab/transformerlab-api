@@ -44,7 +44,6 @@ class RunningMoments:
         return xs_mean, torch.sqrt(xs_var * xs_count / (xs_count - 1)).item()
 
 
-
 class AdaptiveKLController:
     """
     Adaptive KL controller described in the paper:
@@ -267,7 +266,7 @@ def stack_dicts(stats_dicts: List[Dict]) -> Dict:
         padded = []
         for x in stats_list:
             if len(x) < max_len:
-                buffer = torch.ones(max_len-len(x)).to(x.dtype)
+                buffer = torch.ones(max_len - len(x)).to(x.dtype)
                 x = torch.concatenate((x, buffer))
             padded.append(x)
         results[k] = torch.stack(padded)
@@ -337,7 +336,7 @@ def _generate_token(
         if temp == 0:
             return torch.argmax(sampled_logits, dim=-1)
         else:
-            dist = torch.distributions.Categorical(sampled_logits * (1/temp))
+            dist = torch.distributions.Categorical(sampled_logits * (1 / temp))
             return dist.sample()
 
     y = prompt
@@ -381,7 +380,6 @@ def generate(model, prompt, tokenizer, args):
 
 
 def generate_ids(model, input_ids, eos_token_id=100_000, temperature=0.0, max_tokens=128):
-
     prompt = torch.tensor(input_ids)
     tokens = []
     for token, n in zip(

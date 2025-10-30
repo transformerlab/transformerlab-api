@@ -77,8 +77,11 @@ class MLXAudioWorker(BaseModelWorker):
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
+        top_p = params.get("top_p", 1.0)
         stream = params.get("stream", False)
-        
+        voice = params.get("voice", None)
+        lang_code = params.get("lang_code", None)
+
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
             audio_dir = os.path.join(WORKSPACE_DIR, "audio")
@@ -88,32 +91,39 @@ class MLXAudioWorker(BaseModelWorker):
         file_prefix = str(uuid.uuid4())
 
         try:
-            generate_audio(
-                text=text,
-                model_path=model,
-                speed=speed,
-                file_prefix=os.path.join(audio_dir, file_prefix),
-                sample_rate=sample_rate,
-                join_audio=True,  # Whether to join multiple audio files into one
-                verbose=True,  # Set to False to disable print messages
-                temperature=temperature,
-                stream=stream,
-                voice=None,
-            )
+            kwargs = {
+                "text": text,
+                "model_path": model,
+                "speed": speed,
+                "file_prefix": os.path.join(audio_dir, file_prefix),
+                "sample_rate": sample_rate,
+                "join_audio": True,
+                "verbose": True,
+                "temperature": temperature,
+                "top_p": top_p,
+                "stream": stream,
+                "voice": voice,
+            }
+            if lang_code:
+                kwargs["lang_code"] = lang_code
+
+            generate_audio(**kwargs)
 
             # Also save the parameters and metadata used to generate the audio
             metadata = {
                 "type": "audio",
                 "text": text,
+                "voice": voice,
                 "filename": f"{file_prefix}.{audio_format}",
                 "model": model,
                 "speed": speed,
                 "audio_format": audio_format,
                 "sample_rate": sample_rate,
                 "temperature": temperature,
+                "top_p": top_p,
                 "date": datetime.now().isoformat(),  # Store the real date and time
             }
-            
+
             metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f)
@@ -199,7 +209,6 @@ def main():
     )
     parser.add_argument("--parameters", type=str, default="{}")
     parser.add_argument("--plugin_dir", type=str)
-
 
     args, unknown = parser.parse_known_args()
 
