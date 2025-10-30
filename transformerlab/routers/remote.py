@@ -2,6 +2,7 @@ import os
 import httpx
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
+import json
 from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
 
@@ -26,6 +27,77 @@ def validate_gpu_orchestrator_env_vars():
     return gpu_orchestrator_url, gpu_orchestrator_port
 
 
+async def handle_remote_shutdown_if_enabled(request: Request, job_json: dict):
+    """
+    If a job has shutdown_after_completion enabled and is COMPLETE/FAILED, request shutdown
+    from the orchestrator, then remove the shutdown flag from job_data to avoid repeats.
+    """
+    try:
+        if not job_json:
+            return
+        status = job_json.get("status", "")
+        if status not in ["COMPLETE", "FAILED"]:
+            return
+
+        job_data = job_json.get("job_data", {})
+        if not isinstance(job_data, dict):
+            try:
+                job_data = json.loads(job_data)
+            except Exception:
+                job_data = {}
+
+        if not job_data.get("shutdown_after_completion", False):
+            return
+
+        cluster_name = job_data.get("cluster_name")
+        if not cluster_name:
+            print(
+                f"Warning: Job {job_json.get('id')} has shutdown_after_completion enabled but no cluster_name"
+            )
+            return
+
+        job_id = job_json.get("id")
+        print(f"Requesting shutdown for job {job_id} with cluster_name {cluster_name}")
+        # Request orchestrator to bring the instance down; don't change job status here
+        shutdown_response = await stop_remote(
+            request, job_id=job_id, cluster_name=cluster_name, mark_stopped=False
+        )
+
+        if isinstance(shutdown_response, dict) and shutdown_response.get("status") == "success":
+            # Remove the flag from job_data to avoid repeated shutdown attempts
+            try:
+                from lab import Job, Experiment
+                from lab.dirs import get_workspace_dir
+
+                job_obj = Job.get(job_id)
+                current_data = job_obj.get_job_data()
+                if not isinstance(current_data, dict):
+                    try:
+                        current_data = json.loads(current_data)
+                    except Exception:
+                        current_data = {}
+                if "shutdown_after_completion" in current_data:
+                    current_data.pop("shutdown_after_completion", None)
+                    job_obj.set_job_data(current_data)
+
+                    # Trigger cache rebuild so cached jobs.json reflects updated job_data
+                    try:
+                        exp = Experiment(job_obj.get_experiment_id())
+                        exp._trigger_cache_rebuild(get_workspace_dir())
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"Error updating job data after shutdown for job {job_id}: {e}")
+        else:
+            # Log failure; do not remove the flag so we can retry on next list
+            print(
+                f"Failed to shutdown cluster {cluster_name} for job {job_json.get('id')}: {shutdown_response}"
+            )
+    except Exception as e:
+        print(
+            f"Error handling remote shutdown for job {job_json.get('id')}: {e}"
+        )
+
 @router.post("/create-job")
 async def create_remote_job(
     request: Request,
@@ -40,6 +112,7 @@ async def create_remote_job(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    shutdown_after_completion: Optional[bool] = Form(False),
 ):
     """
     Create a remote job without launching it. Returns job info for frontend to show placeholder.
@@ -62,7 +135,13 @@ async def create_remote_job(
         job_data["setup"] = setup
     if uploaded_dir_path:
         job_data["uploaded_dir_path"] = uploaded_dir_path
-
+    if shutdown_after_completion:
+        # Convert string "true"/"false" to boolean
+        if isinstance(shutdown_after_completion, str):
+            shutdown_after_completion = shutdown_after_completion.lower() == "true"
+    
+        job_data["shutdown_after_completion"] = shutdown_after_completion
+    
     try:
         job_id = job_service.job_create(
             type="REMOTE",
@@ -98,6 +177,7 @@ async def launch_remote(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    shutdown_after_completion: Optional[bool] = Form(False),
 ):
     """
     Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
@@ -108,7 +188,16 @@ async def launch_remote(
         pass
     else:
         # Create a new REMOTE job
-        job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+        job_data = {
+            "task_name": task_name,
+            "command": command,
+            "cluster_name": cluster_name
+        }
+        
+        # Add shutdown_after_completion if provided
+        if shutdown_after_completion:
+            job_data["shutdown_after_completion"] = shutdown_after_completion
+        
 
         try:
             job_id = job_service.job_create(
@@ -215,6 +304,7 @@ async def stop_remote(
     request: Request,
     job_id: str = Form(...),
     cluster_name: str = Form(...),
+    mark_stopped: bool = Form(True),
 ):
     """
     Stop a remote instance via Lattice orchestrator by calling instances/down endpoint
@@ -252,8 +342,9 @@ async def stop_remote(
             )
 
             if response.status_code == 200:
-                # Update job status to STOPPED on successful down request
-                await job_update_status(job_id, "STOPPED")
+                if mark_stopped:
+                    # Update job status to STOPPED on successful down request
+                    await job_update_status(job_id, "STOPPED")
 
                 return {
                     "status": "success",
@@ -527,14 +618,43 @@ async def check_remote_jobs_status(request: Request):
                 if all_jobs_finished and jobs_on_cluster:
                     # All jobs on the cluster are finished, mark our LAUNCHING job as COMPLETE
                     await job_update_status(job_id, "COMPLETE", experiment_id=job["experiment_id"])
-                    updated_jobs.append(
-                        {
+                    
+                    # Check if shutdown_after_completion is enabled
+                    shutdown_after_completion = job_data.get("shutdown_after_completion", False)
+                    if shutdown_after_completion:
+                        # Call the remote/down endpoint to shutdown the instance
+                        try:
+                            shutdown_response = await stop_remote(request, job_id, cluster_name, mark_stopped=False)
+                            if shutdown_response.get("status") == "success":
+                                updated_jobs.append({
+                                    "job_id": job_id,
+                                    "cluster_name": cluster_name,
+                                    "status": "COMPLETE",
+                                    "message": "All jobs on cluster completed and instance shutdown"
+                                })
+                            else:
+                                print(f"Error shutting down cluster {cluster_name} after job completion: {shutdown_response.get('message', 'Unknown error')}")
+                                updated_jobs.append({
+                                    "job_id": job_id,
+                                    "cluster_name": cluster_name,
+                                    "status": "COMPLETE",
+                                    "message": "All jobs on cluster completed but shutdown failed"
+                                })
+                        except Exception as e:
+                            print(f"Error shutting down cluster {cluster_name} after job completion: {str(e)}")
+                            updated_jobs.append({
+                                "job_id": job_id,
+                                "cluster_name": cluster_name,
+                                "status": "COMPLETE",
+                                "message": "All jobs on cluster completed but shutdown failed"
+                            })
+                    else:
+                        updated_jobs.append({
                             "job_id": job_id,
                             "cluster_name": cluster_name,
                             "status": "COMPLETE",
-                            "message": "All jobs on cluster completed",
-                        }
-                    )
+                            "message": "All jobs on cluster completed"
+                        })
                 else:
                     # Jobs are still running on the cluster
                     updated_jobs.append(
