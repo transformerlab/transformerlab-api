@@ -70,9 +70,8 @@ async def experiment_list_scripts(id: str, type: str = None, filter: str = None)
                 print(f"Error decoding {scripts_dir}/{filename}/index.json")
                 continue
 
-            plugin_type = None
-            if "type" in plugin_info:
-                plugin_type = plugin_info["type"]
+            # Read plugin type directly from the index.json to avoid an unused-variable lint error
+            plugin_type = plugin_info.get("type")
 
             plugin_info["installed"] = True
 

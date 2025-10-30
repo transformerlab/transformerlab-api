@@ -1,11 +1,7 @@
-import json
-import os
-import transformerlab.db.db as db
 import pandas as pd
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from transformerlab.services.job_service import job_get
-from lab import dirs
 
 
 router = APIRouter(prefix="/evals", tags=["evals"])
