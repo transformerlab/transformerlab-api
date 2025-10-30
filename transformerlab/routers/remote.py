@@ -1,6 +1,7 @@
 import os
 import httpx
 import re
+import shlex
 from fastapi import APIRouter, Form, Request, File, UploadFile, HTTPException
 from typing import Optional, List
 from transformerlab.services import job_service
@@ -614,6 +615,9 @@ async def resume_from_checkpoint(
         if not original_command:
             raise HTTPException(status_code=400, detail="Original command not found in job data")
         
+        # Quote the checkpoint path to handle spaces
+        quoted_checkpoint_path = shlex.quote(checkpoint_path)
+        
         # Parse the command to find the python execution part and add --resume_from_checkpoint
         command_parts = original_command.split(' && ')
         python_part_index = None
@@ -630,51 +634,124 @@ async def resume_from_checkpoint(
         
         # Check if --resume_from_checkpoint already exists
         if "--resume_from_checkpoint" in python_command:
-            # Replace existing checkpoint parameter
+            # Replace existing checkpoint parameter - use a more robust pattern that handles quoted paths
+            # Match --resume_from_checkpoint followed by either a quoted string or unquoted path until next --
+            resume_pattern = r'--resume_from_checkpoint\s+(?:"[^"]*"|\'[^\']*\'|[^\'"\s]+)'
             resume_python_command = re.sub(
-                r'--resume_from_checkpoint\s+\S+',
-                f'--resume_from_checkpoint {checkpoint_path}',
+                resume_pattern,
+                f'--resume_from_checkpoint {quoted_checkpoint_path}',
                 python_command
             )
         else:
             # Add the checkpoint parameter
-            resume_python_command = f"{python_command} --resume_from_checkpoint {checkpoint_path}"
+            resume_python_command = f"{python_command} --resume_from_checkpoint {quoted_checkpoint_path}"
         
         # Replace the python part in the command_parts
         command_parts[python_part_index] = resume_python_command
         
         # Rejoin the command parts
-        resume_command = ' && '.join(command_parts)        
-        # Call launch_remote to create and launch the new job
-        launch_result = await launch_remote(
-            request=request,
-            experimentId=experimentId,
-            cluster_name=parent_job_data.get("cluster_name"),
-            command=resume_command,
-            task_name=f"Resume from {checkpoint_name}",
-            cpus=parent_job_data.get("cpus", None),
-            memory=parent_job_data.get("memory", None),
-            disk_space=parent_job_data.get("disk_space", None),
-            accelerators=parent_job_data.get("accelerators", None),
-            num_nodes=parent_job_data.get("num_nodes", None),
-            setup=parent_job_data.get("setup", None),
-            uploaded_dir_path=parent_job_data.get("uploaded_dir_path", None),
+        resume_command = ' && '.join(command_parts)
+        
+        # Create a simple, meaningful task name for the resumed training
+        task_name = f"resume_training_{job_id}"
+        
+        # Create a new REMOTE job for the resumed training
+        new_job_id = job_service.job_create(
+            type="REMOTE",
+            status="LAUNCHING",
+            experiment_id=experimentId,
         )
         
-        if launch_result.get("status") == "success":
-            new_job_id = launch_result.get("job_id")
-            # Update the new job's job_data to mark it as resumed
-            job_service.job_update_job_data_insert_key_value(new_job_id, "resumed_from_checkpoint", checkpoint_name, experimentId)
-            job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
-            return {
-                "status": "success",
-                "job_id": new_job_id,
-                "message": f"Training resumed from checkpoint {checkpoint_name}",
-                "data": launch_result
-            }
-        else:
-            raise HTTPException(status_code=500, detail=f"Failed to launch remote job: {launch_result.get('message')}")
+        # Update the job data to add fields from parent job
+        job_data = {
+            "task_name": task_name,
+            "command": resume_command,
+            "cluster_name": parent_job_data.get("cluster_name"),
+        }
+        
+        # Add optional parameters if they exist in parent job
+        for key in ["cpus", "memory", "disk_space", "accelerators", "num_nodes", "setup", "uploaded_dir_path"]:
+            if key in parent_job_data:
+                job_data[key] = parent_job_data[key]
+        
+        # Update the job data
+        for key, value in job_data.items():
+            job_service.job_update_job_data_insert_key_value(new_job_id, key, value, experimentId)
+        
+        # Validate environment variables for orchestrator
+        result = validate_gpu_orchestrator_env_vars()
+        gpu_orchestrator_url, gpu_orchestrator_port = result
+        if isinstance(gpu_orchestrator_url, dict):
+            raise HTTPException(status_code=500, detail=gpu_orchestrator_url.get("message"))
+        elif isinstance(gpu_orchestrator_port, dict):
+            raise HTTPException(status_code=500, detail=gpu_orchestrator_port.get("message"))
+        
+        # Prepare the request data for Lattice orchestrator
+        request_data = {
+            "cluster_name": parent_job_data.get("cluster_name"),
+            "command": resume_command,
+            "tlab_job_id": str(new_job_id),  # Pass the job_id to the orchestrator
+        }
+        
+        # Use task_name as job_name
+        request_data["job_name"] = task_name
+        
+        # Add optional parameters if provided
+        for key in ["cpus", "memory", "disk_space", "accelerators", "num_nodes", "setup", "uploaded_dir_path"]:
+            if key in parent_job_data:
+                request_data[key] = parent_job_data[key]
+        
+        gpu_orchestrator_url_full = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
+        
+        # Make the request to the Lattice orchestrator
+        async with httpx.AsyncClient() as client:
+            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
+            outbound_headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
+            
+            response = await client.post(
+                gpu_orchestrator_url_full,
+                headers=outbound_headers,
+                data=request_data,
+                cookies=request.cookies,
+                timeout=30.0,
+            )
+            
+            if response.status_code == 200:
+                response_data = response.json()
+                # Store the request_id in job data for later use
+                if "request_id" in response_data:
+                    job_service.job_update_job_data_insert_key_value(
+                        new_job_id, "orchestrator_request_id", response_data["request_id"], experimentId
+                    )
+                # Store the cluster_name in job data for later use
+                if "cluster_name" in response_data:
+                    job_service.job_update_job_data_insert_key_value(
+                        new_job_id, "cluster_name", response_data["cluster_name"], experimentId
+                    )
+                
+                launch_result = {
+                    "status": "success",
+                    "data": response_data,
+                    "job_id": str(new_job_id),
+                    "message": "Remote instance launched successfully",
+                }
+            else:
+                raise HTTPException(status_code=500, detail=f"Lattice orchestrator returned status {response.status_code}: {response.text}")
+        
+        # Update the new job's job_data to mark it as resumed
+        job_service.job_update_job_data_insert_key_value(new_job_id, "resumed_from_checkpoint", checkpoint_name, experimentId)
+        job_service.job_update_job_data_insert_key_value(new_job_id, "checkpoint_path", checkpoint_path, experimentId)
+        job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
+        return {
+            "status": "success",
+            "job_id": str(new_job_id),  # Ensure it's a string
+            "message": f"Training resumed from checkpoint {checkpoint_name}",
+            "data": launch_result
+        }
 
     except Exception as e:
-        print(f"Error checking remote job status: {str(e)}")
-        return {"status": "error", "message": f"Error checking remote job status: {str(e)}"}
+        print(f"Error resuming from checkpoint: {str(e)}")
+        return {"status": "error", "message": f"Error resuming from checkpoint: {str(e)}"}
