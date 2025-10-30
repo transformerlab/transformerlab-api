@@ -652,13 +652,13 @@ async def resume_from_checkpoint(
             cluster_name=parent_job_data.get("cluster_name"),
             command=resume_command,
             task_name=f"Resume from {checkpoint_name}",
-            cpus=parent_job_data.get("cpus"),
-            memory=parent_job_data.get("memory"),
-            disk_space=parent_job_data.get("disk_space"),
-            accelerators=parent_job_data.get("accelerators"),
-            num_nodes=parent_job_data.get("num_nodes"),
-            setup=parent_job_data.get("setup"),
-            uploaded_dir_path=parent_job_data.get("uploaded_dir_path"),
+            cpus=parent_job_data.get("cpus", None),
+            memory=parent_job_data.get("memory", None),
+            disk_space=parent_job_data.get("disk_space", None),
+            accelerators=parent_job_data.get("accelerators", None),
+            num_nodes=parent_job_data.get("num_nodes", None),
+            setup=parent_job_data.get("setup", None),
+            uploaded_dir_path=parent_job_data.get("uploaded_dir_path", None),
         )
         
         if launch_result.get("status") == "success":
