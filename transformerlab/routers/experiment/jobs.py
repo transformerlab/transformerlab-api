@@ -523,11 +523,9 @@ async def get_checkpoints(job_id: str, request: Request):
     """Get list of checkpoints for a job"""
     job = job_service.job_get(job_id)
     if job is None:
-        print("RETURNING FROM HERE")
         return {"checkpoints": []}
 
     job_data = job["job_data"]
-    print(f"JOB DATA: {job_data}")
     # First try to use the new SDK method to get checkpoints
     try:
         from lab.job import Job
@@ -535,7 +533,6 @@ async def get_checkpoints(job_id: str, request: Request):
         # Get checkpoints using the SDK method
         sdk_job = Job(job_id)
         checkpoint_paths = sdk_job.get_checkpoint_paths()
-        print(f"CHECKPOINT PATHS: {checkpoint_paths}")
 
         if checkpoint_paths and len(checkpoint_paths) > 0:
             checkpoints = []
