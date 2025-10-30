@@ -10,12 +10,7 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
 
 
 from transformerlab.db.db import (  # noqa: E402
-    delete_plugin,
-    get_plugins_of_type,
     get_training_template_by_name,
-    get_plugins,
-    get_plugin,
-    save_plugin,
     config_get,
     config_set,
     get_training_template,
@@ -82,24 +77,6 @@ async def test_workflow_run_get_by_id_returns_none_for_missing():
 
 
 @pytest.mark.asyncio
-async def test_get_plugin_returns_none_for_missing():
-    plugin = await get_plugin("does_not_exist")
-    assert plugin is None
-
-
-@pytest.mark.asyncio
-async def test_get_plugins_of_type_returns_list():
-    plugins = await get_plugins()
-    if plugins:
-        plugin_type = plugins[0].get("type", "test_type")
-    else:
-        plugin_type = "test_type"
-        await save_plugin("plugin_type_test", plugin_type)
-    plugins_of_type = await get_plugins_of_type(plugin_type)
-    assert isinstance(plugins_of_type, list)
-
-
-@pytest.mark.asyncio
 async def test_config_get_returns_none_for_missing():
     value = await config_get("missing_config_key")
     assert value is None
@@ -160,22 +137,6 @@ async def test_experiment():
 def test_db_exists():
     global db
     assert db is not None
-
-
-class TestPlugins:
-    @pytest.mark.asyncio
-    async def test_save_and_get_plugin(self):
-        await save_plugin("test_plugin", "test_type")
-        plugin = await get_plugin("test_plugin")
-        assert plugin is not None
-        assert plugin["name"] == "test_plugin"
-        # now delete the plugin
-        await delete_plugin("test_plugin")
-
-    @pytest.mark.asyncio
-    async def test_get_plugins(self):
-        plugins = await get_plugins()
-        assert isinstance(plugins, list)
 
 
 class TestConfig:
