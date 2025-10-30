@@ -601,7 +601,10 @@ async def get_checkpoints(job_id: str, request: Request):
                 elif os.path.isdir(os.path.join(checkpoints_dir, filename)):
                     checkpoints.append({"filename": filename, "date": None, "size": None})
             return {"checkpoints": checkpoints}
+        
 
+    # Fallback to using default adaptor directory as checkpoints directory
+    checkpoints_dir = default_adaptor_dir
     checkpoints_file_filter = job_data.get("checkpoints_file_filter", "*_adapters.safetensors")
     if not checkpoints_file_filter:
         checkpoints_file_filter = "*_adapters.safetensors"
