@@ -4,6 +4,7 @@ from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
 from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
+from lab.dirs import get_workspace_dir, get_job_checkpoints_dir
 
 
 router = APIRouter(prefix="/remote", tags=["remote"])
@@ -88,7 +89,7 @@ async def launch_remote(
     request: Request,
     experimentId: str,
     job_id: Optional[str] = Form(None),
-    cluster_name: str = Form(...),
+    cluster_name: Optional[str] = Form(None),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
@@ -98,10 +99,72 @@ async def launch_remote(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    checkpoint: Optional[str] = Form(None),
+    parent_job_id: Optional[str] = Form(None),
 ):
     """
     Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
+    If checkpoint and parent_job_id are provided, resume training from the specified checkpoint.
     """
+    # Handle resume from checkpoint logic
+    if checkpoint and parent_job_id:
+        # Get the parent job
+        parent_job = job_service.job_get(parent_job_id)
+        if not parent_job:
+            return {"status": "error", "message": f"Parent job {parent_job_id} not found"}
+
+        # Get the parent job data
+        parent_job_data = parent_job.get("job_data", {})
+
+        # Get the checkpoint directory path
+        checkpoints_dir = get_job_checkpoints_dir(parent_job_id)
+        checkpoint_path = os.path.normpath(os.path.join(checkpoints_dir, checkpoint))
+
+        # Validate that the checkpoint path is within the checkpoints directory
+        if not checkpoint_path.startswith(os.path.abspath(checkpoints_dir) + os.sep):
+            return {"status": "error", "message": "Invalid checkpoint name (potential directory traversal detected)"}
+
+        if not os.path.exists(checkpoint_path):
+            return {"status": "error", "message": f"Checkpoint {checkpoint} not found at {checkpoint_path}"}
+
+        # Modify the command to include the checkpoint parameter
+        original_command = parent_job_data.get("command", "")
+        if not original_command:
+            return {"status": "error", "message": "Original command not found in parent job data"}
+
+        # Simple approach: find the python command and add the checkpoint parameter
+        command_parts = original_command.split(' && ')
+
+        for i, part in enumerate(command_parts):
+            part = part.strip()
+            if part.startswith('python ') and '.py' in part:
+                # Add the checkpoint parameter to this python command
+                command_parts[i] = f"{part} --resume_from_checkpoint {checkpoint_path}"
+                break
+
+        # Rejoin the command
+        command = ' && '.join(command_parts)
+
+        # Create a simple, meaningful task name for the resumed training
+        task_name = f"resume_training_{parent_job_id}"
+
+        # Use ALL parameters from parent job for resume (user just presses button)
+        cluster_name = parent_job_data.get("cluster_name")
+        cpus = parent_job_data.get("cpus")
+        memory = parent_job_data.get("memory")
+        disk_space = parent_job_data.get("disk_space")
+        accelerators = parent_job_data.get("accelerators")
+        num_nodes = parent_job_data.get("num_nodes")
+        setup = parent_job_data.get("setup")
+        uploaded_dir_path = parent_job_data.get("uploaded_dir_path")
+
+        # Force creation of new job for resume (don't use existing job_id)
+        job_id = None
+
+    # Validate required fields
+    if not cluster_name:
+        return {"status": "error", "message": "cluster_name is required"}
+
     # If job_id is provided, use existing job, otherwise create a new one
     if job_id:
         # Use existing job
@@ -109,6 +172,28 @@ async def launch_remote(
     else:
         # Create a new REMOTE job
         job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+
+        # Add resume metadata if resuming from checkpoint
+        if checkpoint and parent_job_id:
+            job_data["resumed_from_checkpoint"] = checkpoint
+            job_data["checkpoint_path"] = checkpoint_path
+            job_data["parent_job_id"] = parent_job_id
+
+        # Add optional parameters if provided
+        if cpus:
+            job_data["cpus"] = cpus
+        if memory:
+            job_data["memory"] = memory
+        if disk_space:
+            job_data["disk_space"] = disk_space
+        if accelerators:
+            job_data["accelerators"] = accelerators
+        if num_nodes:
+            job_data["num_nodes"] = num_nodes
+        if setup:
+            job_data["setup"] = setup
+        if uploaded_dir_path:
+            job_data["uploaded_dir_path"] = uploaded_dir_path
 
         try:
             job_id = job_service.job_create(
@@ -194,7 +279,7 @@ async def launch_remote(
                     "status": "success",
                     "data": response_data,
                     "job_id": job_id,
-                    "message": "Remote instance launched successfully",
+                    "message": f"Training resumed from checkpoint {checkpoint}" if checkpoint else "Remote instance launched successfully",
                 }
             else:
                 return {
@@ -284,7 +369,6 @@ async def upload_directory(
     Upload a directory to the remote Lattice orchestrator for later use in cluster launches.
     Files are stored locally first, then sent to orchestrator.
     """
-    from lab.dirs import get_workspace_dir
 
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
@@ -559,3 +643,6 @@ async def check_remote_jobs_status(request: Request):
     except Exception as e:
         print(f"Error checking remote job status: {str(e)}")
         return {"status": "error", "message": "Error checking remote job status"}
+
+
+
