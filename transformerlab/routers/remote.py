@@ -603,7 +603,11 @@ async def resume_from_checkpoint(
         
         # Get the checkpoint directory path
         checkpoints_dir = get_job_checkpoints_dir(job_id)
-        checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
+        checkpoint_path = os.path.normpath(os.path.join(checkpoints_dir, checkpoint_name))
+        
+        # Validate that the checkpoint path is within the checkpoints directory
+        if not checkpoint_path.startswith(os.path.abspath(checkpoints_dir) + os.sep):
+            raise HTTPException(status_code=400, detail="Invalid checkpoint name (potential directory traversal detected)")
         
         if not os.path.exists(checkpoint_path):
             raise HTTPException(status_code=404, detail=f"Checkpoint {checkpoint_name} not found at {checkpoint_path}")
