@@ -535,8 +535,6 @@ async def get_checkpoints(job_id: str, request: Request):
         sdk_job = Job(job_id)
         checkpoint_paths = sdk_job.get_checkpoint_paths()
 
-        print(f"SDK checkpoint_paths for job {job_id}: {checkpoint_paths}")
-
         if checkpoint_paths and len(checkpoint_paths) > 0:
             checkpoints = []
             for checkpoint_path in checkpoint_paths:
@@ -578,19 +576,13 @@ async def get_checkpoints(job_id: str, request: Request):
     workspace_dir = get_workspace_dir()
     default_adaptor_dir = os.path.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
 
-    print(f"Default adaptor directory: {default_adaptor_dir}")
-
     checkpoints_dir = job_data.get("checkpoints_dir", default_adaptor_dir)
     if not checkpoints_dir or not os.path.exists(checkpoints_dir):
-        print(f"Checkpoints directory does not exist: {checkpoints_dir}")
         return {"checkpoints": []}
 
     checkpoints_file_filter = job_data.get("checkpoints_file_filter", "*_adapters.safetensors")
     if not checkpoints_file_filter:
         checkpoints_file_filter = "*_adapters.safetensors"
-
-    print(f"Checkpoints directory: {checkpoints_dir}")
-    print(f"Checkpoints file filter: {checkpoints_file_filter}")
 
     checkpoints = []
     try:
@@ -613,7 +605,6 @@ async def get_checkpoints(job_id: str, request: Request):
 
     # Sort checkpoints by filename in reverse (descending) order for consistent ordering
     checkpoints.sort(key=lambda x: x["filename"], reverse=True)
-    print(f"Sorted checkpoints: {checkpoints}")
 
     return {
         "checkpoints": checkpoints,
