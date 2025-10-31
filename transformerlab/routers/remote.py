@@ -1,6 +1,5 @@
 import os
 import httpx
-import re
 from fastapi import APIRouter, Form, Request, File, UploadFile, HTTPException
 from typing import Optional, List
 from transformerlab.services import job_service
