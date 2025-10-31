@@ -880,7 +880,6 @@ async def import_task_from_local_gallery(
                     print(f"Invalid src directory: {src_dir_real}")
                     return {"status": "error", "message": "Invalid src directory"}
                 if os.path.exists(src_dir_real):
-                    print(f"Src directory exists: {src_dir_real}")
                     # Post to GPU orchestrator upload endpoint
                     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
                     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
@@ -899,7 +898,6 @@ async def import_task_from_local_gallery(
                         # Build multipart form to mirror frontend DirectoryUpload
                         dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
                         files_form = []
-                        print(f"Files form: {files_form}")
                         # Walk src_dir and add each file, preserving relative path inside src/
                         for root, _, filenames in os.walk(src_dir_real):
                             for filename in filenames:
@@ -913,7 +911,6 @@ async def import_task_from_local_gallery(
                                     )
 
                         form_data = {"dir_name": slugify(task_name)}
-                        print(f"Form data: {form_data}")
                         async with httpx.AsyncClient(timeout=120.0) as client:
                             headers = {}
                             incoming_auth = request.headers.get("AUTHORIZATION")
@@ -944,7 +941,6 @@ async def import_task_from_local_gallery(
                                             )
                                         task_obj["config"]["uploaded_dir_path"] = uploaded_dir
                                         tasks_service.update_task(task_id, {"config": task_obj["config"]})
-                                        print(f"Updated task config with uploaded_dir_path: {uploaded_dir}")
                                     except Exception as e:
                                         print(f"Error updating task config: {e}")
                                         pass
