@@ -468,13 +468,16 @@ async def get_orchestrator_logs(request: Request, request_id: str):
                         yield error_msg.encode()
 
         except httpx.TimeoutException:
+            print("Error streaming orchestrator logs: Request to orchestrator timed out")
             error_msg = f"data: {json.dumps({'error': 'Request to orchestrator timed out', 'status': 'failed'})}\n\n"
             yield error_msg.encode()
         except httpx.RequestError as e:
-            error_msg = f"data: {json.dumps({'error': f'Request error: {str(e)}', 'status': 'failed'})}\n\n"
+            print(f"Error streaming orchestrator logs: {str(e)}")
+            error_msg = f"data: {json.dumps({'error': 'Request error occurred', 'status': 'failed'})}\n\n"
             yield error_msg.encode()
         except Exception as e:
-            error_msg = f"data: {json.dumps({'error': f'Unexpected error: {str(e)}', 'status': 'failed'})}\n\n"
+            print(f"Error streaming orchestrator logs: {str(e)}")
+            error_msg = f"data: {json.dumps({'error': 'Unexpected error occurred', 'status': 'failed'})}\n\n"
             yield error_msg.encode()
 
     return StreamingResponse(
