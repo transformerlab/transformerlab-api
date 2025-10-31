@@ -686,5 +686,4 @@ async def resume_from_checkpoint(
         }
 
     except Exception as e:
-        print(f"Error resuming from checkpoint: {str(e)}")
-        return {"status": "error", "message": f"Error resuming from checkpoint: {str(e)}"}
+        return {"status": "error", "message": f"Failed to resume from checkpoint"}
