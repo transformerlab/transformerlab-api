@@ -630,91 +630,50 @@ async def resume_from_checkpoint(
         # Create a simple, meaningful task name for the resumed training
         task_name = f"resume_training_{job_id}"
         
-        # Create a new REMOTE job for the resumed training
-        new_job_id = job_service.job_create(
-            type="REMOTE",
-            status="LAUNCHING",
-            experiment_id=experimentId,
-        )
-        
-        # Update the job data to add fields from parent job
-        job_data = {
+        # Create a new REMOTE job for the resumed training with all initial data
+        initial_job_data = {
             "task_name": task_name,
             "command": resume_command,
             "cluster_name": parent_job_data.get("cluster_name"),
+            "resumed_from_checkpoint": checkpoint_name,
+            "checkpoint_path": checkpoint_path,
+            "parent_job_id": job_id,
         }
         
         # Add optional parameters if they exist in parent job
         for key in ["cpus", "memory", "disk_space", "accelerators", "num_nodes", "setup", "uploaded_dir_path"]:
             if key in parent_job_data:
-                job_data[key] = parent_job_data[key]
+                initial_job_data[key] = parent_job_data[key]
         
-        # Update the job data
-        for key, value in job_data.items():
-            job_service.job_update_job_data_insert_key_value(new_job_id, key, value, experimentId)
+        new_job_id = job_service.job_create(
+            type="REMOTE",
+            status="LAUNCHING",
+            experiment_id=experimentId,
+            job_data=initial_job_data,
+        )
         
-        # Validate environment variables for orchestrator
-        result = validate_gpu_orchestrator_env_vars()
-        gpu_orchestrator_url, gpu_orchestrator_port = result
-        if isinstance(gpu_orchestrator_url, dict):
-            raise HTTPException(status_code=500, detail=gpu_orchestrator_url.get("message"))
-        elif isinstance(gpu_orchestrator_port, dict):
-            raise HTTPException(status_code=500, detail=gpu_orchestrator_port.get("message"))
-        
-        # Prepare the request data for Lattice orchestrator
-        request_data = {
-            "cluster_name": parent_job_data.get("cluster_name"),
-            "command": resume_command,
-            "tlab_job_id": str(new_job_id),  # Pass the job_id to the orchestrator
-        }
-        
-        # Use task_name as job_name
-        request_data["job_name"] = task_name
-        
-        # Add optional parameters if provided
-        for key in ["cpus", "memory", "disk_space", "accelerators", "num_nodes", "setup", "uploaded_dir_path"]:
-            if key in parent_job_data:
-                request_data[key] = parent_job_data[key]
-        
-        gpu_orchestrator_url_full = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
-        
-        # Make the request to the Lattice orchestrator
-        async with httpx.AsyncClient() as client:
-            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
-            outbound_headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            incoming_auth = request.headers.get("AUTHORIZATION")
-            if incoming_auth:
-                outbound_headers["AUTHORIZATION"] = incoming_auth
-            
-            response = await client.post(
-                gpu_orchestrator_url_full,
-                headers=outbound_headers,
-                data=request_data,
-                cookies=request.cookies,
-                timeout=30.0,
-            )
-            
-            if response.status_code == 200:
-                response_data = response.json()
-                # Store the request_id in job data for later use
-                if "request_id" in response_data:
-                    job_service.job_update_job_data_insert_key_value(
-                        new_job_id, "orchestrator_request_id", response_data["request_id"], experimentId
-                    )
-                # Store the cluster_name in job data for later use
-                if "cluster_name" in response_data:
-                    job_service.job_update_job_data_insert_key_value(
-                        new_job_id, "cluster_name", response_data["cluster_name"], experimentId
-                    )
-                
-                launch_result = {
-                    "status": "success",
-                    "data": response_data,
-                    "job_id": str(new_job_id),
-                    "message": "Remote instance launched successfully",
-                }
-            else:
-                raise HTTPException(status_code=500, detail=f"Lattice orchestrator returned status {response.status_code}: {response.text}")
+        # Call `launch_remote` directly and pass the same Request so auth/cookies are forwarded.
+        launch_response = await launch_remote(
+            request,
+            experimentId=experimentId,
+            job_id=new_job_id,
+            cluster_name=parent_job_data.get("cluster_name"),
+            command=resume_command,
+            task_name=task_name,
+            cpus=initial_job_data.get("cpus", None),
+            memory=initial_job_data.get("memory", None),
+            disk_space=initial_job_data.get("disk_space", None),
+            accelerators=initial_job_data.get("accelerators", None),
+            num_nodes=initial_job_data.get("num_nodes", None),
+            setup=initial_job_data.get("setup", None),
+            uploaded_dir_path=initial_job_data.get("uploaded_dir_path", None),
+        )
+
+        if isinstance(launch_response, dict) and launch_response.get("status") == "success":
+            launch_result = launch_response
+        else:
+            detail = launch_response.get("message") if isinstance(launch_response, dict) else str(launch_response)
+            raise HTTPException(status_code=500, detail=f"Launch failed: {detail}")
         
         # Update the new job's job_data to mark it as resumed
         job_service.job_update_job_data_insert_key_value(new_job_id, "resumed_from_checkpoint", checkpoint_name, experimentId)
