@@ -685,5 +685,5 @@ async def resume_from_checkpoint(
             "data": launch_result
         }
 
-    except Exception as e:
-        return {"status": "error", "message": f"Failed to resume from checkpoint"}
+    except Exception:
+        return {"status": "error", "message": "Failed to resume from checkpoint"}
