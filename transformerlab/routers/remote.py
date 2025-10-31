@@ -1,4 +1,5 @@
 import os
+import json
 import httpx
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
@@ -428,9 +429,11 @@ async def check_remote_job_status(request: Request, cluster_name: str):
 @router.get("/logs/{request_id}")
 async def get_orchestrator_logs(request: Request, request_id: str):
     """
-    Get streaming logs from the orchestrator for a specific request_id.
-    This endpoint forwards authentication to the orchestrator.
+    Stream logs from the orchestrator for a specific request_id in real-time.
+    This endpoint forwards authentication and streams the response.
     """
+    from fastapi.responses import StreamingResponse
+    
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -442,34 +445,51 @@ async def get_orchestrator_logs(request: Request, request_id: str):
     # Build the logs endpoint URL
     logs_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/requests/{request_id}/logs"
 
-    try:
-        async with httpx.AsyncClient() as client:
-            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
-            outbound_headers = {"Content-Type": "application/json"}
-            incoming_auth = request.headers.get("AUTHORIZATION")
-            if incoming_auth:
-                outbound_headers["AUTHORIZATION"] = incoming_auth
+    async def stream_logs():
+        """Generator that streams logs from orchestrator to client"""
+        try:
+            async with httpx.AsyncClient(timeout=None) as client:
+                # Build headers: prefer configured API key, otherwise forward incoming Authorization header
+                outbound_headers = {"Content-Type": "application/json"}
+                incoming_auth = request.headers.get("AUTHORIZATION")
+                if incoming_auth:
+                    outbound_headers["AUTHORIZATION"] = incoming_auth
 
-            response = await client.get(logs_url, headers=outbound_headers, cookies=request.cookies, timeout=30.0)
+                # Stream the response from orchestrator
+                async with client.stream("GET", logs_url, headers=outbound_headers, cookies=request.cookies) as response:
+                    if response.status_code == 200:
+                        # Stream each chunk from orchestrator to client in real-time
+                        async for chunk in response.aiter_bytes():
+                            if chunk:
+                                yield chunk
+                    else:
+                        # Send error as SSE format
+                        error_msg = f"data: {json.dumps({'error': f'Orchestrator returned status {response.status_code}', 'status': 'failed'})}\n\n"
+                        yield error_msg.encode()
 
-            if response.status_code == 200:
-                return {
-                    "status": "success",
-                    "data": response.text,  # Return raw text for streaming logs
-                    "message": "Orchestrator logs retrieved successfully",
-                }
-            else:
-                return {
-                    "status": "error",
-                    "message": f"Orchestrator returned status {response.status_code}: {response.text}",
-                }
+        except httpx.TimeoutException:
+            print("Error streaming orchestrator logs: Request to orchestrator timed out")
+            error_msg = f"data: {json.dumps({'error': 'Request to orchestrator timed out', 'status': 'failed'})}\n\n"
+            yield error_msg.encode()
+        except httpx.RequestError as e:
+            print(f"Error streaming orchestrator logs: {str(e)}")
+            error_msg = f"data: {json.dumps({'error': 'Request error occurred', 'status': 'failed'})}\n\n"
+            yield error_msg.encode()
+        except Exception as e:
+            print(f"Error streaming orchestrator logs: {str(e)}")
+            error_msg = f"data: {json.dumps({'error': 'Unexpected error occurred', 'status': 'failed'})}\n\n"
+            yield error_msg.encode()
 
-    except httpx.TimeoutException:
-        return {"status": "error", "message": "Request to orchestrator timed out"}
-    except httpx.RequestError:
-        return {"status": "error", "message": "Request error occurred"}
-    except Exception:
-        return {"status": "error", "message": "Unexpected error occurred"}
+    return StreamingResponse(
+        stream_logs(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
 
 
 @router.get("/check-status")
