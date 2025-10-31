@@ -89,7 +89,7 @@ async def launch_remote(
     request: Request,
     experimentId: str,
     job_id: Optional[str] = Form(None),
-    cluster_name: str = Form(...),
+    cluster_name: Optional[str] = Form(None),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
@@ -160,6 +160,10 @@ async def launch_remote(
 
         # Force creation of new job for resume (don't use existing job_id)
         job_id = None
+
+    # Validate required fields
+    if not cluster_name:
+        return {"status": "error", "message": "cluster_name is required"}
 
     # If job_id is provided, use existing job, otherwise create a new one
     if job_id:
