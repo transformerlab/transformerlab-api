@@ -98,9 +98,12 @@ async def launch_remote(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    use_existing_cluster: Optional[bool] = Form(False),
 ):
     """
-    Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
+    Launch a remote instance via Lattice orchestrator or submit job to existing cluster.
+    If use_existing_cluster is True, submits job to existing cluster via /jobs/{cluster_name}/submit.
+    If job_id is provided, use existing job, otherwise create new one.
     """
     # If job_id is provided, use existing job, otherwise create a new one
     if job_id:
@@ -133,7 +136,6 @@ async def launch_remote(
 
     # Prepare the request data for Lattice orchestrator
     request_data = {
-        "cluster_name": cluster_name,
         "command": command,
         "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
     }
@@ -158,7 +160,14 @@ async def launch_remote(
     if uploaded_dir_path:
         request_data["uploaded_dir_path"] = uploaded_dir_path
 
-    gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
+    # Determine which endpoint to use based on use_existing_cluster flag
+    if use_existing_cluster:
+        # Submit job to existing cluster
+        gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{cluster_name}/submit"
+    else:
+        # Launch new instance
+        request_data["cluster_name"] = cluster_name
+        gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
 
     try:
         # Make the request to the Lattice orchestrator
@@ -190,11 +199,13 @@ async def launch_remote(
                         job_id, "cluster_name", response_data["cluster_name"], experimentId
                     )
 
+                success_message = "Job submitted to existing cluster successfully" if use_existing_cluster else "Remote instance launched successfully"
+                
                 return {
                     "status": "success",
                     "data": response_data,
                     "job_id": job_id,
-                    "message": "Remote instance launched successfully",
+                    "message": success_message,
                 }
             else:
                 return {
@@ -559,3 +570,63 @@ async def check_remote_jobs_status(request: Request):
     except Exception as e:
         print(f"Error checking remote job status: {str(e)}")
         return {"status": "error", "message": "Error checking remote job status"}
+
+
+@router.get("/instances-status")
+async def get_instances_status(request: Request):
+    """
+    Get the status of all instances from the GPU orchestrator.
+    Forwards authentication and cookies to the orchestrator.
+    """
+    # Validate environment variables
+    result = validate_gpu_orchestrator_env_vars()
+    gpu_orchestrator_url, gpu_orchestrator_port = result
+    if isinstance(gpu_orchestrator_url, dict):
+        return gpu_orchestrator_url  # Error response
+    elif isinstance(gpu_orchestrator_port, dict):
+        return gpu_orchestrator_port  # Error response
+
+    # Build the instances status endpoint URL
+    instances_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/status"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Build headers: forward incoming Authorization header
+            outbound_headers = {"Content-Type": "application/json"}
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
+
+            response = await client.get(
+                instances_url,
+                headers=outbound_headers,
+                cookies=request.cookies,
+                timeout=30.0
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                # Strip "ClusterStatus." prefix from status field
+                if "clusters" in data:
+                    for cluster in data["clusters"]:
+                        if "status" in cluster and isinstance(cluster["status"], str):
+                            cluster["status"] = cluster["status"].replace("ClusterStatus.", "")
+                
+                return {
+                    "status": "success",
+                    "data": data,
+                    "message": "Instance status retrieved successfully",
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Orchestrator returned status {response.status_code}: {response.text}",
+                }
+
+    except httpx.TimeoutException:
+        return {"status": "error", "message": "Request to orchestrator timed out"}
+    except httpx.RequestError:
+        return {"status": "error", "message": "Request error occurred"}
+    except Exception as e:
+        print(f"Error getting instances status: {str(e)}")
+        return {"status": "error", "message": "Unexpected error occurred"}
