@@ -179,23 +179,33 @@ def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_meta
     """
     global _cache_stop_monitoring
 
+    local_path = os.path.join(workspace_dir, "models", secure_filename(model_name))
+    use_local = os.path.exists(local_path)
+
     while not _cache_stop_monitoring:
         try:
-            downloaded_bytes = get_downloaded_size_from_cache(repo_id, file_metadata)
+            if use_local:
+                download_bytes = get_dir_size(local_path)
+            else:
+                download_bytes = get_downloaded_size_from_cache(repo_id, file_metadata)
 
-            # Update job
-            update_job_progress(job_id, model_name, downloaded_bytes, total_bytes)
+            update_job_progress(job_id, model_name, download_bytes, total_bytes)
 
-            # Check if download is complete
-            if downloaded_bytes >= total_bytes * 0.99:  # 99% complete
+            if total_bytes > 0 and download_bytes >= total_bytes * 0.99:
+                print("Download complete according to cache monitoring.")
+                break
+
+            if not use_local and os.path.exists(local_path):
                 print("Download appears to be complete")
                 break
 
-            time.sleep(2)  # Check every 2 seconds
+            if not use_local and os.path.exists(local_path):
+                use_local = True
 
+            time.sleep(2)
         except Exception as e:
             print(f"Error in progress monitor: {e}")
-            time.sleep(5)  # Wait longer on error
+            time.sleep(5)
 
     print("Progress monitoring stopped")
 
@@ -300,8 +310,10 @@ else:
 def do_download(repo_id, queue, allow_patterns=None, mode="model"):
     try:
         if mode == "model":
-            # Download without custom progress bar (we'll monitor cache instead)
-            snapshot_download(repo_id, allow_patterns=allow_patterns)
+            # Download into workspace models dir so we can monitor bytes as they arrive
+            target_dir = os.path.join(WORKSPACE_DIR, "models", secure_filename(model))
+            os.makedirs(target_dir, exist_ok=True)
+            snapshot_download(repo_id, allow_patterns=allow_patterns, local_dir=target_dir)
         else:
             # Download without custom progress bar (we'll monitor cache instead)
             snapshot_download(repo_id=peft, local_dir=target_dir, repo_type="model")
