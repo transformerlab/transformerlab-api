@@ -181,6 +181,65 @@ def log_print(*args, **kwargs):
     diffusion_logger.info(message)
 
 
+def _get_pipeline_class_name_from_diffusers_module(model_id: str) -> str | None:
+    """
+    Try to resolve the pipeline class name using diffusers utilities.
+    Fallback to reading HF model config (diffusers._class_name) if diffusers helper is unavailable.
+    Returns pipeline class name (e.g. 'StableDiffusionPipeline') or None.
+    """
+    # Build a list of candidate resolver functions from various diffusers versions.
+    candidates = []
+    try:
+        # Some diffusers versions expose a private helper
+        from diffusers.pipelines.pipeline_utils import _get_pipeline_class as _get_pipeline_class_fn
+
+        candidates.append(_get_pipeline_class_fn)
+    except Exception:
+        pass
+
+    # Try each candidate resolver until one returns a class
+    for resolver in candidates:
+        try:
+            cls = resolver(model_id)
+            if cls:
+                return cls.__name__
+        except Exception:
+            # resolver may raise for private models or missing files; ignore and try next
+            continue
+
+    # Fallback: read Hugging Face metadata (diffusers._class_name)
+    try:
+        info = model_info(model_id)
+        config = getattr(info, "config", {})
+        diffusers_config = config.get("diffusers", {})
+        arch_from_hf = diffusers_config.get("_class_name", "")
+        if isinstance(arch_from_hf, str) and arch_from_hf:
+            return arch_from_hf
+        if isinstance(arch_from_hf, list) and arch_from_hf:
+            # Prefer entries that indicate StableDiffusion / Inpaint / SDXL / Flux etc.
+            preferred_indicators = [
+                "StableDiffusionXL",
+                "StableDiffusion",
+                "Inpaint",
+                "FluxPipeline",
+                "Flux",
+                "ControlNet",
+                "Img2Img",
+            ]
+            for indicator in preferred_indicators:
+                for entry in arch_from_hf:
+                    if entry and indicator.lower() in entry.lower():
+                        return entry
+            # Fallback to first non-empty entry
+            for entry in arch_from_hf:
+                if entry:
+                    return entry
+    except Exception:
+        pass
+
+    return None
+
+
 # Request schema for image generation
 class DiffusionRequest(BaseModel):
     plugin: str = "image_diffusion"
@@ -493,6 +552,12 @@ async def is_valid_diffusion(experimentId: str, request: DiffusionRequest):
         except Exception:
             # Ignore filesystem errors and proceed to HF fallback
             pass
+
+        if not architectures:
+            pipeline_name = _get_pipeline_class_name_from_diffusers_module(model_id)
+            print(f"Resolved pipeline class name from diffusers module: {pipeline_name}")
+            if pipeline_name:
+                architectures = [pipeline_name]
 
         # If no architecture found in database, fetch from Hugging Face
         if not architectures:
