@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import patch, MagicMock, mock_open
 from lab.dirs import get_workspace_dir
 import json
+import sys
+import types
 
 
 def test_diffusion_generate_success(client):
@@ -915,3 +917,55 @@ def test_get_pipeline_key_whitespace_adaptor():
 
     # Should treat whitespace-only adaptor as no adaptor
     assert key == "test-model::   ::txt2img"
+
+
+def test_get_pipeline_class_name_list_fallback():
+    """Ensure list _class_name falls back to the first non-empty entry"""
+    with patch("transformerlab.routers.experiment.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        # First entry empty, second should be picked by fallback logic
+        mock_info.config = {"diffusers": {"_class_name": ["", "NonPreferredPipeline"]}}
+        mock_model_info.return_value = mock_info
+
+        from transformerlab.routers.experiment.diffusion import _get_pipeline_class_name_from_diffusers_module
+
+        result = _get_pipeline_class_name_from_diffusers_module("fake-model")
+        assert result == "NonPreferredPipeline"
+
+
+def test_get_pipeline_class_name_resolver():
+    """Cover the resolver path that returns a class object (cls.__name__)"""
+    # Create fake diffusers.pipelines.pipeline_utils module with _get_pipeline_class
+    mod_utils = types.ModuleType("diffusers.pipelines.pipeline_utils")
+
+    def _get_pipeline_class(model_id):
+        class DummyClass:
+            pass
+
+        return DummyClass
+
+    mod_utils._get_pipeline_class = _get_pipeline_class
+
+    # Inject fake package structure into sys.modules
+    sys.modules["diffusers"] = types.ModuleType("diffusers")
+    sys.modules["diffusers.pipelines"] = types.ModuleType("diffusers.pipelines")
+    sys.modules["diffusers.pipelines.pipeline_utils"] = mod_utils
+
+    try:
+        from transformerlab.routers.experiment.diffusion import _get_pipeline_class_name_from_diffusers_module
+
+        result = _get_pipeline_class_name_from_diffusers_module("fake-model")
+        assert result == "DummyClass"
+    finally:
+        # Clean up modules we injected
+        for m in ("diffusers.pipelines.pipeline_utils", "diffusers.pipelines", "diffusers"):
+            sys.modules.pop(m, None)
+
+
+def test_log_print_calls_diffusion_logger_info():
+    """Ensure log_print routes messages to diffusion_logger.info"""
+    from transformerlab.routers.experiment.diffusion import log_print
+
+    with patch("transformerlab.routers.experiment.diffusion.diffusion_logger.info") as mock_info:
+        log_print("coverage-test-message")
+        mock_info.assert_called_once()
