@@ -216,7 +216,24 @@ def _get_pipeline_class_name_from_diffusers_module(model_id: str) -> str | None:
         if isinstance(arch_from_hf, str) and arch_from_hf:
             return arch_from_hf
         if isinstance(arch_from_hf, list) and arch_from_hf:
-            return arch_from_hf[0]
+            # Prefer entries that indicate StableDiffusion / Inpaint / SDXL / Flux etc.
+            preferred_indicators = [
+                "StableDiffusionXL",
+                "StableDiffusion",
+                "Inpaint",
+                "FluxPipeline",
+                "Flux",
+                "ControlNet",
+                "Img2Img",
+            ]
+            for indicator in preferred_indicators:
+                for entry in arch_from_hf:
+                    if entry and indicator.lower() in entry.lower():
+                        return entry
+            # Fallback to first non-empty entry
+            for entry in arch_from_hf:
+                if entry:
+                    return entry
     except Exception:
         pass
 
