@@ -98,10 +98,24 @@ vllm_args = [
 if max_model_len is not None:
     vllm_args.extend(["--max-model-len", max_model_len])
 
-# Add tensor parallel size if multiple GPUs are available
+pipeline_parallel_size = int(parameters.get("pipeline_parallel_size", 1))
+
 num_gpus = torch.cuda.device_count()
+
+if pipeline_parallel_size <= 0:
+    print("[ERROR] pipeline_parallel_size must be greater than 0", file=sys.stderr)
+    sys.exit(1)
+
+if num_gpus % pipeline_parallel_size == 0:
+    tensor_parallel_size = num_gpus // pipeline_parallel_size
+else:
+    tensor_parallel_size = num_gpus
+
+# Add tensor parallel size if multiple GPUs are available
 if num_gpus > 1:
-    vllm_args.extend(["--tensor-parallel-size", str(num_gpus)])
+    vllm_args.extend(
+        ["--tensor-parallel-size", str(tensor_parallel_size), "--pipeline-parallel-size", str(pipeline_parallel_size)]
+    )
 
 # We need to read both STDOUT (to determine when the server is up)
 # and STDOUT (to report on errors)
