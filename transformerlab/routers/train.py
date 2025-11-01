@@ -4,10 +4,8 @@ import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, Body
-import logging
 import transformerlab.db.db as db
 import transformerlab.services.job_service as job_service
-from transformerlab.shared import shared
 from lab import Experiment
 
 from werkzeug.utils import secure_filename
