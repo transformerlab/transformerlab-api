@@ -1,4 +1,5 @@
 import json
+import uuid
 import pytest
 
 from transformerlab.services import experiment_service
@@ -18,7 +19,7 @@ def tmp_experiments_dir(monkeypatch, tmp_path):
 
 
 def test_experiment_create_and_get_real(tmp_experiments_dir):
-    name = "real_exp"
+    name = f"real_exp_{uuid.uuid4().hex[:8]}"
     cfg = {"description": "integration test experiment"}
     exp_id = experiment_service.experiment_create(name, cfg)
     assert exp_id == name
@@ -37,8 +38,22 @@ def test_missing_experiment_returns_none(tmp_experiments_dir):
     assert experiment_service.experiment_get("no_such_experiment") is None
 
 
+# Added test to hit the new FileNotFoundError except-clauses in experiment_service
+def test_missing_experiment_operations_handle_FileNotFound(tmp_experiments_dir):
+    """
+    Call the service functions that now catch FileNotFoundError to ensure those
+    branches are executed and no exceptions are raised.
+    """
+    # These calls should not raise even if the experiment does not exist
+    experiment_service.experiment_delete("no_such")
+    experiment_service.experiment_update("no_such", {"a": 1})
+    experiment_service.experiment_update_config("no_such", "k", "v")
+    experiment_service.experiment_save_prompt_template("no_such", "tmpl")
+    experiment_service.experiment_update_configs("no_such", {"x": 2})
+
+
 def test_update_and_delete_flow_real(tmp_experiments_dir):
-    name = "cycle_exp"
+    name = f"cycle_exp_{uuid.uuid4().hex[:8]}"
     experiment_service.experiment_create(name, {"a": 1})
 
     # update whole config
