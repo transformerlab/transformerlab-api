@@ -127,3 +127,15 @@ def test_job_edge_cases(client):
 
     resp = client.get("/experiment/alpha/jobs/create?type=DOWNLOAD_MODEL&status=QUEUED&data={}")
     assert resp.status_code == 200
+
+
+def test_train_sweep_results(client):
+    resp = client.get("/experiment/alpha/jobs/job/1/sweep_results")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data
+    assert data["status"] in ("success", "error")
+    if data["status"] == "success":
+        assert "data" in data
+    else:
+        assert "message" in data
