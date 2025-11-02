@@ -14,7 +14,6 @@ def seed_default_experiments():
     except Exception as e:
         print(f"Error getting existing experiments: {e}, will seed default experiments")
         pass
-
     for name in ["alpha", "beta", "gamma"]:
         try:
             exp = Experiment(name, create_new=True)
