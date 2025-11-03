@@ -116,7 +116,7 @@ async def launch_remote(
         # Get the parent job data
         parent_job_data = parent_job.get("job_data", {})
 
-        # Get the checkpoint directory path
+        # Validate checkpoint existence (for security)
         checkpoints_dir = get_job_checkpoints_dir(parent_job_id)
         checkpoint_path = os.path.normpath(os.path.join(checkpoints_dir, checkpoint))
 
@@ -127,23 +127,13 @@ async def launch_remote(
         if not os.path.exists(checkpoint_path):
             return {"status": "error", "message": f"Checkpoint {checkpoint} not found at {checkpoint_path}"}
 
-        # Modify the command to include the checkpoint parameter
+        # Get the original command (don't modify it, training script will handle checkpoint)
         original_command = parent_job_data.get("command", "")
         if not original_command:
             return {"status": "error", "message": "Original command not found in parent job data"}
 
-        # Simple approach: find the python command and add the checkpoint parameter
-        command_parts = original_command.split(' && ')
-
-        for i, part in enumerate(command_parts):
-            part = part.strip()
-            if part.startswith('python ') and '.py' in part:
-                # Add the checkpoint parameter to this python command
-                command_parts[i] = f"{part} --resume_from_checkpoint {checkpoint_path}"
-                break
-
-        # Rejoin the command
-        command = ' && '.join(command_parts)
+        # Use the original command as-is - the training script will detect checkpoint via SDK
+        command = original_command
 
         # Create a simple, meaningful task name for the resumed training
         task_name = f"resume_training_{parent_job_id}"
@@ -226,6 +216,11 @@ async def launch_remote(
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
     job_name = task_name if task_name else cluster_name
     request_data["job_name"] = job_name
+
+    # Add checkpoint metadata for resume training (will be set as env vars in orchestrator)
+    if checkpoint and parent_job_id:
+        request_data["tlab_parent_job_id"] = parent_job_id
+        request_data["tlab_checkpoint_name"] = checkpoint
 
     # Add optional parameters if provided
     if cpus:
