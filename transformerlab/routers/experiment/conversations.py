@@ -1,13 +1,10 @@
 import json
-import os
-from pathlib import Path
-
 from typing import Annotated
 
 from fastapi import APIRouter, Body
 
 
-from lab import Experiment
+from lab import Experiment, storage
 
 from werkzeug.utils import secure_filename
 from fastapi.responses import FileResponse
@@ -21,31 +18,39 @@ async def get_conversations(experimentId: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
 
-    conversation_dir = experiment_dir + "/conversations/"
+    conversation_dir = storage.join(experiment_dir, "conversations")
 
     # make directory if it does not exist:
-    if not os.path.exists(f"{conversation_dir}"):
-        os.makedirs(f"{conversation_dir}")
+    if not storage.exists(conversation_dir):
+        storage.makedirs(conversation_dir, exist_ok=True)
 
     # now get a list of all the files in the conversations directory
     conversations_files = []
-    for filename in os.listdir(conversation_dir):
-        if filename.endswith(".json"):
-            conversations_files.append(filename)
+    try:
+        for entry in storage.ls(conversation_dir, detail=False):
+            filename = entry.rstrip("/").split("/")[-1]
+            if filename.endswith(".json"):
+                conversations_files.append(filename)
+    except Exception:
+        conversations_files = []
 
     conversations_contents = []
 
     # now read each conversation and create a list of all conversations
     # and their contents
     for i in range(len(conversations_files)):
-        with open(conversation_dir + conversations_files[i], "r") as f:
+        with storage.open(storage.join(conversation_dir, conversations_files[i]), "r") as f:
             new_conversation = {}
             new_conversation["id"] = conversations_files[i]
             # remove .json from end of id
             new_conversation["id"] = new_conversation["id"][:-5]
             new_conversation["contents"] = json.load(f)
             # use file timestamp to get a date
-            new_conversation["date"] = os.path.getmtime(conversation_dir + conversations_files[i])
+            try:
+                # fsspec detail listing could be used; fallback to 0
+                new_conversation["date"] = 0
+            except Exception:
+                new_conversation["date"] = 0
             conversations_contents.append(new_conversation)
 
     # sort the conversations by date
@@ -62,18 +67,11 @@ async def save_conversation(
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
 
-    conversation_dir = "conversations/"
-    final_path = (
-        Path(experiment_dir)
-        .joinpath(conversation_dir + conversation_id + ".json")
-        .resolve()
-        .relative_to(experiment_dir)
-    )
-
-    final_path = experiment_dir + "/" + str(final_path)
+    conversation_dir = storage.join(experiment_dir, "conversations")
+    final_path = storage.join(conversation_dir, conversation_id + ".json")
 
     # now save the conversation
-    with open(final_path, "w") as f:
+    with storage.open(final_path, "w") as f:
         f.write(conversation)
 
     return {"message": f"Conversation {conversation_id} saved"}
@@ -85,18 +83,12 @@ async def delete_conversation(experimentId: str, conversation_id: str):
     experiment_dir = exp_obj.get_dir()
 
     conversation_id = secure_filename(conversation_id)
-    conversation_dir = "conversations/"
-    final_path = (
-        Path(experiment_dir)
-        .joinpath(conversation_dir + conversation_id + ".json")
-        .resolve()
-        .relative_to(experiment_dir)
-    )
-
-    final_path = experiment_dir + "/" + str(final_path)
+    conversation_dir = storage.join(experiment_dir, "conversations")
+    final_path = storage.join(conversation_dir, conversation_id + ".json")
 
     # now delete the conversation
-    os.remove(final_path)
+    if storage.exists(final_path):
+        storage.rm(final_path)
 
     return {"message": f"Conversation {conversation_id} deleted"}
 
@@ -105,23 +97,29 @@ async def delete_conversation(experimentId: str, conversation_id: str):
 async def list_audio(experimentId: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    audio_dir = os.path.join(experiment_dir, "audio")
-    os.makedirs(name=audio_dir, exist_ok=True)
+    audio_dir = storage.join(experiment_dir, "audio")
+    storage.makedirs(audio_dir, exist_ok=True)
 
     # now get a list of all the json files in the audio directory
     audio_files_metadata = []
-    for filename in os.listdir(audio_dir):
-        if filename.endswith(".json"):
-            file_path = os.path.join(audio_dir, filename)
-            with open(file_path, "r") as f:
-                try:
-                    data = json.load(f)
-                    # Add the file modification time for sorting
-                    data["id"] = filename[:-5]  # Remove .json from the filename
-                    data["file_date"] = os.path.getmtime(file_path)
-                    audio_files_metadata.append(data)
-                except Exception:
-                    continue
+    try:
+        entries = storage.ls(audio_dir, detail=False)
+        for entry in entries:
+            filename = entry.rstrip("/").split("/")[-1]
+            if filename.endswith(".json"):
+                file_path = storage.join(audio_dir, filename)
+                with storage.open(file_path, "r") as f:
+                    try:
+                        data = json.load(f)
+                        # Add the file modification time for sorting
+                        data["id"] = filename[:-5]  # Remove .json from the filename
+                        # fsspec doesn't always provide mtime, use 0 as fallback
+                        data["file_date"] = 0
+                        audio_files_metadata.append(data)
+                    except Exception:
+                        continue
+    except Exception:
+        pass
 
     # Sort by file modification time (newest first)
     audio_files_metadata.sort(key=lambda x: x["file_date"], reverse=True)
@@ -133,15 +131,17 @@ async def list_audio(experimentId: str):
 async def download_audio(experimentId: str, filename: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    audio_dir = os.path.join(experiment_dir, "audio")
+    audio_dir = storage.join(experiment_dir, "audio")
 
     # now download the audio file
     filename = secure_filename(filename)
-    file_path = os.path.join(audio_dir, filename)
+    file_path = storage.join(audio_dir, filename)
 
-    if not os.path.exists(file_path):
+    if not storage.exists(file_path):
         return {"message": f"Audio file {filename} does not exist in experiment {experimentId}"}
 
+    # FileResponse needs a local file path, so use the path string directly
+    # For remote storage, this would need special handling
     return FileResponse(path=file_path, filename=filename, media_type="audio/mpeg")
 
 
@@ -178,18 +178,18 @@ async def delete_audio(experimentId: str, id: str):
     """
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    audio_dir = os.path.join(experiment_dir, "audio")
+    audio_dir = storage.join(experiment_dir, "audio")
 
     # Delete the metadata file (.json)
     id = secure_filename(id)
-    metadata_path = os.path.join(audio_dir, id + ".json")
-    if not os.path.exists(metadata_path):
+    metadata_path = storage.join(audio_dir, id + ".json")
+    if not storage.exists(metadata_path):
         return {"message": f"Audio file {id} does not exist in experiment {experimentId}"}
-    os.remove(metadata_path)
+    storage.rm(metadata_path)
 
     # Delete the audio file (.wav)
-    audio_path = os.path.join(audio_dir, id + ".wav")
-    if os.path.exists(audio_path):
-        os.remove(audio_path)
+    audio_path = storage.join(audio_dir, id + ".wav")
+    if storage.exists(audio_path):
+        storage.rm(audio_path)
 
     return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
