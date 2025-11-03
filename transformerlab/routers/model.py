@@ -1154,10 +1154,18 @@ async def model_import_local_path(model_path: str):
     try to import a model into Transformer Lab.
     """
 
-    if os.path.isdir(model_path):
-        model = filesystemmodel.FilesystemModel(model_path)
-    elif os.path.isfile(model_path):
-        model = filesystemmodel.FilesystemGGUFModel(model_path)
+    # Restrict to workspace directory only
+    workspace_dir = get_workspace_dir()
+    # Normalize both workspace and input paths
+    abs_workspace_dir = os.path.abspath(os.path.normpath(workspace_dir))
+    abs_model_path = os.path.abspath(os.path.normpath(model_path))
+    if not abs_model_path.startswith(abs_workspace_dir + os.sep):
+        return {"status": "error", "message": f"Path traversal or invalid path detected: {model_path}. Only paths inside {workspace_dir} are allowed."}
+
+    if os.path.isdir(abs_model_path):
+        model = filesystemmodel.FilesystemModel(abs_model_path)
+    elif os.path.isfile(abs_model_path):
+        model = filesystemmodel.FilesystemGGUFModel(abs_model_path)
     else:
         return {"status": "error", "message": f"Invalid model path {model_path}."}
 
