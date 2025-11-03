@@ -139,7 +139,7 @@ async def run_exporter_script(
         job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         # Create the output file and run the process with output redirection
-        with open(job_output_file, "w") as f:
+        with storage.open(job_output_file, "w") as f:
             process = await asyncio.create_subprocess_exec(
                 *subprocess_command, stdout=f, stderr=subprocess.PIPE, cwd=script_directory
             )
