@@ -13,6 +13,7 @@ import psutil
 import torch
 from fastapi import APIRouter
 from lab.dirs import get_global_log_path
+from lab import storage
 
 
 try:
@@ -310,28 +311,28 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
     print(f"👀 Watching file: {filename}")
 
     # create the file if it doesn't already exist:
-    if not os.path.exists(filename):
-        with open(filename, "w") as f:
+    if not storage.exists(filename):
+        with storage.open(filename, "w") as f:
             f.write("")
 
     last_position = 0
     if start_from_beginning:
         last_position = 0
-        with open(filename, "r") as f:
+        with storage.open(filename, "r") as f:
             f.seek(last_position)
             new_lines = f.readlines()
             yield (f"data: {json.dumps(new_lines)}\n\n")
             last_position = f.tell()
     else:
         try:
-            with open(filename, "r") as f:
+            with storage.open(filename, "r") as f:
                 f.seek(0, os.SEEK_END)
                 last_position = f.tell()
         except Exception as e:
             print(f"Error seeking to end of file: {e}")
 
     async for changes in awatch(filename, force_polling=force_polling, poll_delay_ms=100):
-        with open(filename, "r") as f:
+        with storage.open(filename, "r") as f:
             f.seek(last_position)
             new_lines = f.readlines()
             yield (f"data: {json.dumps(new_lines)}\n\n")

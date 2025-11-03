@@ -8,7 +8,7 @@ import logging
 import transformerlab.db.db as db
 import transformerlab.services.job_service as job_service
 from transformerlab.shared import shared
-from lab import Experiment
+from lab import Experiment, storage
 
 from werkzeug.utils import secure_filename
 
@@ -71,8 +71,8 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
             job = job_service.job_get(job_id)
             job_data = json.loads(job["job_data"])
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and os.path.exists(output_file):
-                with open(output_file, "r") as f:
+            if output_file is not None and storage.exists(output_file):
+                with storage.open(output_file, "r") as f:
                     output = f.read()
                 return output
             else:
@@ -85,7 +85,7 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
             experiment_id = job["experiment_id"]
             output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
-        with open(output_file_name, "r") as f:
+        with storage.open(output_file_name, "r") as f:
             output = f.read()
         return output
     except ValueError as e:
@@ -105,9 +105,9 @@ async def sweep_results(job_id: str):
         job_data = job.get("job_data", {})
 
         output_file = job_data.get("sweep_results_file", None)
-        if output_file and os.path.exists(output_file):
+        if output_file and storage.exists(output_file):
             try:
-                with open(output_file, "r") as f:
+                with storage.open(output_file, "r") as f:
                     output = json.load(f)
                 return {"status": "success", "data": output}
             except json.JSONDecodeError as e:
@@ -163,8 +163,7 @@ async def spawn_tensorboard(job_id: str):
     template_name = job_data["template_name"]
     template_name = secure_filename(template_name)
 
-    os.makedirs(f"{experiment_dir}/tensorboards/{template_name}", exist_ok=True)
-
-    logdir = f"{experiment_dir}/tensorboards/{template_name}"
+    logdir = storage.join(experiment_dir, "tensorboards", template_name)
+    storage.makedirs(logdir, exist_ok=True)
 
     tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])

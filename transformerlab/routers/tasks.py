@@ -12,7 +12,7 @@ import httpx
 import re
 from werkzeug.utils import secure_filename
 
-from lab import Dataset
+from lab import Dataset, storage
 from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
@@ -266,19 +266,20 @@ async def tasks_local_gallery_list():
     """List tasks available in the local workspace tasks-gallery directory."""
     try:
         workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
 
-        if not os.path.exists(local_gallery_dir):
+        if not storage.exists(local_gallery_dir):
             return {"status": "success", "data": []}
 
         local_tasks = []
-        for item in os.listdir(local_gallery_dir):
-            task_dir = os.path.join(local_gallery_dir, item)
-            if os.path.isdir(task_dir):
-                task_json_path = os.path.join(task_dir, "task.json")
-                if os.path.isfile(task_json_path):
+        for entry in storage.ls(local_gallery_dir, detail=False):
+            item = entry.rstrip("/").split("/")[-1]
+            task_dir = storage.join(local_gallery_dir, item)
+            if storage.isdir(task_dir):
+                task_json_path = storage.join(task_dir, "task.json")
+                if storage.isfile(task_json_path):
                     try:
-                        with open(task_json_path) as f:
+                        with storage.open(task_json_path) as f:
                             task_data = json_lib.load(f)
                         local_tasks.append(
                             {
@@ -306,7 +307,7 @@ async def delete_task_from_local_gallery(task_dir: str):
     """
     try:
         workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
         # Enhanced validation: block empty, dot, dot-dot, and any path separator
         if (
             not task_dir
@@ -321,7 +322,7 @@ async def delete_task_from_local_gallery(task_dir: str):
         safe_task_dir = secure_filename(task_dir)
         if safe_task_dir != task_dir:
             return {"status": "error", "message": "Invalid task directory"}
-        task_path = os.path.normpath(os.path.join(local_gallery_dir, safe_task_dir))
+        task_path = storage.join(local_gallery_dir, safe_task_dir)
 
         # Security check: ensure the task path is strictly within the local gallery directory,
         # after resolving symlinks and normalization. This prevents path traversal and symlink attacks.
@@ -356,23 +357,7 @@ async def delete_task_from_local_gallery(task_dir: str):
                 continue
 
         # Remove the task directory
-
-        for dirpath, dirnames, filenames in os.walk(task_path, topdown=False):
-            for f in filenames:
-                try:
-                    os.remove(os.path.join(dirpath, f))
-                except FileNotFoundError:
-                    pass
-            for d in dirnames:
-                try:
-                    os.rmdir(os.path.join(dirpath, d))
-                except (FileNotFoundError, OSError):
-                    pass
-        try:
-            os.rmdir(task_path)
-        # Sometimes the directory change is reflected slowly in the filesystem, so we need to wait a bit
-        except FileNotFoundError:
-            pass
+        storage.rm_tree(task_path)
 
         return {"status": "success", "message": f"Task '{task_dir}' deleted successfully"}
 
@@ -388,7 +373,7 @@ async def get_task_files(task_dir: str):
     """
     try:
         workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
         # Sanitize task_dir using secure_filename
         safe_task_dir = secure_filename(task_dir)
         # Block if secure_filename changes the value suspiciously or results in empty dir
@@ -402,7 +387,7 @@ async def get_task_files(task_dir: str):
             or os.path.sep in safe_task_dir
         ):
             return {"status": "error", "message": "Invalid task directory"}
-        task_path = os.path.normpath(os.path.join(local_gallery_dir, safe_task_dir))
+        task_path = storage.join(local_gallery_dir, safe_task_dir)
 
         # Security check: ensure the task path is within the local gallery directory
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
@@ -457,7 +442,7 @@ async def get_task_files(task_dir: str):
 
         # Get all files in src directory recursively
         files = []
-        for root, dirs, filenames in os.walk(src_dir_real):
+        for root, dirs, filenames in storage.walk(src_dir_real):
             for filename in filenames:
                 # Get relative path from src directory
                 rel_path = os.path.relpath(os.path.join(root, filename), src_dir_real)
@@ -555,13 +540,13 @@ async def get_task_file_content(task_dir: str, file_path: str):
 
         # Read file content
         try:
-            with open(full_file_path_real, "r", encoding="utf-8") as f:
+            with storage.open(full_file_path_real, "r", encoding="utf-8") as f:
                 content = f.read()
         except UnicodeDecodeError:
             # If UTF-8 fails, try reading as binary and return base64 encoded content
             import base64
 
-            with open(full_file_path_real, "rb") as f:
+            with storage.open(full_file_path_real, "rb") as f:
                 binary_content = f.read()
                 content = base64.b64encode(binary_content).decode("utf-8")
                 return {
@@ -613,17 +598,14 @@ async def import_task_from_gallery(
     # Now create the task in the experiment using the locally installed task
     try:
         workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        local_task_dir = os.path.normpath(os.path.join(local_gallery_dir, task_dir_name))
-        # Ensure that the task dir is within the local_gallery_dir
-        if not local_task_dir.startswith(local_gallery_dir + os.sep):
-            return {"status": "error", "message": "Invalid task directory"}
-        task_json_path = os.path.join(local_task_dir, "task.json")
+        local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
+        local_task_dir = storage.join(local_gallery_dir, task_dir_name)
+        task_json_path = storage.join(local_task_dir, "task.json")
 
-        if not os.path.isfile(task_json_path):
+        if not storage.isfile(task_json_path):
             return {"status": "error", "message": f"task.json not found in local task directory: {task_dir_name}"}
 
-        with open(task_json_path) as f:
+        with storage.open(task_json_path) as f:
             task_def = json_lib.load(f)
 
         # Build task fields, marking as remote
@@ -665,11 +647,8 @@ async def import_task_from_gallery(
         if upload:
             try:
                 # Get the src directory from local installation
-                src_dir_real = os.path.normpath(os.path.join(local_task_dir, "src"))
-                # Validate src_dir is within the intended gallery structure
-                if not src_dir_real.startswith(local_task_dir + os.sep):
-                    return {"status": "error", "message": "Invalid src directory"}
-                if os.path.exists(src_dir_real):
+                src_dir = storage.join(local_task_dir, "src")
+                if storage.exists(src_dir):
                     # Post to GPU orchestrator upload endpoint
                     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
                     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
@@ -680,7 +659,7 @@ async def import_task_from_gallery(
                             task_obj = tasks_service.tasks_get_by_id(task_id)
                             if isinstance(task_obj.get("config"), str):
                                 task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                            task_obj["config"]["local_upload_staged_dir"] = src_dir_real
+                            task_obj["config"]["local_upload_staged_dir"] = src_dir
                             tasks_service.update_task(task_id, {"config": task_obj["config"]})
                         except Exception:
                             pass
@@ -689,13 +668,13 @@ async def import_task_from_gallery(
                         dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
                         files_form = []
                         # Walk src_dir and add each file, preserving relative path inside src/
-                        for root, _, filenames in os.walk(src_dir_real):
+                        for root, _, filenames in storage.walk(src_dir):
                             for filename in filenames:
-                                full_path = os.path.join(root, filename)
-                                rel_path = os.path.relpath(full_path, src_dir_real)
+                                full_path = storage.join(root, filename)
+                                rel_path = os.path.relpath(full_path, src_dir)
                                 # Prefix with src/ like the packed structure
                                 upload_name = f"src/{rel_path}"
-                                with open(full_path, "rb") as f:
+                                with storage.open(full_path, "rb") as f:
                                     files_form.append(
                                         ("dir_files", (upload_name, f.read(), "application/octet-stream"))
                                     )
@@ -805,32 +784,32 @@ async def install_task_from_gallery(
 
         # Create local tasks-gallery directory structure
         workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        os.makedirs(local_gallery_dir, exist_ok=True)
+        local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
+        storage.makedirs(local_gallery_dir, exist_ok=True)
 
         # Create task directory in local gallery
         task_name = slugify(task_def.get("name", id))
         task_dir_name = slugify(task_name)
-        local_task_dir = os.path.join(local_gallery_dir, task_dir_name)
+        local_task_dir = storage.join(local_gallery_dir, task_dir_name)
 
         # Check if task already exists locally
-        if os.path.exists(local_task_dir):
+        if storage.exists(local_task_dir):
             return {"status": "error", "message": f"Task '{task_name}' is already installed locally"}
 
-        os.makedirs(local_task_dir, exist_ok=True)
+        storage.makedirs(local_task_dir, exist_ok=True)
 
         # Copy task.json to local gallery
-        local_task_json_path = os.path.join(local_task_dir, "task.json")
+        local_task_json_path = storage.join(local_task_dir, "task.json")
         safe_copyfile(task_json_path, local_task_json_path)
 
         # Copy all other files to local gallery (excluding task.json)
-        src_dir = os.path.join(local_task_dir, "src")
-        os.makedirs(src_dir, exist_ok=True)
+        src_dir = storage.join(local_task_dir, "src")
+        storage.makedirs(src_dir, exist_ok=True)
 
         files_to_copy = [f for f in os.listdir(task_dir) if f != "task.json"]
         for name in files_to_copy:
             src_path = os.path.join(task_dir, name)
-            dest_path = os.path.join(src_dir, name)
+            dest_path = storage.join(src_dir, name)
             if os.path.isdir(src_path):
                 shutil.copytree(src_path, dest_path)
             else:
@@ -843,8 +822,8 @@ async def install_task_from_gallery(
             "install_date": json_lib.dumps({"$date": {"$numberLong": str(int(time.time() * 1000))}}),
             "version": task_def.get("version", "1.0.0"),
         }
-        metadata_path = os.path.join(local_task_dir, "metadata.json")
-        with open(metadata_path, "w") as f:
+        metadata_path = storage.join(local_task_dir, "metadata.json")
+        with storage.open(metadata_path, "w") as f:
             json_lib.dump(metadata, f, indent=2)
 
         return {"status": "success", "task_dir": task_dir_name, "message": f"Task '{task_name}' installed successfully"}
@@ -886,13 +865,13 @@ async def export_task_to_local_gallery(
 
         # Create local gallery directory structure
         workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        os.makedirs(local_gallery_dir, exist_ok=True)
+        local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
+        storage.makedirs(local_gallery_dir, exist_ok=True)
 
         # Create task directory
         task_dir_name = slugify(task_name)
-        task_dir = os.path.join(local_gallery_dir, task_dir_name)
-        os.makedirs(task_dir, exist_ok=True)
+        task_dir = storage.join(local_gallery_dir, task_dir_name)
+        storage.makedirs(task_dir, exist_ok=True)
 
         # Create task.json for local gallery
         local_task_data = {
@@ -908,13 +887,13 @@ async def export_task_to_local_gallery(
             "tag": tag,
         }
 
-        task_json_path = os.path.join(task_dir, "task.json")
-        with open(task_json_path, "w") as f:
+        task_json_path = storage.join(task_dir, "task.json")
+        with storage.open(task_json_path, "w") as f:
             json_lib.dump(local_task_data, f, indent=2)
 
         # Copy files from local storage if they exist
-        src_dir = os.path.join(task_dir, "src")
-        os.makedirs(src_dir, exist_ok=True)
+        src_dir = storage.join(task_dir, "src")
+        storage.makedirs(src_dir, exist_ok=True)
 
         # Check if source task has local files stored
         source_config = source_task.get("config", {})
@@ -932,28 +911,34 @@ async def export_task_to_local_gallery(
         # local_upload_copy is just a folder name, we need to construct the full path
         if local_upload_copy:
             workspace_dir = get_workspace_dir()
-            local_upload_copy = os.path.join(workspace_dir, "uploads", local_upload_copy)
+            local_upload_copy = storage.join(workspace_dir, "uploads", local_upload_copy)
 
         local_files_dir = local_upload_staged_dir or local_upload_copy
-        if local_files_dir and os.path.exists(local_files_dir):
+        if local_files_dir and storage.exists(local_files_dir):
             # Copy files from local storage
-            for root, _, filenames in os.walk(local_files_dir):
+            for root, _, filenames in storage.walk(local_files_dir):
                 for filename in filenames:
                     src_path = os.path.join(root, filename)
                     rel_path = os.path.relpath(src_path, local_files_dir)
-                    dest_path = os.path.join(src_dir, rel_path)
-                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                    shutil.copy2(src_path, dest_path)
+                    dest_path = storage.join(src_dir, rel_path)
+                    dest_parent = os.path.dirname(dest_path)
+                    if dest_parent:
+                        storage.makedirs(dest_parent, exist_ok=True)
+                    storage.copy_file(src_path, dest_path)
 
         # Create metadata file for export info
         metadata = {
             "exported_from": "experiment",
             "source_task_id": source_task_id,
             "export_date": json_lib.dumps({"$date": {"$numberLong": str(int(time.time() * 1000))}}),
-            "has_files": os.path.exists(src_dir) and len(os.listdir(src_dir)) > 0,
         }
-        metadata_path = os.path.join(task_dir, "metadata.json")
-        with open(metadata_path, "w") as f:
+        try:
+            entries = storage.ls(src_dir, detail=False)
+            metadata["has_files"] = len(entries) > 0
+        except Exception:
+            metadata["has_files"] = False
+        metadata_path = storage.join(task_dir, "metadata.json")
+        with storage.open(metadata_path, "w") as f:
             json_lib.dump(metadata, f, indent=2)
 
         return {"status": "success", "task_dir": task_dir_name}
@@ -974,24 +959,14 @@ async def import_task_from_local_gallery(
     """
     try:
         workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
-        local_gallery_dir_real = os.path.realpath(local_gallery_dir)
-        task_path_real = os.path.realpath(task_path)
-        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
-        if common_path != local_gallery_dir_real:
-            print(f"Invalid task directory: {task_path_real} not in {local_gallery_dir_real}")
-            return {"status": "error", "message": "Invalid task directory"}
-        task_json_path = os.path.join(task_path, "task.json")
+        local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
+        task_path = storage.join(local_gallery_dir, task_dir)
+        task_json_path = storage.join(task_path, "task.json")
 
-        task_json_real = os.path.realpath(task_json_path)
-        if not task_json_real.startswith(local_gallery_dir_real + os.sep):
-            print(f"Invalid task.json path: {task_json_real} not in {local_gallery_dir_real}")
-            return {"status": "error", "message": "Invalid task.json path"}
-        if not os.path.isfile(task_json_real):
+        if not storage.isfile(task_json_path):
             return {"status": "error", "message": f"task.json not found in local gallery: {task_dir}"}
 
-        with open(task_json_real) as f:
+        with storage.open(task_json_path) as f:
             task_def = json_lib.load(f)
 
         # Build task fields, marking as remote
