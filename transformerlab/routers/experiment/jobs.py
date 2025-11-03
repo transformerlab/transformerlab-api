@@ -1,5 +1,4 @@
 import asyncio
-from cgi import print_environ
 from fnmatch import fnmatch
 import json
 import os
