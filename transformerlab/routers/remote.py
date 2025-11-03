@@ -216,10 +216,8 @@ async def launch_remote(
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
     request_data["job_name"] = task_name if task_name else cluster_name
 
-    # Add checkpoint metadata for orchestrator (will be set as env vars)
-    if checkpoint and parent_job_id:
-        request_data["tlab_parent_job_id"] = parent_job_id
-        request_data["tlab_checkpoint_name"] = checkpoint
+    # Note: checkpoint metadata (parent_job_id, checkpoint) is stored in job_data above
+    # and will be accessed directly by the SDK via lab.get_checkpoint_to_resume()
 
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
 
