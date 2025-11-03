@@ -1,5 +1,4 @@
 import os
-import json
 import httpx
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
@@ -117,7 +116,7 @@ async def launch_remote(
         # Get the parent job data
         parent_job_data = parent_job.get("job_data", {})
 
-        # Validate checkpoint existence (for security)
+        # Validate checkpoint existence
         checkpoints_dir = get_job_checkpoints_dir(parent_job_id)
         checkpoint_path = os.path.normpath(os.path.join(checkpoints_dir, checkpoint))
 
@@ -128,13 +127,20 @@ async def launch_remote(
         if not os.path.exists(checkpoint_path):
             return {"status": "error", "message": f"Checkpoint {checkpoint} not found at {checkpoint_path}"}
 
-        # Get the original command (don't modify it, training script will handle checkpoint)
-        original_command = parent_job_data.get("command", "")
-        if not original_command:
+        # Get the original command
+        command = parent_job_data.get("command", "")
+        if not command:
             return {"status": "error", "message": "Original command not found in parent job data"}
 
-        # Use the original command as-is - the training script will detect checkpoint via SDK
-        command = original_command
+        # Log the command for debugging
+        print(f"[Resume] Original parent job ID: {parent_job_id}")
+        print(f"[Resume] Checkpoint name: {checkpoint}")
+        print(f"[Resume] Command length: {len(command)} characters")
+        print(f"[Resume] Command preview: {command[:200]}...")  # Log first 200 chars
+        
+        # Validate command doesn't have problematic characters that could break shell execution
+        if '\x00' in command:
+            return {"status": "error", "message": "Command contains null bytes"}
 
         # Create a simple, meaningful task name for the resumed training
         task_name = f"resume_training_{parent_job_id}"
@@ -508,11 +514,9 @@ async def check_remote_job_status(request: Request, cluster_name: str):
 @router.get("/logs/{request_id}")
 async def get_orchestrator_logs(request: Request, request_id: str):
     """
-    Stream logs from the orchestrator for a specific request_id in real-time.
-    This endpoint forwards authentication and streams the response.
+    Get streaming logs from the orchestrator for a specific request_id.
+    This endpoint forwards authentication to the orchestrator.
     """
-    from fastapi.responses import StreamingResponse
-    
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -524,51 +528,34 @@ async def get_orchestrator_logs(request: Request, request_id: str):
     # Build the logs endpoint URL
     logs_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/requests/{request_id}/logs"
 
-    async def stream_logs():
-        """Generator that streams logs from orchestrator to client"""
-        try:
-            async with httpx.AsyncClient(timeout=None) as client:
-                # Build headers: prefer configured API key, otherwise forward incoming Authorization header
-                outbound_headers = {"Content-Type": "application/json"}
-                incoming_auth = request.headers.get("AUTHORIZATION")
-                if incoming_auth:
-                    outbound_headers["AUTHORIZATION"] = incoming_auth
+    try:
+        async with httpx.AsyncClient() as client:
+            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
+            outbound_headers = {"Content-Type": "application/json"}
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
 
-                # Stream the response from orchestrator
-                async with client.stream("GET", logs_url, headers=outbound_headers, cookies=request.cookies) as response:
-                    if response.status_code == 200:
-                        # Stream each chunk from orchestrator to client in real-time
-                        async for chunk in response.aiter_bytes():
-                            if chunk:
-                                yield chunk
-                    else:
-                        # Send error as SSE format
-                        error_msg = f"data: {json.dumps({'error': f'Orchestrator returned status {response.status_code}', 'status': 'failed'})}\n\n"
-                        yield error_msg.encode()
+            response = await client.get(logs_url, headers=outbound_headers, cookies=request.cookies, timeout=30.0)
 
-        except httpx.TimeoutException:
-            print("Error streaming orchestrator logs: Request to orchestrator timed out")
-            error_msg = f"data: {json.dumps({'error': 'Request to orchestrator timed out', 'status': 'failed'})}\n\n"
-            yield error_msg.encode()
-        except httpx.RequestError as e:
-            print(f"Error streaming orchestrator logs: {str(e)}")
-            error_msg = f"data: {json.dumps({'error': 'Request error occurred', 'status': 'failed'})}\n\n"
-            yield error_msg.encode()
-        except Exception as e:
-            print(f"Error streaming orchestrator logs: {str(e)}")
-            error_msg = f"data: {json.dumps({'error': 'Unexpected error occurred', 'status': 'failed'})}\n\n"
-            yield error_msg.encode()
+            if response.status_code == 200:
+                return {
+                    "status": "success",
+                    "data": response.text,  # Return raw text for streaming logs
+                    "message": "Orchestrator logs retrieved successfully",
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Orchestrator returned status {response.status_code}: {response.text}",
+                }
 
-    return StreamingResponse(
-        stream_logs(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Content-Type": "text/event-stream",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering
-        },
-    )
+    except httpx.TimeoutException:
+        return {"status": "error", "message": "Request to orchestrator timed out"}
+    except httpx.RequestError:
+        return {"status": "error", "message": "Request error occurred"}
+    except Exception:
+        return {"status": "error", "message": "Unexpected error occurred"}
 
 
 @router.get("/check-status")
