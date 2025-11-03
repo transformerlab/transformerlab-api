@@ -1,4 +1,5 @@
 import os
+import json
 import httpx
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
@@ -371,7 +372,6 @@ async def upload_directory(
     Upload a directory to the remote Lattice orchestrator for later use in cluster launches.
     Files are stored locally first, then sent to orchestrator.
     """
-    from lab.dirs import get_workspace_dir
 
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
