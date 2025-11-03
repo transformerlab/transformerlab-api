@@ -12,6 +12,7 @@ from cryptography.x509.oid import NameOID
 from filelock import FileLock
 
 from lab.dirs import get_workspace_dir
+from lab import storage
 
 __all__ = [
     "CERT_DIR",
@@ -53,12 +54,16 @@ def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
             )
         )
         cert = cert_builder.sign(key, hashes.SHA256())
-        CERT_PATH.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
-        KEY_PATH.write_bytes(
-            key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.TraditionalOpenSSL,
-                serialization.NoEncryption(),
+        # Write via fsspec storage
+        storage.makedirs(str(CERT_DIR), exist_ok=True)
+        with storage.open(str(CERT_PATH), "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+        with storage.open(str(KEY_PATH), "wb") as f:
+            f.write(
+                key.private_bytes(
+                    serialization.Encoding.PEM,
+                    serialization.PrivateFormat.TraditionalOpenSSL,
+                    serialization.NoEncryption(),
+                )
             )
-        )
         return str(CERT_PATH), str(KEY_PATH)

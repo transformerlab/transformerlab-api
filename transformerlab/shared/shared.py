@@ -45,7 +45,7 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
 
     def runInThread(onExit, popenArgs, popenKWArgs):
         if output_file is not None:
-            log = open(output_file, "a")
+            log = storage.open(output_file, "a")
             # get the current date and time as a string:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             print("Printing to file: " + output_file)
@@ -180,15 +180,15 @@ async def read_process_output(process, job_id):
         print("Worker Process stopped by user")
     else:
         print(f"ERROR: Worker Process ended with exit code {returncode}.")
-    with open(get_global_log_path(), "a") as log:
+    with storage.open(get_global_log_path(), "a") as log:
         log.write(f"Inference Server Terminated with {returncode}.\n")
         log.flush()
     # so we should delete the pid file:
     from lab.dirs import get_temp_dir
 
-    pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
-    if os.path.exists(pid_file):
-        os.remove(pid_file)
+    pid_file = storage.join(get_temp_dir(), f"worker_job_{job_id}.pid")
+    if storage.exists(pid_file):
+        storage.rm(pid_file)
     # Clean up resources after process ends
     clear_vram_and_kill_sglang()
 
@@ -216,7 +216,7 @@ async def async_run_python_daemon_and_update_status(
             break
 
     # Open a file to write the output to:
-    log = open(get_global_log_path(), "a")
+    log = storage.open(get_global_log_path(), "a")
 
     # Check if plugin has a venv directory
     if plugin_location:
@@ -249,8 +249,8 @@ async def async_run_python_daemon_and_update_status(
     pid = process.pid
     from lab.dirs import get_temp_dir
 
-    pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
-    with open(pid_file, "w") as f:
+    pid_file = storage.join(get_temp_dir(), f"worker_job_{job_id}.pid")
+    with storage.open(pid_file, "w") as f:
         f.write(str(pid))
 
     line = await process.stdout.readline()
@@ -571,7 +571,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         storage.makedirs(storage.join(output_temp_file_dir), exist_ok=True)
         print(f"[DIFFUSION] Running command: {subprocess_command}")
         try:
-            with open(output_path, "w") as f:
+            with storage.open(output_path, "w") as f:
                 process = await asyncio.create_subprocess_exec(
                     *subprocess_command,
                     stdout=f,
@@ -784,7 +784,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Replace synchronous subprocess.run with asyncio
                 async def run_process_async(cmd, output_file):
                     # Open file for writing
-                    with open(output_file, "a") as f:
+                    with storage.open(output_file, "a") as f:
                         # Create subprocess with piped stdout
                         process = await asyncio.create_subprocess_exec(
                             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
@@ -1011,7 +1011,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     experiment_details["config"]["inferenceParams"]
                 )
         input_contents = {"experiment": experiment_details, "config": template_config}
-        with open(input_file, "w") as outfile:
+        with storage.open(input_file, "w") as outfile:
             json.dump(input_contents, outfile, indent=4)
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")

@@ -28,6 +28,7 @@ import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
+from lab import storage
 
 from werkzeug.utils import secure_filename
 
@@ -44,7 +45,7 @@ def get_model_dir(model_id: str):
     model_id_without_author = model_id.split("/")[-1]
     from lab.dirs import get_models_dir
 
-    return os.path.join(get_models_dir(), model_id_without_author)
+    return storage.join(get_models_dir(), model_id_without_author)
 
 
 def get_current_org_id() -> str | None:
@@ -284,7 +285,7 @@ async def model_details_from_filesystem(model_id: str):
     # TODO: Refactor this code with models/list function
     # see if the model exists locally
     model_path = get_model_dir(model_id)
-    if os.path.isdir(model_path):
+    if storage.isdir(model_path):
         # Look for model information using SDK methods
         try:
             from lab.model import Model as ModelService
@@ -523,7 +524,7 @@ async def download_huggingface_model(
             # Construct org-specific workspace path manually
             from lab import HOME_DIR
 
-            workspace_dir = os.path.join(HOME_DIR, "orgs", organization_id, "workspace")
+            workspace_dir = storage.join(HOME_DIR, "orgs", organization_id, "workspace")
             print(f"🔵 CONSTRUCTED ORG WORKSPACE: {workspace_dir}")
         else:
             # Use default workspace path
@@ -820,8 +821,8 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
         model_service = ModelService.get(model_id)
         # Delete the entire directory
         model_dir = model_service.get_dir()
-        if os.path.exists(model_dir):
-            shutil.rmtree(model_dir)
+        if storage.exists(model_dir):
+            storage.rm_tree(model_dir)
             print(f"Deleted filesystem model: {model_id}")
     except FileNotFoundError:
         # Model not found in filesystem, continue with other deletion methods
@@ -836,21 +837,21 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
 
     # Sanitize and validate model_dir
     unsafe_model_dir = model_id.rsplit("/", 1)[-1]
-    model_dir = os.path.normpath(unsafe_model_dir)
-    candidate_index_file = os.path.join(root_models_dir, model_dir, "index.json")
-    index_file = os.path.abspath(candidate_index_file)
-    models_dir_abs = os.path.abspath(root_models_dir)
+    # Use storage.join for path normalization
+    model_dir = unsafe_model_dir
+    candidate_index_file = storage.join(root_models_dir, model_dir, "index.json")
 
-    if not index_file.startswith(models_dir_abs):
+    # For fsspec, validate paths are within root_models_dir by checking they start with it
+    if not storage.exists(candidate_index_file):
+        pass  # File doesn't exist, skip legacy deletion
+    elif not candidate_index_file.startswith(root_models_dir):
         print("ERROR: Invalid index file path")
-
-    elif os.path.isfile(index_file):
-        model_path = os.path.join(root_models_dir, model_dir)
-        model_path = os.path.abspath(model_path)
-        if not model_path.startswith(models_dir_abs):
+    elif storage.isfile(candidate_index_file):
+        model_path = storage.join(root_models_dir, model_dir)
+        if not model_path.startswith(root_models_dir):
             print("ERROR: Invalid directory structure")
         print(f"Deleteing {model_path}")
-        shutil.rmtree(model_path)
+        storage.rm_tree(model_path)
 
     else:
         if delete_from_cache:
@@ -877,16 +878,23 @@ async def model_gets_pefts(
 ):
     workspace_dir = get_workspace_dir()
     model_id = secure_filename(model_id)
-    adaptors_dir = os.path.join(workspace_dir, "adaptors", model_id)
+    adaptors_dir = storage.join(workspace_dir, "adaptors", model_id)
 
-    if not os.path.exists(adaptors_dir):
+    if not storage.exists(adaptors_dir):
         return []
 
-    adaptors = [
-        name
-        for name in os.listdir(adaptors_dir)
-        if os.path.isdir(os.path.join(adaptors_dir, name)) and not name.startswith(".")
-    ]
+    # Use storage.ls to list directory contents
+    try:
+        all_items = storage.ls(adaptors_dir, detail=False)
+        adaptors = []
+        for item_path in all_items:
+            # Extract just the name from full path (works for both local and remote)
+            name = item_path.split("/")[-1].split("\\")[-1]  # Handle both / and \ separators
+            if not name.startswith(".") and storage.isdir(item_path):
+                adaptors.append(name)
+    except Exception:
+        # Fallback to empty list if listing fails
+        adaptors = []
     return sorted(adaptors)
 
 
@@ -894,15 +902,15 @@ async def model_gets_pefts(
 async def model_delete_peft(model_id: str, peft: str):
     workspace_dir = get_workspace_dir()
     secure_model_id = secure_filename(model_id)
-    adaptors_dir = f"{workspace_dir}/adaptors/{secure_model_id}"
+    adaptors_dir = storage.join(workspace_dir, "adaptors", secure_model_id)
     # Check if the peft exists
-    if os.path.exists(adaptors_dir):
-        peft_path = f"{adaptors_dir}/{peft}"
+    if storage.exists(adaptors_dir):
+        peft_path = storage.join(adaptors_dir, peft)
     else:
         # Assume the adapter is stored in the older naming convention format
-        peft_path = f"{workspace_dir}/adaptors/{model_id}/{peft}"
+        peft_path = storage.join(workspace_dir, "adaptors", model_id, peft)
 
-    shutil.rmtree(peft_path)
+    storage.rm_tree(peft_path)
 
     return {"message": "success"}
 
