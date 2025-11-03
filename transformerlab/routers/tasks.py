@@ -334,7 +334,7 @@ async def delete_task_from_local_gallery(task_dir: str):
         ):
             return {"status": "error", "message": "Invalid task directory"}
 
-        if not os.path.exists(task_path):
+        if not storage.exists(task_path):
             return {"status": "error", "message": "Task directory not found"}
 
         # Extra symlink protection: use os.lstat, block symlinks and non-dirs
@@ -348,7 +348,7 @@ async def delete_task_from_local_gallery(task_dir: str):
 
         # Optional: block symlink children in the target folder
         for entry in os.listdir(task_path):
-            entry_path = os.path.join(task_path, entry)
+            entry_path = storage.join(task_path, entry)
             try:
                 entry_stat = os.lstat(entry_path)
                 if stat.S_ISLNK(entry_stat.st_mode):
@@ -442,7 +442,7 @@ async def get_task_files(task_dir: str):
 
         # Get all files in src directory recursively
         files = []
-        for root, dirs, filenames in storage.walk(src_dir_real):
+        for root, dirs, filenames in os.walk(src_dir_real):
             for filename in filenames:
                 # Get relative path from src directory
                 rel_path = os.path.relpath(os.path.join(root, filename), src_dir_real)
@@ -494,12 +494,11 @@ async def get_task_file_content(task_dir: str, file_path: str):
             return {"status": "error", "message": "Unsafe file name"}
 
         workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
+        local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
+        task_path = storage.join(local_gallery_dir, task_dir)
 
         # Security check: ensure the task path is within the local gallery directory
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
-        task_path = os.path.normpath(os.path.join(local_gallery_dir_real, task_dir))
         task_path_real = os.path.realpath(task_path)
 
         # Ensure that the task_path_real is a strict subdirectory of local_gallery_dir_real
@@ -918,7 +917,7 @@ async def export_task_to_local_gallery(
             # Copy files from local storage
             for root, _, filenames in storage.walk(local_files_dir):
                 for filename in filenames:
-                    src_path = os.path.join(root, filename)
+                    src_path = storage.join(root, filename)
                     rel_path = os.path.relpath(src_path, local_files_dir)
                     dest_path = storage.join(src_dir, rel_path)
                     dest_parent = os.path.dirname(dest_path)
