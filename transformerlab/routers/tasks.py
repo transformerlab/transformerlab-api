@@ -9,10 +9,10 @@ import shutil
 import json as json_lib
 import subprocess
 import httpx
-import re
 from werkzeug.utils import secure_filename
 
 from lab import Dataset, storage
+import posixpath
 from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
@@ -314,7 +314,7 @@ async def delete_task_from_local_gallery(task_dir: str):
             or task_dir.strip() in (".", "..")
             or "/" in task_dir
             or "\\" in task_dir
-            or os.path.sep in task_dir
+            or posixpath.sep in task_dir
         ):
             return {"status": "error", "message": "Invalid task directory"}
 
@@ -324,37 +324,8 @@ async def delete_task_from_local_gallery(task_dir: str):
             return {"status": "error", "message": "Invalid task directory"}
         task_path = storage.join(local_gallery_dir, safe_task_dir)
 
-        # Security check: ensure the task path is strictly within the local gallery directory,
-        # after resolving symlinks and normalization. This prevents path traversal and symlink attacks.
-        local_gallery_dir_real = os.path.realpath(local_gallery_dir)
-        task_path_real = os.path.realpath(task_path)
-        if (
-            not os.path.commonpath([local_gallery_dir_real, task_path_real]) == local_gallery_dir_real
-            or task_path_real == local_gallery_dir_real
-        ):
-            return {"status": "error", "message": "Invalid task directory"}
-
         if not storage.exists(task_path):
             return {"status": "error", "message": "Task directory not found"}
-
-        # Extra symlink protection: use os.lstat, block symlinks and non-dirs
-        stat_info = os.lstat(task_path)
-        import stat
-
-        if not stat.S_ISDIR(stat_info.st_mode):
-            return {"status": "error", "message": "Invalid task directory (not a directory)"}
-        if stat.S_ISLNK(stat_info.st_mode):
-            return {"status": "error", "message": "Invalid task directory (symlink)"}
-
-        # Optional: block symlink children in the target folder
-        for entry in os.listdir(task_path):
-            entry_path = storage.join(task_path, entry)
-            try:
-                entry_stat = os.lstat(entry_path)
-                if stat.S_ISLNK(entry_stat.st_mode):
-                    return {"status": "error", "message": "Directory contains symlinked entries, cannot delete"}
-            except Exception:
-                continue
 
         # Remove the task directory
         storage.rm_tree(task_path)
@@ -384,68 +355,23 @@ async def get_task_files(task_dir: str):
             or safe_task_dir.strip() in (".", "..")
             or "/" in safe_task_dir
             or "\\" in safe_task_dir
-            or os.path.sep in safe_task_dir
+            or posixpath.sep in safe_task_dir
         ):
             return {"status": "error", "message": "Invalid task directory"}
         task_path = storage.join(local_gallery_dir, safe_task_dir)
 
-        # Security check: ensure the task path is within the local gallery directory
-        local_gallery_dir_real = os.path.realpath(local_gallery_dir)
-        task_path_real = os.path.realpath(task_path)
-        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
-
-        # Ensure the target is strictly within (but not exactly) the gallery directory
-        if common_path != local_gallery_dir_real or task_path_real == local_gallery_dir_real:
-            return {"status": "error", "message": "Invalid task directory"}
-
-        if not os.path.exists(task_path_real):
-            return {"status": "error", "message": "Task directory not found"}
-
-        # Extra symlink protection: use os.lstat, block symlinks and non-dirs
-        import stat
-
-        stat_info = os.lstat(task_path_real)
-        if not stat.S_ISDIR(stat_info.st_mode):
-            return {"status": "error", "message": "Invalid task directory (not a directory)"}
-        if stat.S_ISLNK(stat_info.st_mode):
-            return {"status": "error", "message": "Invalid task directory (symlink)"}
-
-        # Optional: block symlink children in the target folder
-        for entry in os.listdir(task_path_real):
-            entry_path = os.path.join(task_path_real, entry)
-            entry_path_real = os.path.realpath(entry_path)
-            # Ensure entry_path is within the verified task_path_real directory
-            if os.path.commonpath([entry_path_real, task_path_real]) != task_path_real:
-                return {"status": "error", "message": "Directory contains invalid entries, cannot list files"}
-            try:
-                entry_stat = os.lstat(entry_path_real)
-                if stat.S_ISLNK(entry_stat.st_mode):
-                    return {"status": "error", "message": "Directory contains symlinked entries, cannot list files"}
-            except Exception:
-                continue
-
         # Check for src directory
-        src_dir = os.path.join(task_path_real, "src")
-        # Security check: ensure src_dir is within the expected task_path
-        src_dir_real = os.path.realpath(src_dir)
-        if os.path.commonpath([src_dir_real, task_path_real]) != task_path_real:
-            return {"status": "error", "message": "Invalid src directory for task"}
-        if not os.path.exists(src_dir_real):
+        src_dir = storage.join(task_path, "src")
+        if not storage.exists(src_dir):
             return {"status": "success", "data": {"files": [], "count": 0}}
-
-        # Ensure src_dir_real is a real directory and not a symlink
-        src_stat = os.lstat(src_dir_real)
-        if not stat.S_ISDIR(src_stat.st_mode):
-            return {"status": "error", "message": "Invalid src directory (not a directory)"}
-        if stat.S_ISLNK(src_stat.st_mode):
-            return {"status": "error", "message": "Invalid src directory (symlink)"}
 
         # Get all files in src directory recursively
         files = []
-        for root, dirs, filenames in os.walk(src_dir_real):
+        for root, dirs, filenames in storage.walk(src_dir):
             for filename in filenames:
                 # Get relative path from src directory
-                rel_path = os.path.relpath(os.path.join(root, filename), src_dir_real)
+                file_path = storage.join(root, filename)
+                rel_path = posixpath.relpath(file_path, src_dir)
                 files.append(rel_path)
 
         return {"status": "success", "data": {"files": files, "count": len(files)}}
@@ -461,13 +387,11 @@ async def get_task_file_content(task_dir: str, file_path: str):
     Get the content of a specific file in the src/ directory of a task in the local tasks-gallery.
     """
     try:
-        # Validate file_path to prevent path traversal and ensure simple file names (alphanumerics, underscores, hyphens, dot-ext)
-        # This regex allows e.g. "main.py", "my_file.txt", "sample-1.js"
+        # Validate file_path to prevent path traversal
         if (
-            not re.fullmatch(r"[A-Za-z0-9_\-\.]+", file_path)
+            not file_path
             or ".." in file_path
-            or file_path.startswith(".")
-            or file_path.count(".") > 1
+            or "\x00" in file_path
         ):
             return {"status": "error", "message": "Invalid file path"}
 
@@ -475,77 +399,37 @@ async def get_task_file_content(task_dir: str, file_path: str):
         safe_task_dir = secure_filename(task_dir)
         if not safe_task_dir or safe_task_dir != task_dir:
             return {"status": "error", "message": "Invalid task directory"}
-        # Disallow absolute paths and path traversal (defense in depth)
-        if os.path.isabs(task_dir) or ".." in task_dir.split(os.sep):
-            return {"status": "error", "message": "Invalid task directory"}
-
-        # Defensive file_path validation
-        if (
-            not file_path
-            or os.path.isabs(file_path)
-            or "\x00" in file_path
-            or any(part == ".." for part in file_path.split(os.sep))
-        ):
-            return {"status": "error", "message": "Invalid file path"}
-
-        # Optionally, enforce basename safety (for files, not subdirs)
-        filename_check = secure_filename(os.path.basename(file_path))
-        if filename_check != os.path.basename(file_path):
-            return {"status": "error", "message": "Unsafe file name"}
 
         workspace_dir = get_workspace_dir()
         local_gallery_dir = storage.join(workspace_dir, "tasks-gallery")
         task_path = storage.join(local_gallery_dir, task_dir)
 
-        # Security check: ensure the task path is within the local gallery directory
-        local_gallery_dir_real = os.path.realpath(local_gallery_dir)
-        task_path_real = os.path.realpath(task_path)
-
-        # Ensure that the task_path_real is a strict subdirectory of local_gallery_dir_real
-        if not (task_path_real.startswith(local_gallery_dir_real + os.sep)):
-            return {"status": "error", "message": "Invalid task directory"}
-
-        if not os.path.exists(task_path_real):
+        if not storage.exists(task_path):
             return {"status": "error", "message": "Task directory not found"}
 
         # Check for src directory
-        src_dir = os.path.join(task_path_real, "src")
-        if not os.path.exists(src_dir):
+        src_dir = storage.join(task_path, "src")
+        if not storage.exists(src_dir):
             return {"status": "error", "message": "Source directory not found"}
 
-        # Build the normalized absolute full path, then verify containment in src_dir_real
-        # - Reject absolute paths and suspicious path segments
-        if os.path.isabs(file_path) or ".." in file_path.split(os.sep):
-            return {"status": "error", "message": "Invalid file path"}
+        # Build the full file path
+        full_file_path = storage.join(src_dir, file_path)
 
-        src_dir_real = os.path.realpath(src_dir)
-        common_src_path = os.path.commonpath([task_path_real, src_dir_real])
-        if common_src_path != task_path_real:
-            return {"status": "error", "message": "Invalid src directory"}
-
-        # Join and normalize the requested path
-        target_path = os.path.normpath(os.path.join(src_dir_real, file_path))
-        # Ensure that the resulting path is still within src_dir_real, and is not the directory itself
-        if not target_path.startswith(src_dir_real + os.sep) or target_path == src_dir_real:
-            return {"status": "error", "message": "Invalid file path"}
-
-        full_file_path_real = target_path
-
-        if not os.path.exists(full_file_path_real):
+        if not storage.exists(full_file_path):
             return {"status": "error", "message": "File not found"}
 
-        if not os.path.isfile(full_file_path_real):
+        if not storage.isfile(full_file_path):
             return {"status": "error", "message": "Path is not a file"}
 
         # Read file content
         try:
-            with storage.open(full_file_path_real, "r", encoding="utf-8") as f:
+            with storage.open(full_file_path, "r", encoding="utf-8") as f:
                 content = f.read()
         except UnicodeDecodeError:
             # If UTF-8 fails, try reading as binary and return base64 encoded content
             import base64
 
-            with storage.open(full_file_path_real, "rb") as f:
+            with storage.open(full_file_path, "rb") as f:
                 binary_content = f.read()
                 content = base64.b64encode(binary_content).decode("utf-8")
                 return {
@@ -553,7 +437,7 @@ async def get_task_file_content(task_dir: str, file_path: str):
                     "data": {
                         "content": content,
                         "encoding": "base64",
-                        "filename": os.path.basename(file_path),
+                        "filename": posixpath.basename(file_path),
                         "filepath": file_path,
                     },
                 }
@@ -563,7 +447,7 @@ async def get_task_file_content(task_dir: str, file_path: str):
             "data": {
                 "content": content,
                 "encoding": "utf-8",
-                "filename": os.path.basename(file_path),
+                "filename": posixpath.basename(file_path),
                 "filepath": file_path,
             },
         }
@@ -670,7 +554,7 @@ async def import_task_from_gallery(
                         for root, _, filenames in storage.walk(src_dir):
                             for filename in filenames:
                                 full_path = storage.join(root, filename)
-                                rel_path = os.path.relpath(full_path, src_dir)
+                                rel_path = posixpath.relpath(full_path, src_dir)
                                 # Prefix with src/ like the packed structure
                                 upload_name = f"src/{rel_path}"
                                 with storage.open(full_path, "rb") as f:
@@ -918,9 +802,9 @@ async def export_task_to_local_gallery(
             for root, _, filenames in storage.walk(local_files_dir):
                 for filename in filenames:
                     src_path = storage.join(root, filename)
-                    rel_path = os.path.relpath(src_path, local_files_dir)
+                    rel_path = posixpath.relpath(src_path, local_files_dir)
                     dest_path = storage.join(src_dir, rel_path)
-                    dest_parent = os.path.dirname(dest_path)
+                    dest_parent = posixpath.dirname(dest_path)
                     if dest_parent:
                         storage.makedirs(dest_parent, exist_ok=True)
                     storage.copy_file(src_path, dest_path)
