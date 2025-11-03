@@ -31,6 +31,7 @@ from werkzeug.utils import secure_filename
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
 import logging
+from transformerlab.services import dataset_service as dataset_service_module
 
 
 jinja_environment = Environment()
@@ -55,38 +56,6 @@ def log(msg):
 router = APIRouter(prefix="/data", tags=["datasets"])
 
 # Get list of datasets that we have in our hardcoded gallery
-
-
-def load_local_dataset(dataset_dir, data_files=None, streaming=False):
-    """
-    Load a local dataset, excluding index.json from the data files.
-    This prevents accidental ingestion of repository index/metadata files
-    that may cause format auto-detection to fail.
-    """
-    # If caller did not provide explicit data files, enumerate top-level files
-    if data_files is None:
-        try:
-            entries = os.listdir(dataset_dir)
-        except Exception:
-            entries = []
-
-        filtered_files = []
-        for name in entries:
-            # Exclude hidden files and common metadata files
-            if name in ["index.json"] or name.startswith("."):
-                continue
-            full_path = os.path.join(dataset_dir, name)
-            if os.path.isfile(full_path):
-                filtered_files.append(name)
-
-        data_files = filtered_files
-
-    if data_files:
-        data_file_paths = [os.path.join(dataset_dir, f) for f in data_files]
-        return load_dataset(path=dataset_dir, data_files=data_file_paths, streaming=streaming)
-    else:
-        # Fall back to default behavior (may fail if only metadata files exist)
-        return load_dataset(path=dataset_dir, streaming=streaming)
 
 
 class SuccessResponse(BaseModel):
@@ -137,7 +106,7 @@ async def dataset_info(dataset_id: str):
     # This means it is a custom dataset the user uploaded
     if d.get("location") == "local":
         try:
-            dataset = load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
+            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
         except EmptyDatasetError:
             return {"status": "error", "message": "The dataset is empty."}
         split = list(dataset.keys())[0]
@@ -213,7 +182,7 @@ async def dataset_preview(
 
     try:
         if d.get("location") == "local":
-            dataset = load_local_dataset(dirs.dataset_dir_by_id(dataset_id), streaming=streaming)
+            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id), streaming=streaming)
         else:
             dataset_config = (d.get("json_data") or {}).get("dataset_config", None)
             config_name = (d.get("json_data") or {}).get("config_name", None)
@@ -364,7 +333,7 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     # This means it is a custom dataset the user uploaded
     if d and d.get("location") == "local":
         try:
-            dataset = load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
+            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
         except Exception as e:
             logging.error(f"Error loading dataset: {type(e).__name__}: {e}")
             return {"status": "error", "message": "An internal error has occurred."}
