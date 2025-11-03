@@ -1,6 +1,5 @@
 import json
 import asyncio
-import shutil
 import datetime
 import dateutil.relativedelta
 from typing import Annotated
