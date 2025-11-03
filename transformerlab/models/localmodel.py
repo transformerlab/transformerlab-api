@@ -10,6 +10,7 @@ import json
 from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
 from werkzeug.utils import secure_filename
+from lab import storage
 
 
 def is_sentence_transformer_model(
@@ -153,22 +154,22 @@ class LocalModelStore(modelstore.ModelStore):
                 # this will tell Hugging Face to not try downloading
                 model_id = model.get("model_id", "")
                 model_filename = model.get("json_data", {}).get("model_filename", "")
-                model["local_path"] = os.path.join(models_dir, secure_filename(model_id))
+                model["local_path"] = storage.join(models_dir, secure_filename(model_id))
                 # Check if local path exists
-                if not os.path.exists(model["local_path"]):
+                if not storage.exists(model["local_path"]):
                     # Remove the Starting TransformerLab/ prefix to handle the save_transformerlab_model function
-                    model["local_path"] = os.path.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
+                    model["local_path"] = storage.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
 
                 # Some models are a single file (possibly of many in a directory, e.g. GGUF)
                 # For models that have model_filename set we should link directly to that specific file
                 if "model_filename" in model.get("json_data", {}):
                     model_filename = model["json_data"]["model_filename"]
                     if model_filename.endswith(".gguf"):
-                        model["local_path"] = os.path.join(
-                            os.path.join(models_dir, secure_filename(model_id)), model_filename
+                        model["local_path"] = storage.join(
+                            storage.join(models_dir, secure_filename(model_id)), model_filename
                         )
                     else:
-                        model["local_path"] = os.path.join(model["local_path"], model["json_data"]["model_filename"])
+                        model["local_path"] = storage.join(model["local_path"], model["json_data"]["model_filename"])
 
         # Filter out models based on whether they are embedding models or not
         models = await self.filter_embedding_models(models, embedding)
@@ -199,9 +200,9 @@ class LocalModelStore(modelstore.ModelStore):
         models_dir = get_models_dir()
 
         # Load the tlab_complete_provenance.json file if it exists
-        complete_provenance_file = os.path.join(models_dir, "_tlab_complete_provenance.json")
-        if os.path.exists(complete_provenance_file):
-            with open(complete_provenance_file, "r") as f:
+        complete_provenance_file = storage.join(models_dir, "_tlab_complete_provenance.json")
+        if storage.exists(complete_provenance_file):
+            with storage.open(complete_provenance_file, "r") as f:
                 try:
                     provenance = json.load(f)
                 except json.JSONDecodeError:
@@ -214,23 +215,31 @@ class LocalModelStore(modelstore.ModelStore):
             provenance, local_added_count = await self.check_provenance_for_local_models(provenance)
             if local_added_count != 0:
                 # Save new provenance mapping
-                with open(complete_provenance_file, "w") as f:
+                with storage.open(complete_provenance_file, "w") as f:
                     json.dump(provenance, f)
             # Check if the provenance mapping is up to date
             # The -1 here indicates that we are not counting the _tlab_complete_provenance.json file in models_dir
-            if len(provenance) > 0 and len(os.listdir(models_dir)) + local_added_count - 1 == len(provenance):
+            try:
+                entries = storage.ls(models_dir, detail=False)
+                dir_count = sum(1 for entry in entries if storage.isdir(entry))
+            except Exception:
+                dir_count = 0
+            if len(provenance) > 0 and dir_count + local_added_count - 1 == len(provenance):
                 return provenance, False
 
         # If the provenance mapping is not built or models_dir has changed, we need to rebuild it
         # Scan all model directories
-        with os.scandir(models_dir) as dirlist:
-            for entry in dirlist:
-                if entry.is_dir():
+        try:
+            entries = storage.ls(models_dir, detail=False)
+            for entry_path in entries:
+                if storage.isdir(entry_path):
+                    # Extract entry name from path
+                    entry_name = entry_path.rstrip("/").split("/")[-1]
                     # Look for provenance file
-                    provenance_file = os.path.join(models_dir, entry.name, "_tlab_provenance.json")
+                    provenance_file = storage.join(models_dir, entry_name, "_tlab_provenance.json")
                     try:
-                        if os.path.exists(provenance_file):
-                            with open(provenance_file, "r") as f:
+                        if storage.exists(provenance_file):
+                            with storage.open(provenance_file, "r") as f:
                                 prov_data = json.load(f)
                                 if "md5_checksums" in prov_data:
                                     prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
@@ -247,7 +256,9 @@ class LocalModelStore(modelstore.ModelStore):
                                 provenance[output_model] = prov_data
 
                     except Exception as e:
-                        print(f"Error loading provenance for {entry.name}: {str(e)}")
+                        print(f"Error loading provenance for {entry_name}: {str(e)}")
+        except Exception:
+            pass
 
         # Import from local_models too when building from scratch
         provenance, _ = await self.check_provenance_for_local_models(provenance)
@@ -267,16 +278,15 @@ class LocalModelStore(modelstore.ModelStore):
                 or model_dict.get("model_name", "") not in provenance.keys()
             ):
                 # Check if the model_source is local
-                if model_dict.get("json_data", {}).get("source", "") == "local" and os.path.exists(
-                    model_dict.get("json_data", {}).get("source_id_or_path", "")
-                ):
+                source_path = model_dict.get("json_data", {}).get("source_id_or_path", "")
+                if model_dict.get("json_data", {}).get("source", "") == "local" and storage.exists(source_path):
                     # Check if the model has a _tlab_provenance.json file
-                    provenance_file = os.path.join(
-                        model_dict["json_data"]["source_id_or_path"], "_tlab_provenance.json"
+                    provenance_file = storage.join(
+                        source_path, "_tlab_provenance.json"
                     )
-                    if os.path.exists(provenance_file):
+                    if storage.exists(provenance_file):
                         # Load the provenance file
-                        with open(provenance_file, "r") as f:
+                        with storage.open(provenance_file, "r") as f:
                             prov_data = json.load(f)
                             if "md5_checksums" in prov_data:
                                 prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
@@ -336,21 +346,26 @@ class LocalModelStore(modelstore.ModelStore):
 
         # Look for the model directory - prioritize exact matches
         model_dir = None
-        for entry in os.listdir(models_dir):
-            if os.path.isdir(os.path.join(models_dir, entry)):
-                # Exact match first, then check for suffixes
-                if entry == search_model_id:
-                    model_dir = os.path.join(models_dir, entry)
-                    break
-                elif entry.endswith(f"_{search_model_id}"):
-                    model_dir = os.path.join(models_dir, entry)
-                    break
+        try:
+            entries = storage.ls(models_dir, detail=False)
+            for entry_path in entries:
+                if storage.isdir(entry_path):
+                    entry = entry_path.rstrip("/").split("/")[-1]
+                    # Exact match first, then check for suffixes
+                    if entry == search_model_id:
+                        model_dir = entry_path
+                        break
+                    elif entry.endswith(f"_{search_model_id}"):
+                        model_dir = entry_path
+                        break
+        except Exception:
+            pass
 
-        if model_dir and os.path.exists(model_dir):
-            provenance_file = os.path.join(model_dir, "_tlab_provenance.json")
-            if os.path.exists(provenance_file):
+        if model_dir and storage.exists(model_dir):
+            provenance_file = storage.join(model_dir, "_tlab_provenance.json")
+            if storage.exists(provenance_file):
                 try:
-                    with open(provenance_file, "r") as f:
+                    with storage.open(provenance_file, "r") as f:
                         provenance_data = json.load(f)
 
                         # Get evaluations from the same file
@@ -397,8 +412,8 @@ class LocalModelStore(modelstore.ModelStore):
             # Save the provenance mapping as a json file
             from lab.dirs import get_models_dir
 
-            provenance_file = os.path.join(get_models_dir(), "_tlab_complete_provenance.json")
-            with open(provenance_file, "w") as f:
+            provenance_file = storage.join(get_models_dir(), "_tlab_complete_provenance.json")
+            with storage.open(provenance_file, "w") as f:
                 json.dump(provenance_mapping, f)
 
         # Trace the provenance chain leading to the given model
