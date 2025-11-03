@@ -157,44 +157,45 @@ async def launch_remote(
     if not cluster_name:
         return {"status": "error", "message": "cluster_name is required"}
 
+    # Build a unified data structure with all parameters
+    data = {
+        "cluster_name": cluster_name,
+        "command": command,
+        "task_name": task_name,
+    }
+
+    # Add resume metadata if resuming from checkpoint
+    if checkpoint and parent_job_id:
+        data["resumed_from_checkpoint"] = checkpoint
+        data["checkpoint_path"] = checkpoint_path
+        data["parent_job_id"] = parent_job_id
+
+    # Add optional parameters if provided
+    if cpus:
+        data["cpus"] = cpus
+    if memory:
+        data["memory"] = memory
+    if disk_space:
+        data["disk_space"] = disk_space
+    if accelerators:
+        data["accelerators"] = accelerators
+    if num_nodes:
+        data["num_nodes"] = num_nodes
+    if setup:
+        data["setup"] = setup
+    if uploaded_dir_path:
+        data["uploaded_dir_path"] = uploaded_dir_path
+
     # If job_id is provided, use existing job, otherwise create a new one
-    if job_id:
-        # Use existing job
-        pass
-    else:
-        # Create a new REMOTE job
-        job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
-
-        # Add resume metadata if resuming from checkpoint
-        if checkpoint and parent_job_id:
-            job_data["resumed_from_checkpoint"] = checkpoint
-            job_data["checkpoint_path"] = checkpoint_path
-            job_data["parent_job_id"] = parent_job_id
-
-        # Add optional parameters if provided
-        if cpus:
-            job_data["cpus"] = cpus
-        if memory:
-            job_data["memory"] = memory
-        if disk_space:
-            job_data["disk_space"] = disk_space
-        if accelerators:
-            job_data["accelerators"] = accelerators
-        if num_nodes:
-            job_data["num_nodes"] = num_nodes
-        if setup:
-            job_data["setup"] = setup
-        if uploaded_dir_path:
-            job_data["uploaded_dir_path"] = uploaded_dir_path
-
+    if not job_id:
         try:
             job_id = job_service.job_create(
                 type="REMOTE",
                 status="LAUNCHING",
                 experiment_id=experimentId,
             )
-            # Update the job data to add fields from job_data (this ensures default fields stay in the job)
-            for key, value in job_data.items():
+            # Store all data in the job (this ensures default fields stay in the job)
+            for key, value in data.items():
                 job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
         except Exception as e:
             print(f"Failed to create job: {str(e)}")
@@ -208,37 +209,17 @@ async def launch_remote(
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
 
-    # Prepare the request data for Lattice orchestrator
-    request_data = {
-        "cluster_name": cluster_name,
-        "command": command,
-        "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
-    }
+    # Prepare request data for orchestrator by copying the data and adding orchestrator-specific fields
+    request_data = data.copy()
+    request_data["tlab_job_id"] = job_id
 
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
-    job_name = task_name if task_name else cluster_name
-    request_data["job_name"] = job_name
+    request_data["job_name"] = task_name if task_name else cluster_name
 
-    # Add checkpoint metadata for resume training (will be set as env vars in orchestrator)
+    # Add checkpoint metadata for orchestrator (will be set as env vars)
     if checkpoint and parent_job_id:
         request_data["tlab_parent_job_id"] = parent_job_id
         request_data["tlab_checkpoint_name"] = checkpoint
-
-    # Add optional parameters if provided
-    if cpus:
-        request_data["cpus"] = cpus
-    if memory:
-        request_data["memory"] = memory
-    if disk_space:
-        request_data["disk_space"] = disk_space
-    if accelerators:
-        request_data["accelerators"] = accelerators
-    if num_nodes:
-        request_data["num_nodes"] = num_nodes
-    if setup:
-        request_data["setup"] = setup
-    if uploaded_dir_path:
-        request_data["uploaded_dir_path"] = uploaded_dir_path
 
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
 
