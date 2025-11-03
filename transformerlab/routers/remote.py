@@ -514,9 +514,11 @@ async def check_remote_job_status(request: Request, cluster_name: str):
 @router.get("/logs/{request_id}")
 async def get_orchestrator_logs(request: Request, request_id: str):
     """
-    Get streaming logs from the orchestrator for a specific request_id.
-    This endpoint forwards authentication to the orchestrator.
+    Stream logs from the orchestrator for a specific request_id in real-time.
+    This endpoint forwards authentication and streams the response.
     """
+    from fastapi.responses import StreamingResponse
+
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -662,6 +664,3 @@ async def check_remote_jobs_status(request: Request):
     except Exception as e:
         print(f"Error checking remote job status: {str(e)}")
         return {"status": "error", "message": "Error checking remote job status"}
-
-
-
