@@ -132,12 +132,6 @@ async def launch_remote(
         command = parent_job_data.get("command", "")
         if not command:
             return {"status": "error", "message": "Original command not found in parent job data"}
-
-        # Log the command for debugging
-        print(f"[Resume] Original parent job ID: {parent_job_id}")
-        print(f"[Resume] Checkpoint name: {checkpoint}")
-        print(f"[Resume] Command length: {len(command)} characters")
-        print(f"[Resume] Command preview: {command[:200]}...")  # Log first 200 chars
         
         # Validate command doesn't have problematic characters that could break shell execution
         if '\x00' in command:
