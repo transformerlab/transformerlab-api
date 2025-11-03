@@ -50,6 +50,12 @@
       "type": "integer",
       "default": 0,
       "minimum": 0
+    },
+    "pipeline_parallel_size": {
+      "title": "Pipeline Parallel Size",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
     }
   },
   "parameters_ui": {
