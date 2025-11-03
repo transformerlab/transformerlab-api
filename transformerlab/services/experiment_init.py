@@ -1,4 +1,3 @@
-import os
 
 from lab import Experiment, Job
 from lab.dirs import get_jobs_dir
