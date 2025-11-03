@@ -1,8 +1,5 @@
 import contextlib
-import os
-import shutil
 import json
-import aiofiles
 from PIL import Image as PILImage
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
@@ -13,6 +10,7 @@ from io import BytesIO
 import base64
 from pathlib import Path
 from lab import dirs
+from lab import storage
 from lab.dataset import Dataset as dataset_service
 from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
@@ -44,8 +42,35 @@ logging.basicConfig(level=logging.ERROR)
 
 def log(msg):
     global_log_path = get_global_log_path()
-    with open(global_log_path, "a") as f:
+    with storage.open(global_log_path, "a") as f:
         f.write(msg + "\n")
+
+
+def load_local_dataset(dataset_dir, data_files=None, streaming=False):
+    """
+    Load a local dataset, excluding index.json from the data files
+    """
+    # Get all files in directory, excluding index.json and other metadata files
+    if data_files is None:
+        try:
+            all_entries = storage.ls(dataset_dir, detail=False)
+            data_files = []
+            for entry in all_entries:
+                filename = entry.rstrip("/").split("/")[-1]
+                # Exclude index.json and any other metadata/hidden files
+                if filename not in ["index.json"] and storage.isfile(entry):
+                    data_files.append(filename)
+        except Exception:
+            data_files = []
+    
+    if data_files:
+        # Build full paths for data_files
+        data_file_paths = [storage.join(dataset_dir, f) for f in data_files]
+        # Let datasets autodetect format
+        return load_dataset(path=dataset_dir, data_files=data_file_paths, streaming=streaming)
+    else:
+        # No files found, use automatic detection (will likely fail)
+        return load_dataset(path=dataset_dir, streaming=streaming)
 
 
 # logging.basicConfig(filename=GLOBAL_LOG_PATH, level=logging.INFO,
@@ -105,7 +130,9 @@ async def dataset_info(dataset_id: str):
     # This means it is a custom dataset the user uploaded
     if d.get("location") == "local":
         try:
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+            # Let load_local_dataset auto-detect files (it will exclude index.json)
+            dataset_dir = dirs.dataset_dir_by_id(dataset_id)
+            dataset = load_local_dataset(dataset_dir)
         except EmptyDatasetError:
             return {"status": "error", "message": "The dataset is empty."}
         split = list(dataset.keys())[0]
@@ -181,7 +208,8 @@ async def dataset_preview(
 
     try:
         if d.get("location") == "local":
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id), streaming=streaming)
+            dataset_dir = dirs.dataset_dir_by_id(dataset_id)
+            dataset = load_local_dataset(dataset_dir, streaming=streaming)
         else:
             dataset_config = (d.get("json_data") or {}).get("dataset_config", None)
             config_name = (d.get("json_data") or {}).get("config_name", None)
@@ -332,7 +360,8 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     # This means it is a custom dataset the user uploaded
     if d and d.get("location") == "local":
         try:
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+            dataset_dir = dirs.dataset_dir_by_id(dataset_id)
+            dataset = load_local_dataset(dataset_dir)
         except Exception as e:
             logging.error(f"Error loading dataset: {type(e).__name__}: {e}")
             return {"status": "error", "message": "An internal error has occurred."}
@@ -465,27 +494,28 @@ async def dataset_edit_with_template(
     limit: int = Query(10, ge=1, le=1000, description="Max items to fetch"),
 ):
     dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
-    if not os.path.exists(dataset_dir):
+    if not storage.exists(dataset_dir):
         return {"status": "error", "message": "Dataset directory not found"}
 
     rows = []
     index = 0
 
-    for root, _, files in os.walk(dataset_dir, followlinks=False):
+    for root, _, files in storage.walk(dataset_dir):
         for file in files:
             if file.lower().endswith((".json", ".jsonl", ".csv")):
-                metadata_path = Path(root) / file
+                # Convert root to string for storage.open
+                metadata_path = storage.join(root, file)
                 try:
                     if file.endswith(".jsonl"):
-                        with open(metadata_path, "r", encoding="utf-8") as f:
+                        with storage.open(metadata_path, "r", encoding="utf-8") as f:
                             data = [json.loads(line) for line in f]
                     elif file.endswith(".json"):
-                        with open(metadata_path, "r", encoding="utf-8") as f:
+                        with storage.open(metadata_path, "r", encoding="utf-8") as f:
                             data = json.load(f)
                             if isinstance(data, dict):
                                 data = [data]
                     elif file.endswith(".csv"):
-                        with open(metadata_path, "r", encoding="utf-8") as f:
+                        with storage.open(metadata_path, "r", encoding="utf-8") as f:
                             reader = csv.DictReader(f)
                             data = [row for row in reader]
                     else:
@@ -497,7 +527,8 @@ async def dataset_edit_with_template(
                 for entry in data:
                     split = entry.get("split")
                     if not split:
-                        path_parts = Path(root).parts
+                        # Parse path parts from storage URI
+                        path_parts = storage.join(root, "").rstrip("/").split("/")
                         split = next(
                             (part for part in reversed(path_parts) if part.lower() in ("train", "test", "valid")),
                             "train",
@@ -507,20 +538,27 @@ async def dataset_edit_with_template(
                     if not image_rel_path:
                         continue
 
-                    image_path = (Path(root) / image_rel_path).resolve()
-                    if not str(image_path).startswith(str(dataset_dir)):
+                    # For images, we still need to use local paths with PIL
+                    image_path = storage.join(root, image_rel_path)
+                    if not image_path.startswith(str(dataset_dir)):
                         continue
 
-                    if not image_path.exists():
+                    # Use storage.exists for check, but PIL.open for actual image reading
+                    if not storage.exists(image_path):
                         log(f"Image not found: {image_path}")
                         continue
 
                     try:
-                        with PILImage.open(image_path) as img:
-                            buffer = BytesIO()
-                            img.save(buffer, format="JPEG")
-                            encoded_img = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                            image_data_url = f"data:image/jpeg;base64,{encoded_img}"
+                        # For PIL, we need a local file, not a storage URI
+                        # Download to temp if needed or use PIL directly with storage
+                        with storage.open(image_path, "rb") as f:
+                            img_bytes = f.read()
+                        img = PILImage.open(BytesIO(img_bytes))
+                        buffer = BytesIO()
+                        img.save(buffer, format="JPEG")
+                        encoded_img = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                        image_data_url = f"data:image/jpeg;base64,{encoded_img}"
+                        img.close()
                     except Exception as e:
                         logging.error(f"Failed to process image {image_path}: {e}")
                         return {"status": "error", "message": "Failed to process images!"}
@@ -566,16 +604,16 @@ async def dataset_edit_with_template(
 )
 async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
     old_dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
-    if not os.path.exists(old_dataset_dir):
+    if not storage.exists(old_dataset_dir):
         return {"status": "error", "message": "Source dataset not found"}
 
     new_dataset_id = slugify(new_dataset_id)
     new_dataset_dir = dirs.dataset_dir_by_id(new_dataset_id)
 
-    if os.path.exists(new_dataset_dir):
+    if storage.exists(new_dataset_dir):
         return {"status": "error", "message": "New dataset already exists"}
 
-    os.makedirs(new_dataset_dir, exist_ok=True)
+    storage.makedirs(new_dataset_dir, exist_ok=True)
 
     # Read updates
     updates_raw = await file.read()
@@ -587,21 +625,21 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
 
     # Scan source metadata
     source_map = {}
-    for root, _, files in os.walk(old_dataset_dir, followlinks=False):
+    for root, _, files in storage.walk(old_dataset_dir):
         for f in files:
             if f.lower().endswith((".json", ".jsonl", ".csv")):
-                metadata_path = Path(root) / f
+                metadata_path = storage.join(root, f)
                 try:
                     if f.endswith(".jsonl"):
-                        with open(metadata_path, "r", encoding="utf-8") as meta_file:
+                        with storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
                             data = [json.loads(line) for line in meta_file]
                     elif f.endswith(".json"):
-                        with open(metadata_path, "r", encoding="utf-8") as meta_file:
+                        with storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
                             data = json.load(meta_file)
                             if isinstance(data, dict):
                                 data = [data]
                     elif f.endswith(".csv"):
-                        with open(metadata_path, "r", encoding="utf-8") as meta_file:
+                        with storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
                             reader = csv.DictReader(meta_file)
                             data = [row for row in reader]
                     else:
@@ -613,7 +651,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                             continue
                         split = entry.get("split")
                         if not split:
-                            path_parts = Path(root).parts
+                            path_parts = storage.join(root, "").rstrip("/").split("/")
                             split = next(
                                 (p for p in reversed(path_parts) if p.lower() in ("train", "test", "valid")), "train"
                             )
@@ -644,20 +682,22 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
             log(f"Warning: Source info not found for {file_name}, skipping")
             continue
 
-        source_path = Path(source_info["metadata_root"]) / file_name
-        if not source_path.exists():
+        source_path = storage.join(source_info["metadata_root"], file_name)
+        if not storage.exists(source_path):
             log(f"Warning: Source image file not found {source_path}, skipping")
             continue
 
         if final_label == "":
-            dest_folder = Path(new_dataset_dir) / final_split
+            dest_folder = storage.join(new_dataset_dir, final_split)
         else:
-            dest_folder = Path(new_dataset_dir) / final_split / final_label
-        os.makedirs(dest_folder, exist_ok=True)
-        dest_path = dest_folder / Path(file_name).name
+            dest_folder = storage.join(new_dataset_dir, final_split, final_label)
+        storage.makedirs(dest_folder, exist_ok=True)
+        # Get just the filename for dest
+        file_basename = Path(file_name).name
+        dest_path = storage.join(dest_folder, file_basename)
 
         try:
-            shutil.copy2(source_path, dest_path)
+            storage.copy_file(source_path, dest_path)
         except Exception as e:
             logging.error(f"Failed to copy {source_path} to {dest_path}: {e}")
             return {"status": "error", "message": "Failed to copy from source to destination"}
@@ -678,10 +718,10 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
         metadata_accumulator.setdefault(key, []).append(metadata_entry)
 
     for (split, label), entries in metadata_accumulator.items():
-        folder = Path(new_dataset_dir) / split / label
-        metadata_file = folder / "metadata.jsonl"
+        folder = storage.join(new_dataset_dir, split, label)
+        metadata_file = storage.join(folder, "metadata.jsonl")
         try:
-            with open(metadata_file, "w", encoding="utf-8") as f:
+            with storage.open(metadata_file, "w", encoding="utf-8") as f:
                 for entry in entries:
                     full_entry = {col: entry.get(col, "") for col in all_columns}
                     f.write(json.dumps(full_entry) + "\n")
@@ -782,7 +822,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     # Download the dataset
     # Later on we can move this to a job
     async def load_dataset_thread(dataset_id, config_name=None):
-        logFile = open(get_global_log_path(), "a")
+        logFile = storage.open(get_global_log_path(), "a")
         flushLogFile = FlushFile(logFile)
         with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
             try:
@@ -879,8 +919,9 @@ async def dataset_new(dataset_id: str, generated: bool = False):
 
     # Now make a directory that maps to the above dataset_id
     # Check if the directory already exists
-    if not os.path.exists(dirs.dataset_dir_by_id(dataset_id)):
-        os.makedirs(dirs.dataset_dir_by_id(dataset_id))
+    dataset_path = dirs.dataset_dir_by_id(dataset_id)
+    if not storage.exists(dataset_path):
+        storage.makedirs(dataset_path, exist_ok=True)
     # Create filesystem metadata
     try:
         ds = dataset_service.create(dataset_id)
@@ -899,12 +940,15 @@ async def dataset_new(dataset_id: str, generated: bool = False):
 async def dataset_delete(dataset_id: str):
     dataset_id = secure_filename(dataset_id)
     # delete directory and contents. ignore_errors because we don't care if the directory doesn't exist
-    shutil.rmtree(dirs.dataset_dir_by_id(dataset_id), ignore_errors=True)
+    storage.rm_tree(dirs.dataset_dir_by_id(dataset_id))
     return {"status": "success"}
 
 
 @router.post("/fileupload", summary="Upload the contents of a dataset.")
 async def create_upload_file(dataset_id: str, files: list[UploadFile]):
+    dataset_id = slugify(dataset_id)
+    uploaded_filenames = []
+    
     for file in files:
         print("uploading filename is: " + str(file.filename))
 
@@ -919,16 +963,33 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
         #     raise HTTPException(
         #         status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
 
-        dataset_id = slugify(dataset_id)
-
         try:
             content = await file.read()
-            target_path = os.path.join(dirs.dataset_dir_by_id(dataset_id), str(file.filename))
-            os.makedirs(os.path.dirname(target_path), exist_ok=True)
-            async with aiofiles.open(target_path, "wb") as out_file:
-                await out_file.write(content)
+            target_path = storage.join(dirs.dataset_dir_by_id(dataset_id), str(file.filename))
+            # aiofiles doesn't support URIs, so we need to use storage.open instead
+            storage.makedirs(storage.join(dirs.dataset_dir_by_id(dataset_id)), exist_ok=True)
+            with storage.open(target_path, "wb") as out_file:
+                out_file.write(content)
+            uploaded_filenames.append(str(file.filename))
         except Exception:
             raise HTTPException(status_code=403, detail="There was a problem uploading the file")
+
+    # Update dataset metadata with uploaded files
+    if uploaded_filenames:
+        try:
+            ds = dataset_service.get(dataset_id)
+            current_data = ds.get_metadata()
+            json_data = current_data.get("json_data", {})
+            # Add files list if not present or merge with existing
+            existing_files = json_data.get("files", [])
+            if isinstance(existing_files, list):
+                all_files = list(set(existing_files + uploaded_filenames))
+            else:
+                all_files = uploaded_filenames
+            json_data["files"] = all_files
+            ds.set_metadata(json_data=json_data)
+        except Exception as e:
+            logging.error(f"Failed to update dataset metadata with files: {type(e).__name__}: {e}")
 
     return {"status": "success"}
 
