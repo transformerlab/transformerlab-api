@@ -4,6 +4,7 @@
 # This is all managed in this file.
 
 import json
+import posixpath
 import urllib.request
 
 from transformerlab.shared import dirs
@@ -82,7 +83,9 @@ def update_gallery_cache_file(filename: str):
         sourcefile = storage.join(dirs.GALLERIES_LOCAL_FALLBACK_DIR, filename)
         if storage.isfile(sourcefile):
             # Use fsspec-aware copy
-            storage.makedirs(storage.join(storage.join(cached_gallery_file, "..")), exist_ok=True)
+            parent_dir = posixpath.dirname(cached_gallery_file)
+            if parent_dir:
+                storage.makedirs(parent_dir, exist_ok=True)
             storage.copy_file(sourcefile, cached_gallery_file)
         else:
             print("❌ Unable to find local gallery file", sourcefile)
@@ -101,12 +104,14 @@ def update_cache_from_remote(gallery_filename: str):
         # Stream download and write via fsspec
         with urllib.request.urlopen(remote_gallery) as resp:
             data = resp.read()
-        storage.makedirs(storage.join(local_cache_filename, ".."), exist_ok=True)
+        parent_dir = posixpath.dirname(local_cache_filename)
+        if parent_dir:
+            storage.makedirs(parent_dir, exist_ok=True)
         with storage.open(local_cache_filename, "wb") as f:
             f.write(data)
         print(f"☁️  Updated gallery from remote: {remote_gallery}")
-    except Exception:
-        print(f"❌ Failed to update gallery from remote: {remote_gallery}")
+    except Exception as e:
+        print(f"❌ Failed to update gallery from remote: {remote_gallery} {e}")
 
 
 def get_gallery_file(filename: str):

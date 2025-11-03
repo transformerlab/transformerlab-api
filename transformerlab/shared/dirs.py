@@ -24,7 +24,7 @@ if not storage.exists(FASTCHAT_LOGS_DIR):
 
 # TFL_STATIC_FILES_DIR is TFL_HOME_DIR/webapp
 STATIC_FILES_DIR = storage.join(HOME_DIR, "webapp")
-storage.makedirs(name=STATIC_FILES_DIR, exist_ok=True)
+storage.makedirs(STATIC_FILES_DIR, exist_ok=True)
 # if there is no index.html file in the static directory, create blank one
 if not storage.exists(storage.join(STATIC_FILES_DIR, "index.html")):
     with storage.open(storage.join(STATIC_FILES_DIR, "index.html"), "w") as f:
