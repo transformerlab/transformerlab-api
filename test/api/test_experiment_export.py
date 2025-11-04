@@ -3,6 +3,7 @@ import json
 from transformerlab.services import experiment_service
 from transformerlab.services.tasks_service import tasks_service
 from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 async def test_export_experiment(client):
@@ -66,13 +67,13 @@ async def test_export_experiment(client):
     # The response should be a JSON file
     assert response.headers["content-type"] == "application/json"
 
-    WORKSPACE_DIR = get_workspace_dir()
+    workspace_dir = get_workspace_dir()
 
     # Read the exported file from workspace directory
-    export_file = os.path.join(WORKSPACE_DIR, f"{test_experiment_name}_export.json")
-    assert os.path.exists(export_file)
+    export_file = storage.join(workspace_dir, f"{test_experiment_name}_export.json")
+    assert storage.exists(export_file)
 
-    with open(export_file, "r") as f:
+    with storage.open(export_file, "r") as f:
         exported_data = json.load(f)
 
     # Verify the exported data structure
@@ -104,5 +105,5 @@ async def test_export_experiment(client):
 
     # Clean up
     experiment_service.experiment_delete(experiment_id)
-    if os.path.exists(export_file):
-        os.remove(export_file)
+    if storage.exists(export_file):
+        storage.rm(export_file)
