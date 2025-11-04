@@ -9,6 +9,7 @@ from datasets import Audio
 from trainer import CsmAudioTrainer, OrpheusAudioTrainer
 
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
+from lab import storage
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
@@ -114,7 +115,7 @@ def train_model():
         train_dataset=processed_ds,
         callbacks=[progress_callback],
         args=TrainingArguments(
-            logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
+            logging_dir=storage.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
             num_train_epochs=num_epochs,
             per_device_train_batch_size=batch_size,
             gradient_accumulation_steps=2,
