@@ -31,6 +31,7 @@ from werkzeug.utils import secure_filename
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
 import logging
+from transformerlab.services import dataset_service as dataset_service_module
 
 
 jinja_environment = Environment()
@@ -105,7 +106,7 @@ async def dataset_info(dataset_id: str):
     # This means it is a custom dataset the user uploaded
     if d.get("location") == "local":
         try:
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
         except EmptyDatasetError:
             return {"status": "error", "message": "The dataset is empty."}
         split = list(dataset.keys())[0]
@@ -181,7 +182,7 @@ async def dataset_preview(
 
     try:
         if d.get("location") == "local":
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id), streaming=streaming)
+            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id), streaming=streaming)
         else:
             dataset_config = (d.get("json_data") or {}).get("dataset_config", None)
             config_name = (d.get("json_data") or {}).get("config_name", None)
@@ -332,7 +333,7 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     # This means it is a custom dataset the user uploaded
     if d and d.get("location") == "local":
         try:
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
         except Exception as e:
             logging.error(f"Error loading dataset: {type(e).__name__}: {e}")
             return {"status": "error", "message": "An internal error has occurred."}
