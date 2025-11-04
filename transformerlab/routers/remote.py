@@ -3,7 +3,6 @@ import json
 import httpx
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
-import json
 from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
 
