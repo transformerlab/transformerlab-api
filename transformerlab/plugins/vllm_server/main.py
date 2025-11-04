@@ -11,6 +11,8 @@ import shutil
 
 from fastchat.constants import TEMP_IMAGE_DIR
 
+from lab import storage
+from lab.dirs import get_workspace_dir
 
 try:
     from transformerlab.plugin import get_python_executable, register_process
@@ -74,7 +76,11 @@ else:
     max_model_len = str(max_model_len)
 print("Starting vLLM server...", file=sys.stderr)
 
-os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
+# Use storage.makedirs for workspace paths (TLAB_TEMP_IMAGE_DIR), os.makedirs for system paths
+if TEMP_IMAGE_DIR.startswith(get_workspace_dir()):
+    storage.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
+else:
+    os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
 
 vllm_args = [
     python_executable,
