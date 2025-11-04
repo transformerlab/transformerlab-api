@@ -61,6 +61,9 @@
   "parameters_ui": {
     "max_model_len": {
       "ui:help": "Max model length to use for the model. If 0, the model will use the default max length."
+    },
+    "pipeline_parallel_size": {
+      "ui:help": "specifies how many pipeline stages the model is divided into across GPUs or nodes, enabling distributed execution of layers."
     }
   }
 }
