@@ -33,6 +33,7 @@ from transformers import (
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import TEMP_DIR
+from lab import storage
 
 
 @dataclass
@@ -144,8 +145,8 @@ class T5LoraTrainer:
         print(f"Keys of tokenized dataset: {list(self.tokenized_dataset['train'].features)}")
 
         # save datasets to disk for later easy loading
-        self.tokenized_dataset["train"].save_to_disk(os.path.join(TEMP_DIR, "data", "train"))
-        self.tokenized_dataset["test"].save_to_disk(os.path.join(TEMP_DIR, "data", "eval"))
+        self.tokenized_dataset["train"].save_to_disk(storage.join(TEMP_DIR, "data", "train"))
+        self.tokenized_dataset["test"].save_to_disk(storage.join(TEMP_DIR, "data", "eval"))
 
     def load_model(self):
         """Load base model for training"""
@@ -194,7 +195,7 @@ class T5LoraTrainer:
 
         # Create output directory if it doesn't exist
         output_dir = config.get("output_dir")
-        os.makedirs(output_dir, exist_ok=True)
+        storage.makedirs(output_dir, exist_ok=True)
 
         # Define training arguments
         training_args = Seq2SeqTrainingArguments(
@@ -202,7 +203,7 @@ class T5LoraTrainer:
             auto_find_batch_size=True,
             learning_rate=float(config.get("learning_rate", 3e-4)),
             num_train_epochs=int(config.get("num_train_epochs", 3)),
-            logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}"),
+            logging_dir=storage.join(output_dir, f"job_{tlab_trainer.params.job_id}"),
             logging_strategy="steps",
             logging_steps=100,
             save_strategy="no",
