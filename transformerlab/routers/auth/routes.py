@@ -48,7 +48,8 @@ async def get_current_user_info(
             organization_id = payload.get("organization_id")
 
             if user_id:
-                success = setup_user_s3_mount(str(user_id), organization_id)
+                # success = setup_user_s3_mount(str(user_id), organization_id)
+                success = False
                 if not success:
                     print("S3 mount setup failed via auth/me")
     except Exception as exc:
