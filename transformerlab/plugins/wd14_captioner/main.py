@@ -9,28 +9,32 @@ from tqdm import tqdm
 
 from transformerlab.sdk.v1.generate import tlab_gen
 from huggingface_hub import snapshot_download
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 @tlab_gen.job_wrapper()
 def run_generation():
     # ----- Constants -----
-    from transformerlab.plugin import WORKSPACE_DIR as workspace
+    workspace = get_workspace_dir()
 
-    REPO_ROOT = f"{workspace}/plugins/wd14_captioner/sd-caption-wd14/sd-scripts"
-    SCRIPT_PATH = f"{workspace}/plugins/wd14_captioner/sd-caption-wd14/sd-scripts/finetune/tag_images_by_wd14_tagger.py"
-    TMP_DATASET_DIR = Path(f"{workspace}/plugins/wd14_captioner/tmp_dataset")
+    REPO_ROOT = storage.join(workspace, "plugins", "wd14_captioner", "sd-caption-wd14", "sd-scripts")
+    SCRIPT_PATH = storage.join(workspace, "plugins", "wd14_captioner", "sd-caption-wd14", "sd-scripts", "finetune", "tag_images_by_wd14_tagger.py")
+    TMP_DATASET_DIR = Path(storage.join(workspace, "plugins", "wd14_captioner", "tmp_dataset"))
 
     repo_id = tlab_gen.params.generation_model
     caption_separator = tlab_gen.params.caption_separator
     max_workers = str(tlab_gen.params.get("max_data_loader_n_workers", 1))
-    model_dir = (
-        Path(workspace)
-        / "plugins"
-        / "wd14_captioner"
-        / "sd-caption-wd14"
-        / "sd-scripts"
-        / "wd14_tagger_model"
-        / repo_id.replace("/", "_")
+    model_dir = Path(
+        storage.join(
+            workspace,
+            "plugins",
+            "wd14_captioner",
+            "sd-caption-wd14",
+            "sd-scripts",
+            "wd14_tagger_model",
+            repo_id.replace("/", "_")
+        )
     )
 
     if not model_dir.exists():
@@ -128,12 +132,12 @@ def run_generation():
     dataset_id = tlab_gen.params.get("output_dataset_name")
     print(f"Saving generated dataset with ID: {dataset_id}")
     output_path, dataset_name = tlab_gen.save_generated_dataset(df_output, is_image=True, dataset_id=dataset_id)
-    from transformerlab.plugin import WORKSPACE_DIR
 
-    output_dir = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+    output_dir = storage.join(workspace, "datasets", dataset_id)
     for src, dst in zip(local_paths, df_output["file_name"]):
-        final_dst = os.path.join(output_dir, dst)
-        shutil.copy2(src, final_dst)
+        final_dst = storage.join(output_dir, dst)
+        # Use storage.copy_file for fsspec-compatible copying
+        storage.copy_file(str(src), final_dst)
 
     tlab_gen.progress_update(95)
 
