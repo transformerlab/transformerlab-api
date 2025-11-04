@@ -143,7 +143,7 @@ def get_downloaded_size_from_cache(repo_id, file_metadata):
         return 0
 
 
-def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes):
+def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, delta_bytes=0, speed_bps=0):
     """Update progress in the database"""
     try:
         job = Job.get(job_id)
@@ -163,10 +163,18 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes):
             "bytes_downloaded": downloaded_bytes,
             "total_bytes": total_bytes,
             "monitoring_type": "cache_based",
+            "last_delta_bytes": delta_bytes,
+            "last_speed_bps": speed_bps,
         }
         job.set_job_data(job_data)
 
-        print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)")
+        # Print per-byte progress and speed
+        speed_human = f"{speed_bps:.0f} B/s" if speed_bps >= 1 else "0 B/s"
+        print(
+            f"Cache Progress: {progress_pct:.2f}% "
+            f"({downloaded_bytes:,} B / {total_bytes:,} B) "
+            f"+{delta_bytes:,} B, {speed_human}"
+        )
 
     except Exception as e:
         print(f"Failed to update database progress: {e}")
@@ -182,14 +190,30 @@ def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_meta
     local_path = os.path.join(workspace_dir, "models", secure_filename(model_name))
     use_local = os.path.exists(local_path)
 
+    last_downloaded = 0
+    last_time = time.time()
+
+    # poll faster to provide per-byte style updates
+    poll_interval = 0.5
+
     while not _cache_stop_monitoring:
         try:
+            now = time.time()
             if use_local:
                 download_bytes = get_dir_size(local_path)
             else:
                 download_bytes = get_downloaded_size_from_cache(repo_id, file_metadata)
 
-            update_job_progress(job_id, model_name, download_bytes, total_bytes)
+            # compute delta and speed
+            delta_bytes = max(0, download_bytes - last_downloaded)
+            elapsed = max(1e-6, now - last_time)
+            speed_bps = delta_bytes / elapsed
+
+            update_job_progress(job_id, model_name, download_bytes, total_bytes, delta_bytes, speed_bps)
+
+            # update last values
+            last_downloaded = download_bytes
+            last_time = now
 
             if total_bytes > 0 and download_bytes >= total_bytes * 0.99:
                 print("Download complete according to cache monitoring.")
@@ -202,10 +226,10 @@ def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_meta
             if not use_local and os.path.exists(local_path):
                 use_local = True
 
-            time.sleep(2)
+            time.sleep(poll_interval)
         except Exception as e:
             print(f"Error in progress monitor: {e}")
-            time.sleep(5)
+            time.sleep(1)
 
     print("Progress monitoring stopped")
 
@@ -428,6 +452,7 @@ def download_blocking(model_is_downloaded):
             file_metadata, actual_total_size = get_repo_file_metadata(peft)
 
             # Start progress monitoring thread
+            _cache_stop_monitoring = False
             progress_thread = Thread(
                 target=cache_progress_monitor,
                 args=(job_id, WORKSPACE_DIR, peft, peft, file_metadata, actual_total_size),
