@@ -2,7 +2,6 @@
 A model worker using Apple MLX Audio
 """
 
-import os
 import sys
 import argparse
 import asyncio

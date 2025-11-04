@@ -18,7 +18,8 @@ import sys
 import ollama
 import time
 import requests
-
+import posixpath
+from lab import storage
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -29,7 +30,6 @@ try:
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
 
-from lab import storage
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
@@ -116,7 +116,6 @@ else:
 # STEP 1: Make an Ollama Modelfile that points to the GGUF you want to run
 # Split model_path into the directory and filename
 # Use posixpath for consistent path handling with storage paths
-import posixpath
 model_dir = posixpath.dirname(model_path)
 model_filename = posixpath.basename(model_path)
 

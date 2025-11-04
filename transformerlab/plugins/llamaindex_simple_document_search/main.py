@@ -8,7 +8,6 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import Settings
 from llama_index.core import SimpleDirectoryReader, StorageContext, load_index_from_storage
 from llama_index.core.postprocessor import SentenceTransformerRerank
-import os
 import time
 
 from lab import storage

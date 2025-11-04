@@ -24,8 +24,8 @@ import torch.nn as nn  # noqa: E402
 
 
 from transformerlab.plugin import format_template  # noqa: E402
-from lab.dirs import get_workspace_dir
-from lab import storage
+from lab.dirs import get_workspace_dir # noqa: E402
+from lab import storage # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
 
