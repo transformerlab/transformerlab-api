@@ -67,10 +67,10 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 python_executable = get_python_executable(real_plugin_dir)
 
 port = int(parameters.get("port", 8000))
-max_model_len = parameters.get("max_model_len", 0)
+max_model_len = str(parameters.get("max_model_len", "0")).strip()
 if max_model_len == "":
     max_model_len = 0
-pipeline_parallel_size = parameters.get("pipeline_parallel_size", 1)
+pipeline_parallel_size = str(parameters.get("pipeline_parallel_size", "1")).strip()
 if pipeline_parallel_size == "":
     pipeline_parallel_size = 1
 
