@@ -28,7 +28,10 @@ except ImportError:
     xformers_available = False
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
+from lab import storage
+
+workspace_dir = get_workspace_dir()
 
 
 def cleanup_pipeline():
@@ -330,12 +333,12 @@ def train_diffusion_lora():
         args["eval_steps"] = 0
 
     if eval_prompt:
-        eval_images_dir = Path(WORKSPACE_DIR) / "temp" / f"eval_images_{job_id}"
-        eval_images_dir.mkdir(parents=True, exist_ok=True)
+        eval_images_dir = storage.join(workspace_dir, "temp", f"eval_images_{job_id}")
+        storage.makedirs(eval_images_dir, exist_ok=True)
         print(f"Evaluation images will be saved to: {eval_images_dir}")
 
         # Add eval images directory to job data
-        tlab_trainer.add_job_data("eval_images_dir", str(eval_images_dir))
+        tlab_trainer.add_job_data("eval_images_dir", eval_images_dir)
 
     # Load dataset using tlab_trainer
     datasets_dict = tlab_trainer.load_dataset(["train"])
@@ -556,7 +559,7 @@ def train_diffusion_lora():
             ).images[0]
 
         # Save image
-        image_path = eval_images_dir / f"epoch_{epoch}.png"
+        image_path = storage.join(eval_images_dir, f"epoch_{epoch}.png")
         image.save(image_path)
 
         print(f"Evaluation image saved to: {image_path}")
@@ -1045,7 +1048,7 @@ def train_diffusion_lora():
 
     print(f"Saving LoRA weights to {save_directory}")
 
-    os.makedirs(save_directory, exist_ok=True)
+    storage.makedirs(save_directory, exist_ok=True)
 
     # Primary method: Use the original working approach that was perfect for SD 1.5
     # Try architecture-specific save methods first, then fall back to universal methods
@@ -1063,7 +1066,7 @@ def train_diffusion_lora():
         },
         "tlab_trainer_used": True,
     }
-    with open(os.path.join(save_directory, "tlab_adaptor_info.json"), "w") as f:
+    with storage.open(storage.join(save_directory, "tlab_adaptor_info.json"), "w", encoding="utf-8") as f:
         json.dump(save_info, f, indent=4)
 
     # Method 1: Try the original SD 1.x approach that worked perfectly
@@ -1166,7 +1169,7 @@ def train_diffusion_lora():
         try:
             from safetensors.torch import save_file
 
-            save_file(model_lora_state_dict, os.path.join(save_directory, "pytorch_lora_weights.safetensors"))
+            save_file(model_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.safetensors"))
             print(
                 f"LoRA weights saved to {save_directory}/pytorch_lora_weights.safetensors using safetensors (universal fallback)"
             )
@@ -1176,7 +1179,7 @@ def train_diffusion_lora():
             saved_successfully = True
         except ImportError:
             # Final fallback to standard PyTorch format
-            torch.save(model_lora_state_dict, os.path.join(save_directory, "pytorch_lora_weights.bin"))
+            torch.save(model_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.bin"))
             print(
                 f"LoRA weights saved to {save_directory}/pytorch_lora_weights.bin using PyTorch format (final fallback)"
             )
