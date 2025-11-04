@@ -433,7 +433,7 @@ async def get_orchestrator_logs(request: Request, request_id: str):
     This endpoint forwards authentication and streams the response.
     """
     from fastapi.responses import StreamingResponse
-    
+
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -456,7 +456,9 @@ async def get_orchestrator_logs(request: Request, request_id: str):
                     outbound_headers["AUTHORIZATION"] = incoming_auth
 
                 # Stream the response from orchestrator
-                async with client.stream("GET", logs_url, headers=outbound_headers, cookies=request.cookies) as response:
+                async with client.stream(
+                    "GET", logs_url, headers=outbound_headers, cookies=request.cookies
+                ) as response:
                     if response.status_code == 200:
                         # Stream each chunk from orchestrator to client in real-time
                         async for chunk in response.aiter_bytes():
