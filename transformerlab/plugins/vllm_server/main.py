@@ -51,7 +51,10 @@ model = args.model_path
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 
 parameters = args.parameters
-parameters = json.loads(parameters)
+try:
+    parameters = json.loads(llmlab_root_dir)
+except Exception:
+    parameters = {}
 
 # Now go through the parameters object and remove the key that is equal to "inferenceEngine":
 if "inferenceEngine" in parameters:
@@ -66,12 +69,19 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Get Python executable (from venv if available)
 python_executable = get_python_executable(real_plugin_dir)
 
-port = int(parameters.get("port", 8000))
-max_model_len = int(parameters.get("max_model_len", 0))
-if max_model_len <= 0:
+
+_raw_max = parameters.get("max_model_len", None)
+# max_model_len = int(parameters.get("max_model_len", 0))
+max_model_len = None
+try:
+    if _raw_max is not None and str(_raw_max).strip() != "":
+        max_model_len_candidate = int(_raw_max)
+        if max_model_len_candidate > 0:
+            max_model_len = str(max_model_len_candidate)
+except (ValueError, TypeError):
     max_model_len = None
-else:
-    max_model_len = str(max_model_len)
+
+port = int(parameters.get("port", 8000))
 print("Starting vLLM server...", file=sys.stderr)
 
 os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
