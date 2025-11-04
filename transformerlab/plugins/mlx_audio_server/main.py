@@ -16,7 +16,8 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from transformerlab.plugin import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 from mlx_audio.tts.generate import generate_audio
 from datetime import datetime
@@ -84,8 +85,9 @@ class MLXAudioWorker(BaseModelWorker):
 
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
-            audio_dir = os.path.join(WORKSPACE_DIR, "audio")
-        os.makedirs(name=audio_dir, exist_ok=True)
+            workspace_dir = get_workspace_dir()
+            audio_dir = storage.join(workspace_dir, "audio")
+        storage.makedirs(audio_dir, exist_ok=True)
 
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
@@ -95,7 +97,7 @@ class MLXAudioWorker(BaseModelWorker):
                 "text": text,
                 "model_path": model,
                 "speed": speed,
-                "file_prefix": os.path.join(audio_dir, file_prefix),
+                "file_prefix": storage.join(audio_dir, file_prefix),
                 "sample_rate": sample_rate,
                 "join_audio": True,
                 "verbose": True,
@@ -124,8 +126,8 @@ class MLXAudioWorker(BaseModelWorker):
                 "date": datetime.now().isoformat(),  # Store the real date and time
             }
 
-            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-            with open(metadata_file, "w") as f:
+            metadata_file = storage.join(audio_dir, f"{file_prefix}.json")
+            with storage.open(metadata_file, "w") as f:
                 json.dump(metadata, f)
 
             logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
