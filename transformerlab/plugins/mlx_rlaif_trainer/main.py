@@ -10,7 +10,9 @@ import re
 import json
 import subprocess
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+from transformerlab.plugin import get_python_executable
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_RLAIF", manual_logging=True)
@@ -35,13 +37,14 @@ def train_mlx_rlaif():
     datasets = tlab_trainer.load_dataset(["train"])
 
     # Directory for storing temporary working files
-    data_directory = f"{WORKSPACE_DIR}/plugins/mlx_rlaif_trainer/data"
-    if not os.path.exists(data_directory):
-        os.makedirs(data_directory)
+    workspace_dir = get_workspace_dir()
+    data_directory = storage.join(workspace_dir, "plugins", "mlx_rlaif_trainer", "data")
+    if not storage.exists(data_directory):
+        storage.makedirs(data_directory)
 
     # Write the custom dataset to a temporary JSON file
-    custom_dataset_path = os.path.join(data_directory, "ppo_custom_dataset.json")
-    with open(custom_dataset_path, "w") as f:
+    custom_dataset_path = storage.join(data_directory, "ppo_custom_dataset.json")
+    with storage.open(custom_dataset_path, "w") as f:
         for example in datasets["train"]:
             f.write(json.dumps(example) + "\n")
     print(f"Custom dataset written to {custom_dataset_path}")
@@ -49,10 +52,14 @@ def train_mlx_rlaif():
     # Set output directory for the trained model
     model_output_dir = tlab_trainer.params.get("model_output_dir", "")
     if not model_output_dir:
-        model_output_dir = os.path.join(WORKSPACE_DIR, "models", f"{model_name.split('/')[-1]}_{adaptor_name}_ppo")
+        model_output_dir = storage.join(
+            workspace_dir,
+            "models",
+            f"{model_name.split('/')[-1]}_{adaptor_name}_ppo",
+        )
         print(f"Using default model output directory: {model_output_dir}")
-    if not os.path.exists(model_output_dir):
-        os.makedirs(model_output_dir)
+    if not storage.exists(model_output_dir):
+        storage.makedirs(model_output_dir)
 
     # Get Python executable (from venv if available)
     python_executable = get_python_executable(plugin_dir)
