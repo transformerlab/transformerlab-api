@@ -51,10 +51,7 @@ model = args.model_path
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 
 parameters = args.parameters
-try:
-    parameters = json.loads(llmlab_root_dir)
-except Exception:
-    parameters = {}
+parameters = json.loads(parameters)
 
 # Now go through the parameters object and remove the key that is equal to "inferenceEngine":
 if "inferenceEngine" in parameters:
@@ -82,8 +79,8 @@ pipeline_parallel_size = int(pipeline_parallel_size)
 
 if max_model_len <= 0:
     max_model_len = None
-
-port = int(parameters.get("port", 8000))
+else:
+    max_model_len = str(max_model_len)
 print("Starting vLLM server...", file=sys.stderr)
 
 os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
