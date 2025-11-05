@@ -67,7 +67,16 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 python_executable = get_python_executable(real_plugin_dir)
 
 port = int(parameters.get("port", 8000))
-max_model_len = int(parameters.get("max_model_len", 0))
+max_model_len = str(parameters.get("max_model_len", "0")).strip()
+if max_model_len == "":
+    max_model_len = 0
+pipeline_parallel_size = str(parameters.get("pipeline_parallel_size", "1")).strip()
+if pipeline_parallel_size == "":
+    pipeline_parallel_size = 1
+
+max_model_len = int(max_model_len)
+pipeline_parallel_size = int(pipeline_parallel_size)
+
 if max_model_len <= 0:
     max_model_len = None
 else:
@@ -98,10 +107,23 @@ vllm_args = [
 if max_model_len is not None:
     vllm_args.extend(["--max-model-len", max_model_len])
 
-# Add tensor parallel size if multiple GPUs are available
+
 num_gpus = torch.cuda.device_count()
+
+if pipeline_parallel_size <= 0:
+    print("[ERROR] pipeline_parallel_size must be greater than 0", file=sys.stderr)
+    sys.exit(1)
+
+if num_gpus % pipeline_parallel_size == 0:
+    tensor_parallel_size = num_gpus // pipeline_parallel_size
+else:
+    tensor_parallel_size = num_gpus
+
+# Add tensor parallel size if multiple GPUs are available
 if num_gpus > 1:
-    vllm_args.extend(["--tensor-parallel-size", str(num_gpus)])
+    vllm_args.extend(
+        ["--tensor-parallel-size", str(tensor_parallel_size), "--pipeline-parallel-size", str(pipeline_parallel_size)]
+    )
 
 # We need to read both STDOUT (to determine when the server is up)
 # and STDOUT (to report on errors)
