@@ -467,19 +467,6 @@ async def install_task_from_gallery(
     This installs the task locally without creating a task in any experiment.
     """
 
-    def safe_copyfile(src, dst):
-        shutil.copyfile(src, dst)
-        try:
-            # skip chmod/copy permissions, which FUSE rejects
-            shutil.copystat(src, dst)
-        except PermissionError:
-            pass
-        except OSError as e:
-            if e.errno == 1:  # Operation not permitted
-                pass
-            else:
-                raise
-
     # Prepare temp directory for shallow clone of specific path
     remote_repo_url = "https://github.com/transformerlab/galleries.git"
     tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
@@ -527,7 +514,7 @@ async def install_task_from_gallery(
 
         # Copy task.json to local gallery
         local_task_json_path = storage.join(local_task_dir, "task.json")
-        safe_copyfile(task_json_path, local_task_json_path)
+        storage.copy_file(task_json_path, local_task_json_path)
 
         # Copy all other files to local gallery (excluding task.json)
         src_dir = storage.join(local_task_dir, "src")
@@ -538,9 +525,9 @@ async def install_task_from_gallery(
             src_path = os.path.join(task_dir, name)
             dest_path = storage.join(src_dir, name)
             if os.path.isdir(src_path):
-                shutil.copytree(src_path, dest_path)
+                storage.copy_dir(src_path, dest_path)
             else:
-                safe_copyfile(src_path, dest_path)
+                storage.copy_file(src_path, dest_path)
 
         # Create metadata file for installation info
         metadata = {
@@ -736,12 +723,12 @@ async def import_task_from_local_gallery(
         if upload:
             try:
                 # Get the src directory from local task
-                src_dir_real = os.path.normpath(os.path.join(task_path_real, "src"))
-                # Validate src_dir is within the intended gallery structure
-                if not src_dir_real.startswith(task_path_real + os.sep):
-                    print(f"Invalid src directory: {src_dir_real}")
-                    return {"status": "error", "message": "Invalid src directory"}
-                if os.path.exists(src_dir_real):
+                src_dir = storage.join(task_path, "src")
+                # Validate src_dir exists
+                if not storage.exists(src_dir):
+                    # If src directory doesn't exist, skip upload
+                    pass
+                else:
                     # Post to GPU orchestrator upload endpoint
                     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
                     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
@@ -752,7 +739,7 @@ async def import_task_from_local_gallery(
                             task_obj = tasks_service.tasks_get_by_id(task_id)
                             if isinstance(task_obj.get("config"), str):
                                 task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                            task_obj["config"]["local_upload_staged_dir"] = src_dir_real
+                            task_obj["config"]["local_upload_staged_dir"] = src_dir
                             tasks_service.update_task(task_id, {"config": task_obj["config"]})
                         except Exception:
                             pass
@@ -761,13 +748,14 @@ async def import_task_from_local_gallery(
                         dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
                         files_form = []
                         # Walk src_dir and add each file, preserving relative path inside src/
-                        for root, _, filenames in os.walk(src_dir_real):
+                        for root, _, filenames in storage.walk(src_dir):
                             for filename in filenames:
-                                full_path = os.path.join(root, filename)
-                                rel_path = os.path.relpath(full_path, src_dir_real)
+                                full_path = storage.join(root, filename)
+                                # Compute relative path from src_dir
+                                rel_path = posixpath.relpath(full_path, src_dir)
                                 # Prefix with src/ like the packed structure
                                 upload_name = f"src/{rel_path}"
-                                with open(full_path, "rb") as f:
+                                with storage.open(full_path, "rb") as f:
                                     files_form.append(
                                         ("dir_files", (upload_name, f.read(), "application/octet-stream"))
                                     )
