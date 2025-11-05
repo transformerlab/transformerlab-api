@@ -267,7 +267,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     if recipe.get("notes"):
         try:
             # Use the experiment router's save_file_contents function to create the Notes file
-            notes_result = await experiment_router.experiment_save_file_contents(
+            notes_result = experiment_router.experiment_save_file_contents(
                 id=experiment_id, filename="readme.md", file_contents=recipe.get("notes")
             )
         except Exception:
@@ -294,11 +294,9 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             architecture = model.get("json_data", {}).get("architecture", "")
 
             # Update experiment config fields using the experiment update_config route
-            await experiment_router.experiments_update_config(experiment_id, "foundation", model_name)
-            await experiment_router.experiments_update_config(
-                experiment_id, "foundation_model_architecture", architecture
-            )
-            await experiment_router.experiments_update_config(experiment_id, "foundation_filename", model_filename)
+            experiment_service.experiment_update_config(experiment_id, "foundation", model_name)
+            experiment_service.experiment_update_config(experiment_id, "foundation_model_architecture", architecture)
+            experiment_service.experiment_update_config(experiment_id, "foundation_filename", model_filename)
             model_set_result = {
                 "foundation": model_name,
                 "foundation_model_architecture": architecture,

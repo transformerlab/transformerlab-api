@@ -258,6 +258,30 @@ class TLabPlugin:
         try:
             # Get the dataset path/ID
             dataset_target = get_dataset_path(self.params.dataset_name)
+
+            # If this is a local directory, prepare data_files excluding index.json and hidden files
+            is_local_dir = isinstance(dataset_target, str) and os.path.isdir(dataset_target)
+            data_files_map = None
+            if is_local_dir:
+                try:
+                    entries = os.listdir(dataset_target)
+                except Exception:
+                    entries = []
+
+                # Collect all relevant files into a single train split; let code derive other splits via slicing
+                filtered_files = []
+                for name in entries:
+                    if name in ["index.json"] or name.startswith("."):
+                        continue
+                    lower = name.lower()
+                    if not (lower.endswith(".json") or lower.endswith(".jsonl") or lower.endswith(".csv")):
+                        continue
+                    full_path = os.path.join(dataset_target, name)
+                    if os.path.isfile(full_path):
+                        filtered_files.append(full_path)
+
+                if len(filtered_files) > 0:
+                    data_files_map = {"train": filtered_files}
             # Get the available splits
             available_splits = get_dataset_split_names(dataset_target)
             # Get the available config names
@@ -307,9 +331,20 @@ class TLabPlugin:
             # Load each dataset split
             datasets = {}
             for dataset_type in dataset_splits:
-                datasets[dataset_type] = load_dataset(
-                    dataset_target, data_dir=config_name, split=dataset_splits[dataset_type], trust_remote_code=True
-                )
+                if is_local_dir and data_files_map:
+                    datasets[dataset_type] = load_dataset(
+                        dataset_target,
+                        data_files=data_files_map,
+                        split=dataset_splits[dataset_type],
+                        trust_remote_code=True,
+                    )
+                else:
+                    datasets[dataset_type] = load_dataset(
+                        dataset_target,
+                        data_dir=config_name,
+                        split=dataset_splits[dataset_type],
+                        trust_remote_code=True,
+                    )
             if "train" in dataset_types:
                 print(f"Loaded train dataset with {len(datasets['train'])} examples.")
             else:
