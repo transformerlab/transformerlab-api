@@ -69,16 +69,18 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Get Python executable (from venv if available)
 python_executable = get_python_executable(real_plugin_dir)
 
+port = int(parameters.get("port", 8000))
+max_model_len = str(parameters.get("max_model_len", "0")).strip()
+if max_model_len == "":
+    max_model_len = 0
+pipeline_parallel_size = str(parameters.get("pipeline_parallel_size", "1")).strip()
+if pipeline_parallel_size == "":
+    pipeline_parallel_size = 1
 
-_raw_max = parameters.get("max_model_len", None)
-# max_model_len = int(parameters.get("max_model_len", 0))
-max_model_len = None
-try:
-    if _raw_max is not None and str(_raw_max).strip() != "":
-        max_model_len_candidate = int(_raw_max)
-        if max_model_len_candidate > 0:
-            max_model_len = str(max_model_len_candidate)
-except (ValueError, TypeError):
+max_model_len = int(max_model_len)
+pipeline_parallel_size = int(pipeline_parallel_size)
+
+if max_model_len <= 0:
     max_model_len = None
 
 port = int(parameters.get("port", 8000))
@@ -108,7 +110,6 @@ vllm_args = [
 if max_model_len is not None:
     vllm_args.extend(["--max-model-len", max_model_len])
 
-pipeline_parallel_size = int(parameters.get("pipeline_parallel_size", 1))
 
 num_gpus = torch.cuda.device_count()
 
