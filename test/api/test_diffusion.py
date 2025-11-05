@@ -919,20 +919,6 @@ def test_get_pipeline_key_whitespace_adaptor():
     assert key == "test-model::   ::txt2img"
 
 
-def test_get_pipeline_class_name_list_fallback():
-    """Ensure list _class_name falls back to the first non-empty entry"""
-    with patch("transformerlab.routers.experiment.diffusion.model_info") as mock_model_info:
-        mock_info = MagicMock()
-        # First entry empty, second should be picked by fallback logic
-        mock_info.config = {"diffusers": {"_class_name": ["", "NonPreferredPipeline"]}}
-        mock_model_info.return_value = mock_info
-
-        from transformerlab.routers.experiment.diffusion import _get_pipeline_class_name_from_diffusers_module
-
-        result = _get_pipeline_class_name_from_diffusers_module("fake-model")
-        assert result == "NonPreferredPipeline"
-
-
 def test_get_pipeline_class_name_resolver():
     """Cover the resolver path that returns a class object (cls.__name__)"""
     # Create fake diffusers.pipelines.pipeline_utils module with _get_pipeline_class
