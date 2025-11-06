@@ -11,6 +11,9 @@ import errno
 
 
 async def list_models():
+    if "OLLAMA_MODELS" not in os.environ:
+        return []
+
     try:
         ollama_model_library = ollama_models_library_dir()
     except Exception as e:
