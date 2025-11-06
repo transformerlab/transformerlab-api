@@ -7,12 +7,12 @@ import pytest
 @pytest.fixture()
 def tmp_dataset_dir(tmp_path: Path) -> Path:
     # Create a temporary dataset directory with various files
-    (tmp_path / "a.jsonl").write_text("{\"text\": \"a\"}\n")
+    (tmp_path / "a.jsonl").write_text('{"text": "a"}\n')
     (tmp_path / "b.txt").write_text("hello\n")
-    (tmp_path / "index.json").write_text("{\"index\": true}\n")
+    (tmp_path / "index.json").write_text('{"index": true}\n')
     (tmp_path / ".DS_Store").write_text("ignored")
     (tmp_path / "subdir").mkdir()
-    (tmp_path / "subdir" / "nested.jsonl").write_text("{\"text\": \"nested\"}\n")
+    (tmp_path / "subdir" / "nested.jsonl").write_text('{"text": "nested"}\n')
     return tmp_path
 
 
@@ -48,7 +48,7 @@ def test_load_local_dataset_uses_explicit_data_files(tmp_path: Path, monkeypatch
 
     # Explicit files provided (note: function should not re-filter these)
     (tmp_path / "keep.me").write_text("1\n")
-    (tmp_path / "index.json").write_text("{\"index\": true}\n")
+    (tmp_path / "index.json").write_text('{"index": true}\n')
 
     captured = {}
 
@@ -60,9 +60,7 @@ def test_load_local_dataset_uses_explicit_data_files(tmp_path: Path, monkeypatch
 
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
-    result = dataset_service.load_local_dataset(
-        str(tmp_path), data_files=["keep.me", "index.json"], streaming=True
-    )
+    result = dataset_service.load_local_dataset(str(tmp_path), data_files=["keep.me", "index.json"], streaming=True)
 
     assert result == {"ok": True}
     assert captured["path"] == str(tmp_path)
@@ -78,7 +76,7 @@ def test_load_local_dataset_fallback_when_no_valid_files(tmp_path: Path, monkeyp
     from transformerlab.services import dataset_service
 
     # Only metadata/hidden files present
-    (tmp_path / "index.json").write_text("{\"index\": true}\n")
+    (tmp_path / "index.json").write_text('{"index": true}\n')
     (tmp_path / ".hidden").write_text("ignored\n")
 
     captured = {}
@@ -98,5 +96,3 @@ def test_load_local_dataset_fallback_when_no_valid_files(tmp_path: Path, monkeyp
     # When no valid files, function should call underlying loader without data_files
     assert captured["data_files"] in (None, [])
     assert captured["streaming"] is False
-
-
