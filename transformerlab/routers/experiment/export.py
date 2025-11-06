@@ -82,6 +82,9 @@ async def run_exporter_script(
             output_model_id = f"{input_model_id_without_author}-{conversion_time}-{q_type}.gguf"
 
         output_filename = output_model_id
+    else:
+        # For directory-based models (non-GGUF), set model_filename to "." to indicate the directory itself
+        output_filename = "."
 
     # Figure out plugin and model output directories
     script_directory = lab_dirs.plugin_dir_by_name(plugin_name)
