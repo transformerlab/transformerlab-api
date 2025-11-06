@@ -394,26 +394,22 @@ class TrainerTLabPlugin(TLabPlugin):
         else:
             fused_model_location = os.path.join(output_dir, fused_model_name)
 
-        # Determine model_filename based on architecture and whether it's a directory or file
-        # For directory-based models (like MLX), set model_filename to "." to indicate the directory itself
-        model_filename = ""
-        # Check if architecture indicates a directory-based model (MLX models are always directories)
-        directory_based_architectures = ["MLX"]
-        if model_architecture in directory_based_architectures:
-            # Directory-based model - use "." to indicate the directory itself
-            model_filename = "."
-        elif os.path.exists(fused_model_location):
-            # Check the actual filesystem to determine if it's a directory or file
-            if os.path.isdir(fused_model_location):
-                # Directory-based model - use "." to indicate the directory itself
-                model_filename = "."
-            else:
-                # File-based model - use the filename
-                model_filename = os.path.basename(fused_model_location)
-        else:
-            # Model location doesn't exist yet - default to directory-based for safety
-            # (most generated models are directory-based)
-            model_filename = "."
+        # Determine model_filename based on architecture
+        # Most models are directory-based, only GGUF models are file-based
+        # Default to directory-based (use "." to indicate the directory itself)
+        model_filename = "."
+        
+        # GGUF architecture indicates a file-based model
+        # The actual filename will be set by the export process, so we don't set it here
+        # For now, if it's GGUF and the file exists, use the filename
+        if "GGUF" in model_architecture.upper() or model_architecture.upper() == "GGUF":
+            if os.path.exists(fused_model_location):
+                if os.path.isfile(fused_model_location):
+                    # File-based model - use the filename
+                    model_filename = os.path.basename(fused_model_location)
+                # If it's a directory for GGUF, keep "." (directory-based)
+                # This shouldn't normally happen for GGUF, but handle it gracefully
+            # If GGUF file doesn't exist yet, the export process will set the filename
 
         if generate_json:
             generate_model_json(fused_model_name, model_architecture, model_filename=model_filename, json_data=json_data, output_directory=output_dir)

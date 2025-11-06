@@ -196,8 +196,7 @@ class LocalModelStore(modelstore.ModelStore):
                 elif model_filename and model_filename.endswith(".gguf"):
                     # GGUF file - append the filename to the model directory and convert to absolute path
                     # This ensures we get the full path like: /path/to/models/dir/model.gguf
-                    
-                    model["local_path"] = os.path.abspath(os.path.join(model["local_path"], model_filename, model_filename))
+                    model["local_path"] = os.path.abspath(os.path.join(model["local_path"], model_filename))
                 elif model_filename:
                     # Other file-based models - append the filename and convert to absolute path
                     model["local_path"] = os.path.abspath(os.path.join(model["local_path"], model_filename))
