@@ -196,7 +196,28 @@ class LocalModelStore(modelstore.ModelStore):
                 elif model_filename and model_filename.endswith(".gguf"):
                     # GGUF file - append the filename to the model directory and convert to absolute path
                     # This ensures we get the full path like: /path/to/models/dir/model.gguf
-                    model["local_path"] = os.path.abspath(os.path.join(model["local_path"], model_filename))
+                    base_path = model["local_path"]
+                    model_path = os.path.join(base_path, model_filename)
+                    if os.path.exists(model_path):
+                        if os.path.isdir(model_path):
+                            # List all files in the directory ending with .gguf
+                            gguf_files = [f for f in os.listdir(model_path) if f.endswith(".gguf")]
+                            if gguf_files:
+                                model_path = os.path.join(model_path, gguf_files[0])
+                    else:
+                        # Seearch for files ending with .gguf in the directory
+                        gguf_files = [f for f in os.listdir(model["local_path"]) if f.endswith(".gguf")]
+                        if gguf_files:
+                            gguf_file = gguf_files[0]
+                            model_path = os.path.join(base_path, gguf_file)
+                            if os.path.isdir(model_path):
+                                gguf_files = [f for f in os.listdir(model_path) if f.endswith(".gguf")]
+                                if gguf_files:
+                                    model_path = os.path.join(model_path, gguf_files[0])
+                                
+                                
+
+                    model["local_path"] = os.path.abspath(model_path)
                 elif model_filename:
                     # Other file-based models - append the filename and convert to absolute path
                     model["local_path"] = os.path.abspath(os.path.join(model["local_path"], model_filename))
