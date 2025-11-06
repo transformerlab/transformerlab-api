@@ -439,6 +439,71 @@ async def get_generated_dataset(job_id: str):
         return content
 
 
+@router.get("/{job_id}/get_eval_results")
+async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0):
+    """Get evaluation results for a job"""
+    job = job_service.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
+    job_data = job["job_data"]
+    
+    # Check if the job has eval_results
+    if "eval_results" not in job_data or not job_data["eval_results"]:
+        return Response("No evaluation results found for this job", media_type="text/csv")
+    
+    eval_results_list = job_data["eval_results"]
+    if not isinstance(eval_results_list, list) or len(eval_results_list) == 0:
+        return Response("No evaluation results found for this job", media_type="text/csv")
+    
+    # Get the file path (use file_index to select which file if multiple)
+    if file_index >= len(eval_results_list):
+        file_index = 0
+    file_path = eval_results_list[file_index]
+    
+    if not os.path.exists(file_path):
+        return Response("Evaluation results file not found", media_type="text/csv")
+    
+    # Determine file format
+    if file_path.endswith(".csv"):
+        file_format = "text/csv"
+        filename = f"eval_results_{job_id}.csv"
+    elif file_path.endswith(".json"):
+        file_format = "application/json"
+        filename = f"eval_results_{job_id}.json"
+    else:
+        file_format = "text/plain"
+        filename = f"eval_results_{job_id}.txt"
+    
+    if task == "download":
+        return FileResponse(file_path, filename=filename, media_type=file_format)
+    
+    # For view, convert CSV to JSON format
+    if file_path.endswith(".csv"):
+        with open(file_path, "r") as csvfile:
+            contents = csv.reader(csvfile, delimiter=",", quotechar='"')
+            csv_content = {"header": [], "body": []}
+            for i, row in enumerate(contents):
+                if i == 0:
+                    csv_content["header"] = row
+                else:
+                    csv_content["body"].append(row)
+            return csv_content
+    elif file_path.endswith(".json"):
+        with open(file_path, "r") as jsonfile:
+            content = json.load(jsonfile)
+            # If it's a list of records, convert to header/body format
+            if isinstance(content, list) and len(content) > 0:
+                if isinstance(content[0], dict):
+                    header = list(content[0].keys())
+                    body = [list(row.values()) for row in content]
+                    return {"header": header, "body": body}
+            return content
+    else:
+        # For other file types, just return as text
+        with open(file_path, "r") as f:
+            return f.read()
+
+
 @router.get("/{job_id}/get_eval_images")
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
