@@ -2,6 +2,7 @@ import hashlib
 import json
 import time
 import traceback
+import posixpath
 
 try:
     from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
@@ -406,10 +407,10 @@ class TrainerTLabPlugin(TLabPlugin):
         # The actual filename will be set by the export process, so we don't set it here
         # For now, if it's GGUF and the file exists, use the filename
         if "GGUF" in model_architecture.upper() or model_architecture.upper() == "GGUF":
-            if os.path.exists(fused_model_location):
-                if os.path.isfile(fused_model_location):
+            if storage.exists(fused_model_location):
+                if storage.isfile(fused_model_location):
                     # File-based model - use the filename
-                    model_filename = os.path.basename(fused_model_location)
+                    model_filename = posixpath.basename(fused_model_location)
                 # If it's a directory for GGUF, keep "." (directory-based)
                 # This shouldn't normally happen for GGUF, but handle it gracefully
             # If GGUF file doesn't exist yet, the export process will set the filename

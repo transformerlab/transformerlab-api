@@ -5,8 +5,8 @@ LocalModelStore manages models in both the database and
 There are functions in model_helper to make it easier to work with.
 """
 
-import os
 import json
+import posixpath
 from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
 from werkzeug.utils import secure_filename
@@ -68,8 +68,8 @@ def load_file_path(
         Optional[str]: The path to the loaded file, or None if the file could not be found or loaded.
     """
     # If file is local
-    file_path = os.path.join(model_name_or_path, filename)
-    if os.path.exists(file_path):
+    file_path = storage.join(model_name_or_path, filename)
+    if storage.exists(file_path):
         return file_path
 
     # If file is remote
@@ -154,11 +154,11 @@ class LocalModelStore(modelstore.ModelStore):
             # Determine the potential model directory path
             # This applies to both HuggingFace models stored locally and local models
             model_id = model.get("model_id", "")
-            potential_path = os.path.join(models_dir, secure_filename(model_id))
+            potential_path = storage.join(models_dir, secure_filename(model_id))
             # Check if local path exists
-            if not os.path.exists(potential_path):
+            if not storage.exists(potential_path):
                 # Remove the Starting TransformerLab/ prefix to handle the save_transformerlab_model function
-                potential_path = os.path.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
+                potential_path = storage.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
             
             # Check if model should be considered local:
             # 1. If it has a model_filename set (and is not a HuggingFace model, OR is a HuggingFace model stored locally), OR
@@ -168,12 +168,14 @@ class LocalModelStore(modelstore.ModelStore):
                 # For non-HuggingFace models, check if it has model_filename or files in directory
                 if has_model_filename:
                     is_local_model = True
-                elif os.path.exists(potential_path) and os.path.isdir(potential_path):
+                elif storage.exists(potential_path) and storage.isdir(potential_path):
                     # Check if directory has files other than index.json
                     try:
-                        files = os.listdir(potential_path)
+                        files = storage.ls(potential_path, detail=False)
+                        # Extract basenames from full paths returned by storage.ls()
+                        file_basenames = [posixpath.basename(f.rstrip("/")) for f in files]
                         # Filter out index.json and other metadata files
-                        model_files = [f for f in files if f not in ["index.json", "_tlab_provenance.json"]]
+                        model_files = [f for f in file_basenames if f not in ["index.json", "_tlab_provenance.json"]]
                         if model_files:
                             is_local_model = True
                     except (OSError, PermissionError):
@@ -182,7 +184,7 @@ class LocalModelStore(modelstore.ModelStore):
             elif is_huggingface and has_model_filename:
                 # For HuggingFace models, if they have a model_filename and the file/directory exists locally,
                 # treat them as stored locally (e.g., downloaded GGUF files)
-                if os.path.exists(potential_path):
+                if storage.exists(potential_path):
                     is_local_model = True
             
             if is_local_model:
@@ -192,39 +194,42 @@ class LocalModelStore(modelstore.ModelStore):
 
                 # Handle different model_filename cases
                 if model_filename == ".":
-                    # Directory-based model - convert to absolute path so it can be used anywhere
-                    model["local_path"] = os.path.abspath(model["local_path"])
+                    # Directory-based model - path is already in storage format
+                    model["local_path"] = model["local_path"]
                 elif model_filename and model_filename.endswith(".gguf"):
-                    # GGUF file - append the filename to the model directory and convert to absolute path
+                    # GGUF file - append the filename to the model directory
                     # This ensures we get the full path like: /path/to/models/dir/model.gguf
                     base_path = model["local_path"]
-                    model_path = os.path.join(base_path, model_filename)
-                    if os.path.exists(model_path):
-                        if os.path.isdir(model_path):
+                    model_path = storage.join(base_path, model_filename)
+                    if storage.exists(model_path):
+                        if storage.isdir(model_path):
                             # List all files in the directory ending with .gguf
-                            gguf_files = [f for f in os.listdir(model_path) if f.endswith(".gguf")]
+                            files = storage.ls(model_path, detail=False)
+                            gguf_files = [posixpath.basename(f.rstrip("/")) for f in files if posixpath.basename(f.rstrip("/")).endswith(".gguf")]
                             if gguf_files:
-                                model_path = os.path.join(model_path, gguf_files[0])
+                                model_path = storage.join(model_path, gguf_files[0])
                     else:
-                        # Seearch for files ending with .gguf in the directory
-                        gguf_files = [f for f in os.listdir(model["local_path"]) if f.endswith(".gguf")]
+                        # Search for files ending with .gguf in the directory
+                        files = storage.ls(model["local_path"], detail=False)
+                        gguf_files = [posixpath.basename(f.rstrip("/")) for f in files if posixpath.basename(f.rstrip("/")).endswith(".gguf")]
                         if gguf_files:
                             gguf_file = gguf_files[0]
-                            model_path = os.path.join(base_path, gguf_file)
-                            if os.path.isdir(model_path):
-                                gguf_files = [f for f in os.listdir(model_path) if f.endswith(".gguf")]
+                            model_path = storage.join(base_path, gguf_file)
+                            if storage.isdir(model_path):
+                                files = storage.ls(model_path, detail=False)
+                                gguf_files = [posixpath.basename(f.rstrip("/")) for f in files if posixpath.basename(f.rstrip("/")).endswith(".gguf")]
                                 if gguf_files:
-                                    model_path = os.path.join(model_path, gguf_files[0])
+                                    model_path = storage.join(model_path, gguf_files[0])
                                 
                                 
 
-                    model["local_path"] = os.path.abspath(model_path)
+                    model["local_path"] = model_path
                 elif model_filename:
-                    # Other file-based models - append the filename and convert to absolute path
-                    model["local_path"] = os.path.abspath(os.path.join(model["local_path"], model_filename))
+                    # Other file-based models - append the filename
+                    model["local_path"] = storage.join(model["local_path"], model_filename)
                 else:
                     # Legacy model without model_filename but with files - use directory path
-                    model["local_path"] = os.path.abspath(model["local_path"])
+                    model["local_path"] = model["local_path"]
 
         # Filter out models based on whether they are embedding models or not
         models = await self.filter_embedding_models(models, embedding)
