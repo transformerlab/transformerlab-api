@@ -28,8 +28,23 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all(experimentId: str, type: str = "", status: str = ""):
+async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
     jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+
+    # Optional filter by job_data.subtype
+    if subtype:
+        filtered = []
+        for job in jobs:
+            job_data = job.get("job_data", {})
+            if not isinstance(job_data, dict):
+                try:
+                    job_data = json.loads(job_data)
+                except Exception:
+                    job_data = {}
+            if job_data.get("subtype") == subtype:
+                filtered.append(job)
+        return filtered
+
     return jobs
 
 

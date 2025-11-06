@@ -34,6 +34,7 @@ async def create_remote_job(
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
+    subtype: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
     memory: Optional[str] = Form(None),
     disk_space: Optional[str] = Form(None),
@@ -47,6 +48,8 @@ async def create_remote_job(
     """
     # First, create a REMOTE job
     job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+    if subtype:
+        job_data["subtype"] = subtype
 
     # Add optional parameters if provided
     if cpus:
@@ -92,6 +95,7 @@ async def launch_remote(
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
+    subtype: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
     memory: Optional[str] = Form(None),
     disk_space: Optional[str] = Form(None),
@@ -110,6 +114,8 @@ async def launch_remote(
     else:
         # Create a new REMOTE job
         job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+        if subtype:
+            job_data["subtype"] = subtype
 
         try:
             job_id = job_service.job_create(
@@ -158,6 +164,10 @@ async def launch_remote(
         request_data["setup"] = setup
     if uploaded_dir_path:
         request_data["uploaded_dir_path"] = uploaded_dir_path
+
+    # Store subtype in orchestrator request if present (pass-through metadata)
+    if subtype:
+        request_data["subtype"] = subtype
 
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
 

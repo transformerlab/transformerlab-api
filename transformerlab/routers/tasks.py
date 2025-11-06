@@ -51,6 +51,32 @@ async def tasks_get_by_type_in_experiment(type: str, experiment_id: str):
     return tasks
 
 
+@router.get(
+    "/list_by_subtype_in_experiment",
+    summary="Returns all tasks for an experiment filtered by config.subtype and optionally remote_task",
+)
+async def tasks_get_by_subtype_in_experiment(
+    experiment_id: str,
+    subtype: str,
+    remote_task: Optional[bool] = None,
+):
+    tasks = tasks_service.tasks_get_by_experiment(experiment_id)
+    filtered = []
+    for t in tasks:
+        cfg = t.get("config", {})
+        if not isinstance(cfg, dict):
+            try:
+                import json
+
+                cfg = json.loads(cfg)
+            except Exception:
+                cfg = {}
+        if cfg.get("subtype") == subtype:
+            if remote_task is None or bool(t.get("remote_task", False)) == bool(remote_task):
+                filtered.append(t)
+    return filtered
+
+
 @router.put("/{task_id}/update", summary="Updates a task with new information")
 async def update_task(task_id: str, new_task: dict = Body()):
     # Perform secure_filename before updating the task
