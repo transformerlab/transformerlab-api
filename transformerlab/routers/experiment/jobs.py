@@ -698,12 +698,12 @@ async def get_artifacts(job_id: str, request: Request):
     return {"artifacts": artifacts}
 
 
-@router.get("/job/{job_id}")
+@router.get("/{job_id}")
 async def get_training_job_by_path(job_id: str):
     return job_service.job_get(job_id)
 
 
-@router.get("/job/{job_id}/output")
+@router.get("/{job_id}/output")
 async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
     try:
         if sweeps:
@@ -737,7 +737,7 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
         return "An internal error has occurred!"
 
 
-@router.get("/job/{job_id}/sweep_results")
+@router.get("/{job_id}/sweep_results")
 async def sweep_results(job_id: str):
     try:
         job = job_service.job_get(job_id)
