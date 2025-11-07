@@ -17,6 +17,7 @@ from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
+from transformerlab.shared.galleries import TASKS_GALLERY_FILE, update_cache_from_remote_if_stale
 from transformerlab.shared.shared import slugify
 from lab.dirs import get_workspace_dir
 
@@ -254,6 +255,8 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
 async def tasks_gallery_list():
     """List tasks available in the remote galleries index."""
     try:
+        # Update the gallery cache from remote if it's stale (older than 1 hour)
+        update_cache_from_remote_if_stale(TASKS_GALLERY_FILE)
         gallery = galleries.get_tasks_gallery()
         return {"status": "success", "data": gallery}
     except Exception as e:
@@ -589,166 +592,6 @@ async def get_task_file_content(task_dir: str, file_path: str):
         return {"status": "error", "message": "An error occurred while getting task file content"}
 
 
-@router.post("/import_from_gallery", summary="Import a task from transformerlab/galleries tasks subdirectory")
-async def import_task_from_gallery(
-    request: Request,
-    id: str = Form(...),
-    experiment_id: Optional[str] = Form(None),
-    upload: Optional[bool] = Form(True),
-    repo_url: Optional[str] = Form(None),
-):
-    """
-    Clone the specific tasks/<id> from transformerlab/galleries and create a REMOTE task using task.json.
-    This function now installs the task locally first, then creates a task in the experiment.
-    """
-    # First, install the task locally
-    install_result = await install_task_from_gallery(id, repo_url)
-    if install_result.get("status") != "success":
-        return install_result
-
-    task_dir_name = install_result.get("task_dir")
-    if not task_dir_name:
-        return {"status": "error", "message": "Failed to get task directory name from installation"}
-
-    # Now create the task in the experiment using the locally installed task
-    try:
-        workspace_dir = get_workspace_dir()
-        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        local_task_dir = os.path.normpath(os.path.join(local_gallery_dir, task_dir_name))
-        # Ensure that the task dir is within the local_gallery_dir
-        if not local_task_dir.startswith(local_gallery_dir + os.sep):
-            return {"status": "error", "message": "Invalid task directory"}
-        task_json_path = os.path.join(local_task_dir, "task.json")
-
-        if not os.path.isfile(task_json_path):
-            return {"status": "error", "message": f"task.json not found in local task directory: {task_dir_name}"}
-
-        with open(task_json_path) as f:
-            task_def = json_lib.load(f)
-
-        # Build task fields, marking as remote
-        task_name = slugify(task_def.get("name", task_dir_name))
-        task_type = task_def.get("type", "REMOTE")
-        inputs = task_def.get("inputs", {})
-        config = task_def.get("config", {})
-        plugin = task_def.get("plugin", "remote_task")
-        outputs = task_def.get("outputs", {})
-
-        # Check if task already exists and update instead of creating duplicate
-        existing_tasks = tasks_service.tasks_get_all()
-        existing_task = None
-        for task in existing_tasks:
-            if task.get("name") == task_name and task.get("remote_task", False):
-                existing_task = task
-                break
-
-        if existing_task:
-            # Update existing task
-            task_id = existing_task["id"]
-            tasks_service.update_task(
-                task_id, {"name": task_name, "inputs": inputs, "config": config, "outputs": outputs, "plugin": plugin}
-            )
-        else:
-            # Create new task
-            task_id = tasks_service.add_task(
-                name=task_name,
-                task_type=task_type,
-                inputs=inputs,
-                config=config,
-                plugin=plugin,
-                outputs=outputs,
-                experiment_id=experiment_id,
-                remote_task=True,
-            )
-
-        # Optional: Upload files to GPU orchestrator if requested
-        if upload:
-            try:
-                # Get the src directory from local installation
-                src_dir_real = os.path.normpath(os.path.join(local_task_dir, "src"))
-                # Validate src_dir is within the intended gallery structure
-                if not src_dir_real.startswith(local_task_dir + os.sep):
-                    return {"status": "error", "message": "Invalid src directory"}
-                if os.path.exists(src_dir_real):
-                    # Post to GPU orchestrator upload endpoint
-                    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
-                    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-
-                    if not gpu_orchestrator_url or not gpu_orchestrator_port:
-                        # If orchestrator not configured, just attach local path hint
-                        try:
-                            task_obj = tasks_service.tasks_get_by_id(task_id)
-                            if isinstance(task_obj.get("config"), str):
-                                task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                            task_obj["config"]["local_upload_staged_dir"] = src_dir_real
-                            tasks_service.update_task(task_id, {"config": task_obj["config"]})
-                        except Exception:
-                            pass
-                    else:
-                        # Build multipart form to mirror frontend DirectoryUpload
-                        dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
-                        files_form = []
-                        # Walk src_dir and add each file, preserving relative path inside src/
-                        for root, _, filenames in os.walk(src_dir_real):
-                            for filename in filenames:
-                                full_path = os.path.join(root, filename)
-                                rel_path = os.path.relpath(full_path, src_dir_real)
-                                # Prefix with src/ like the packed structure
-                                upload_name = f"src/{rel_path}"
-                                with open(full_path, "rb") as f:
-                                    files_form.append(
-                                        ("dir_files", (upload_name, f.read(), "application/octet-stream"))
-                                    )
-
-                        form_data = {"dir_name": slugify(task_name)}
-
-                        async with httpx.AsyncClient(timeout=120.0) as client:
-                            headers = {}
-                            incoming_auth = request.headers.get("AUTHORIZATION")
-                            if incoming_auth:
-                                headers["AUTHORIZATION"] = incoming_auth
-
-                            resp = await client.post(
-                                dest,
-                                headers=headers,
-                                files=files_form,
-                                data=form_data,
-                                cookies=request.cookies,
-                            )
-                            if resp.status_code == 200:
-                                remote_info = resp.json()
-                                # Try to read path similar to frontend handler
-                                remote_path = (
-                                    remote_info.get("data", {})
-                                    .get("uploaded_files", {})
-                                    .get("dir_files", {})
-                                    .get("uploaded_dir")
-                                )
-                                if not remote_path:
-                                    remote_path = (
-                                        remote_info.get("path") or remote_info.get("remote_path") or remote_info
-                                    )
-                                try:
-                                    task_obj = tasks_service.tasks_get_by_id(task_id)
-                                    if isinstance(task_obj.get("config"), str):
-                                        task_obj["config"] = (
-                                            json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                                        )
-                                    task_obj["config"]["remote_upload_path"] = remote_path
-                                    tasks_service.update_task(task_id, {"config": task_obj["config"]})
-                                except Exception:
-                                    pass
-                            else:
-                                return {"status": "error", "message": f"Upload failed: {resp.status_code} {resp.text}"}
-
-            except Exception as e:
-                print(f"Upload exception: {e}")
-                return {"status": "error", "message": "An error occurred while uploading the task"}
-
-        return {"status": "success", "task_id": task_id}
-    except Exception as e:
-        print(f"Error importing task from gallery: {e}")
-        return {"status": "error", "message": "An error occurred while importing the task from the gallery"}
 
 
 @router.post("/install_from_gallery", summary="Install a task from transformerlab/galleries to local tasks-gallery")
@@ -967,6 +810,7 @@ async def import_task_from_local_gallery(
     request: Request,
     task_dir: str = Form(...),
     experiment_id: Optional[str] = Form(None),
+    upload: Optional[bool] = Form(True),
 ):
     """
     Import a task from the local tasks-gallery directory.
@@ -1016,7 +860,6 @@ async def import_task_from_local_gallery(
             tasks_service.update_task(
                 task_id, {"name": task_name, "inputs": inputs, "config": config, "outputs": outputs, "plugin": plugin}
             )
-            return {"status": "success", "task_id": task_id, "action": "updated"}
         else:
             # Create new task
             task_id = tasks_service.add_task(
@@ -1029,8 +872,91 @@ async def import_task_from_local_gallery(
                 experiment_id=experiment_id,
                 remote_task=True,
             )
-            return {"status": "success", "task_id": task_id, "action": "created"}
 
+        # Optional: Upload files to GPU orchestrator if requested
+        if upload:
+            try:
+                # Get the src directory from local task
+                src_dir_real = os.path.normpath(os.path.join(task_path_real, "src"))
+                # Validate src_dir is within the intended gallery structure
+                if not src_dir_real.startswith(task_path_real + os.sep):
+                    print(f"Invalid src directory: {src_dir_real}")
+                    return {"status": "error", "message": "Invalid src directory"}
+                if os.path.exists(src_dir_real):
+                    # Post to GPU orchestrator upload endpoint
+                    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
+                    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
+
+                    if not gpu_orchestrator_url or not gpu_orchestrator_port:
+                        # If orchestrator not configured, just attach local path hint
+                        try:
+                            task_obj = tasks_service.tasks_get_by_id(task_id)
+                            if isinstance(task_obj.get("config"), str):
+                                task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                            task_obj["config"]["local_upload_staged_dir"] = src_dir_real
+                            tasks_service.update_task(task_id, {"config": task_obj["config"]})
+                        except Exception:
+                            pass
+                    else:
+                        # Build multipart form to mirror frontend DirectoryUpload
+                        dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
+                        files_form = []
+                        # Walk src_dir and add each file, preserving relative path inside src/
+                        for root, _, filenames in os.walk(src_dir_real):
+                            for filename in filenames:
+                                full_path = os.path.join(root, filename)
+                                rel_path = os.path.relpath(full_path, src_dir_real)
+                                # Prefix with src/ like the packed structure
+                                upload_name = f"src/{rel_path}"
+                                with open(full_path, "rb") as f:
+                                    files_form.append(
+                                        ("dir_files", (upload_name, f.read(), "application/octet-stream"))
+                                    )
+
+                        form_data = {"dir_name": slugify(task_name)}
+                        async with httpx.AsyncClient(timeout=120.0) as client:
+                            headers = {}
+                            incoming_auth = request.headers.get("AUTHORIZATION")
+                            if incoming_auth:
+                                headers["AUTHORIZATION"] = incoming_auth
+
+                            resp = await client.post(
+                                dest,
+                                headers=headers,
+                                files=files_form,
+                                data=form_data,
+                                cookies=request.cookies,
+                            )
+                            if resp.status_code == 200:
+                                remote_info = resp.json()
+                                # Extract uploaded_dir path from response
+                                uploaded_dir = (
+                                    remote_info.get("uploaded_files", {})
+                                    .get("dir_files", {})
+                                    .get("uploaded_dir")
+                                )
+                                if uploaded_dir:
+                                    try:
+                                        task_obj = tasks_service.tasks_get_by_id(task_id)
+                                        if isinstance(task_obj.get("config"), str):
+                                            task_obj["config"] = (
+                                                json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                                            )
+                                        task_obj["config"]["uploaded_dir_path"] = uploaded_dir
+                                        tasks_service.update_task(task_id, {"config": task_obj["config"]})
+                                    except Exception as e:
+                                        print(f"Error updating task config: {e}")
+                                        pass
+                                else:
+                                    print(f"Warning: Could not extract uploaded_dir from response: {remote_info}")
+                            else:
+                                return {"status": "error", "message": f"Upload failed: {resp.status_code} {resp.text}"}
+
+            except Exception as e:
+                print(f"Upload exception: {e}")
+                return {"status": "error", "message": "An error occurred while uploading the task"}
+
+        return {"status": "success", "task_id": task_id}
     except Exception as e:
         print(f"Error importing task from local gallery: {e}")
         return {"status": "error", "message": "An error occurred while creating the task"}
