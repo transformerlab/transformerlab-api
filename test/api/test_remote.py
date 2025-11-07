@@ -348,7 +348,7 @@ class TestCheckRemoteJobStatus:
     def test_check_status_with_jobs(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id):
         """Test checking status with LAUNCHING jobs"""
         # Create a remote job in LAUNCHING state
-        create_response = client.post(
+        client.post(
             "/remote/create-job",
             data={
                 "experimentId": mock_experiment_id,
@@ -356,7 +356,6 @@ class TestCheckRemoteJobStatus:
                 "command": "echo 'test'",
             },
         )
-        job_id = create_response.json()["job_id"]
 
         # Mock the async client and response for status check
         mock_response = MagicMock()
