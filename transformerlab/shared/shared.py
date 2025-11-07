@@ -271,10 +271,14 @@ async def async_run_python_daemon_and_update_status(
         with open(pid_file, "w") as f:
             f.write(str(pid))
 
+        # keep a tail of recent lines so we can show them on failure:
+        recent_lines = deque(maxlen=10)
+
         line = await process.stdout.readline()
         error_msg = None
         while line:
             decoded = line.decode()
+            recent_lines.append(decoded.strip())
 
             # If we hit the begin_string then the daemon is started and we can return!
             if begin_string in decoded:
