@@ -26,15 +26,31 @@ def no_gpu_orchestration_env(monkeypatch):
 
 @pytest.fixture
 def mock_experiment_id(client):
-    """Create a test experiment and return its ID"""
+    """Create a test experiment and return its ID, cleaning up after the test"""
     import os
     import time
-    # Use a unique name to avoid conflicts
-    unique_name = f"test_exp_remote_{os.getpid()}_{int(time.time())}"
-    response = client.get(f"/experiment/create?name={unique_name}")
-    if response.status_code == 200:
-        return response.json()  # The endpoint returns the experiment ID directly
-    return unique_name
+    import uuid
+    from transformerlab.services import experiment_service
+    
+    # Use a unique name to avoid conflicts - add UUID for better uniqueness
+    unique_name = f"test_exp_remote_{os.getpid()}_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    
+    # Check if experiment already exists and delete it if it does
+    existing = experiment_service.experiment_get(unique_name)
+    if existing:
+        experiment_service.experiment_delete(unique_name)
+    
+    # Create the experiment
+    exp_id = experiment_service.experiment_create(unique_name, {})
+    
+    yield exp_id
+    
+    # Cleanup: delete the experiment after the test
+    try:
+        experiment_service.experiment_delete(exp_id)
+    except Exception:
+        # Ignore errors during cleanup
+        pass
 
 
 class TestValidateGPUOrchestratorEnvVars:
