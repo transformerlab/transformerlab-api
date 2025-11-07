@@ -1,14 +1,9 @@
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from fastapi.testclient import TestClient
+from io import BytesIO
 
 
-@pytest.fixture
-def client():
-    """Create a test client"""
-    from api import app
-    with TestClient(app) as c:
-        yield c
+# Use the client fixture from conftest.py - no need to create our own
 
 
 @pytest.fixture
@@ -32,10 +27,14 @@ def no_gpu_orchestration_env(monkeypatch):
 @pytest.fixture
 def mock_experiment_id(client):
     """Create a test experiment and return its ID"""
-    response = client.post("/experiments/new", json={"name": "test_exp_remote"})
+    import os
+    import time
+    # Use a unique name to avoid conflicts
+    unique_name = f"test_exp_remote_{os.getpid()}_{int(time.time())}"
+    response = client.get(f"/experiment/create?name={unique_name}")
     if response.status_code == 200:
-        return response.json()["experiment_id"]
-    return "test_exp_remote"
+        return response.json()  # The endpoint returns the experiment ID directly
+    return unique_name
 
 
 class TestValidateGPUOrchestratorEnvVars:
@@ -72,7 +71,8 @@ class TestValidateGPUOrchestratorEnvVars:
         
         result = validate_gpu_orchestrator_env_vars()
         url, error_response = result
-        assert url == "http://test-orchestrator.example.com"
+        # When port is missing, the function returns None as the URL
+        assert url is None
         assert isinstance(error_response, dict)
         assert error_response["status"] == "error"
         assert "GPU_ORCHESTRATION_SERVER_PORT" in error_response["message"]
@@ -84,9 +84,8 @@ class TestCreateRemoteJob:
     def test_create_remote_job_success(self, client, gpu_orchestration_env_vars, mock_experiment_id):
         """Test creating a remote job successfully"""
         response = client.post(
-            "/remote/create-job",
+            f"/remote/create-job?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
                 "task_name": "test-task",
@@ -101,9 +100,8 @@ class TestCreateRemoteJob:
     def test_create_remote_job_with_optional_params(self, client, gpu_orchestration_env_vars, mock_experiment_id):
         """Test creating a remote job with optional parameters"""
         response = client.post(
-            "/remote/create-job",
+            f"/remote/create-job?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
                 "cpus": "4",
@@ -134,14 +132,17 @@ class TestLaunchRemote:
             "status": "launched",
         }
         
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value = mock_client
+        # Set up the async context manager protocol for httpx.AsyncClient
+        mock_httpx_client = AsyncMock()
+        mock_httpx_client.post = AsyncMock(return_value=mock_response)
+        # AsyncMock automatically handles __aenter__ and __aexit__, but we can be explicit
+        mock_httpx_client.__aenter__.return_value = mock_httpx_client
+        mock_httpx_client.__aexit__.return_value = None
+        mock_client_class.return_value = mock_httpx_client
 
         response = client.post(
-            "/remote/launch",
+            f"/remote/launch?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
             },
@@ -157,9 +158,8 @@ class TestLaunchRemote:
         """Test launching with an existing job_id"""
         # First create a job
         create_response = client.post(
-            "/remote/create-job",
+            f"/remote/create-job?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
             },
@@ -174,14 +174,15 @@ class TestLaunchRemote:
             "cluster_name": "test-cluster",
         }
         
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value = mock_client
+        mock_httpx_client = AsyncMock()
+        mock_httpx_client.post = AsyncMock(return_value=mock_response)
+        mock_httpx_client.__aenter__.return_value = mock_httpx_client
+        mock_httpx_client.__aexit__.return_value = None
+        mock_client_class.return_value = mock_httpx_client
 
         response = client.post(
-            "/remote/launch",
+            f"/remote/launch?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "job_id": job_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
@@ -195,9 +196,8 @@ class TestLaunchRemote:
     def test_launch_remote_missing_env_vars(self, client, no_gpu_orchestration_env, mock_experiment_id):
         """Test launching when GPU orchestration env vars are not set"""
         response = client.post(
-            "/remote/launch",
+            f"/remote/launch?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
             },
@@ -214,14 +214,15 @@ class TestLaunchRemote:
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
         
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value = mock_client
+        mock_httpx_client = AsyncMock()
+        mock_httpx_client.post = AsyncMock(return_value=mock_response)
+        mock_httpx_client.__aenter__.return_value = mock_httpx_client
+        mock_httpx_client.__aexit__.return_value = None
+        mock_client_class.return_value = mock_httpx_client
 
         response = client.post(
-            "/remote/launch",
+            f"/remote/launch?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
             },
@@ -240,9 +241,8 @@ class TestStopRemote:
         """Test stopping a remote job successfully"""
         # Create a job first
         create_response = client.post(
-            "/remote/create-job",
+            f"/remote/create-job?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
             },
@@ -254,9 +254,11 @@ class TestStopRemote:
         mock_response.status_code = 200
         mock_response.json.return_value = {"status": "stopped"}
         
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value = mock_client
+        mock_httpx_client = AsyncMock()
+        mock_httpx_client.post = AsyncMock(return_value=mock_response)
+        mock_httpx_client.__aenter__.return_value = mock_httpx_client
+        mock_httpx_client.__aexit__.return_value = None
+        mock_client_class.return_value = mock_httpx_client
 
         response = client.post(
             "/remote/stop",
@@ -290,10 +292,10 @@ class TestUploadDirectory:
     @patch("transformerlab.routers.remote.httpx.AsyncClient")
     def test_upload_directory_success(self, mock_client_class, client, gpu_orchestration_env_vars):
         """Test uploading a directory successfully"""
-        # Create test files
+        # Create test files using BytesIO for proper file-like objects
         files = [
-            ("dir_files", ("test1.txt", b"content1", "text/plain")),
-            ("dir_files", ("test2.txt", b"content2", "text/plain")),
+            ("dir_files", ("test1.txt", BytesIO(b"content1"), "text/plain")),
+            ("dir_files", ("test2.txt", BytesIO(b"content2"), "text/plain")),
         ]
 
         # Mock the async client and response
@@ -304,9 +306,11 @@ class TestUploadDirectory:
             "upload_path": "/remote/path",
         }
         
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value = mock_client
+        mock_httpx_client = AsyncMock()
+        mock_httpx_client.post = AsyncMock(return_value=mock_response)
+        mock_httpx_client.__aenter__.return_value = mock_httpx_client
+        mock_httpx_client.__aexit__.return_value = None
+        mock_client_class.return_value = mock_httpx_client
 
         response = client.post(
             "/remote/upload",
@@ -320,7 +324,7 @@ class TestUploadDirectory:
 
     def test_upload_directory_missing_env_vars(self, client, no_gpu_orchestration_env):
         """Test uploading when GPU orchestration env vars are not set"""
-        files = [("dir_files", ("test.txt", b"content", "text/plain"))]
+        files = [("dir_files", ("test.txt", BytesIO(b"content"), "text/plain"))]
         
         response = client.post(
             "/remote/upload",
@@ -349,9 +353,8 @@ class TestCheckRemoteJobStatus:
         """Test checking status with LAUNCHING jobs"""
         # Create a remote job in LAUNCHING state
         client.post(
-            "/remote/create-job",
+            f"/remote/create-job?experimentId={mock_experiment_id}",
             data={
-                "experimentId": mock_experiment_id,
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
             },
@@ -366,9 +369,11 @@ class TestCheckRemoteJobStatus:
             ],
         }
         
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value = mock_client
+        mock_httpx_client = AsyncMock()
+        mock_httpx_client.get = AsyncMock(return_value=mock_response)
+        mock_httpx_client.__aenter__.return_value = mock_httpx_client
+        mock_httpx_client.__aexit__.return_value = None
+        mock_client_class.return_value = mock_httpx_client
 
         response = client.get("/remote/check-status")
         assert response.status_code == 200
@@ -390,9 +395,11 @@ class TestGetOrchestratorLogs:
         mock_stream_response.status_code = 200
         mock_stream_response.aiter_bytes = AsyncMock(return_value=iter([b"log line 1\n", b"log line 2\n"]))
         
-        mock_client = AsyncMock()
-        mock_client.stream = AsyncMock(return_value=mock_stream_response)
-        mock_client_class.return_value = mock_client
+        mock_httpx_client = AsyncMock()
+        mock_httpx_client.stream = AsyncMock(return_value=mock_stream_response)
+        mock_httpx_client.__aenter__.return_value = mock_httpx_client
+        mock_httpx_client.__aexit__.return_value = None
+        mock_client_class.return_value = mock_httpx_client
 
         response = client.get(f"/remote/logs/{request_id}")
         # Streaming responses return 200 with appropriate headers
