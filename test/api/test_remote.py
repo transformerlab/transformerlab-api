@@ -45,12 +45,35 @@ def mock_experiment_id(client):
     
     yield exp_id
     
-    # Cleanup: delete the experiment after the test
+    # Cleanup: delete all jobs in the experiment, then delete the experiment
+    try:
+        from transformerlab.services import job_service
+        job_service.job_delete_all(exp_id)
+    except Exception:
+        pass
+    
     try:
         experiment_service.experiment_delete(exp_id)
     except Exception:
         # Ignore errors during cleanup
         pass
+
+
+@pytest.fixture
+def job_cleanup():
+    """Fixture to track and cleanup jobs created during tests"""
+    created_jobs = []  # List of (job_id, experiment_id) tuples
+    
+    yield created_jobs
+    
+    # Cleanup: delete all tracked jobs
+    from transformerlab.services import job_service
+    for job_id, experiment_id in created_jobs:
+        try:
+            job_service.job_delete(job_id, experiment_id)
+        except Exception:
+            # Ignore errors during cleanup
+            pass
 
 
 class TestValidateGPUOrchestratorEnvVars:
@@ -97,7 +120,7 @@ class TestValidateGPUOrchestratorEnvVars:
 class TestCreateRemoteJob:
     """Test the /remote/create-job endpoint"""
 
-    def test_create_remote_job_success(self, client, gpu_orchestration_env_vars, mock_experiment_id):
+    def test_create_remote_job_success(self, client, gpu_orchestration_env_vars, mock_experiment_id, job_cleanup):
         """Test creating a remote job successfully"""
         response = client.post(
             f"/remote/create-job?experimentId={mock_experiment_id}",
@@ -112,8 +135,10 @@ class TestCreateRemoteJob:
         assert data["status"] == "success"
         assert "job_id" in data
         assert data["message"] == "Remote job created successfully"
+        # Track job for cleanup
+        job_cleanup.append((data["job_id"], mock_experiment_id))
 
-    def test_create_remote_job_with_optional_params(self, client, gpu_orchestration_env_vars, mock_experiment_id):
+    def test_create_remote_job_with_optional_params(self, client, gpu_orchestration_env_vars, mock_experiment_id, job_cleanup):
         """Test creating a remote job with optional parameters"""
         response = client.post(
             f"/remote/create-job?experimentId={mock_experiment_id}",
@@ -131,13 +156,15 @@ class TestCreateRemoteJob:
         data = response.json()
         assert data["status"] == "success"
         assert "job_id" in data
+        # Track job for cleanup
+        job_cleanup.append((data["job_id"], mock_experiment_id))
 
 
 class TestLaunchRemote:
     """Test the /remote/launch endpoint"""
 
     @patch("transformerlab.routers.remote.httpx.AsyncClient")
-    def test_launch_remote_success(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id):
+    def test_launch_remote_success(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id, job_cleanup):
         """Test launching a remote job successfully"""
         # Mock the async client and response
         mock_response = MagicMock()
@@ -168,9 +195,11 @@ class TestLaunchRemote:
         assert data["status"] == "success"
         assert "job_id" in data
         assert data["data"]["request_id"] == "test-request-123"
+        # Track job for cleanup
+        job_cleanup.append((data["job_id"], mock_experiment_id))
 
     @patch("transformerlab.routers.remote.httpx.AsyncClient")
-    def test_launch_remote_with_existing_job_id(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id):
+    def test_launch_remote_with_existing_job_id(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id, job_cleanup):
         """Test launching with an existing job_id"""
         # First create a job
         create_response = client.post(
@@ -181,6 +210,8 @@ class TestLaunchRemote:
             },
         )
         job_id = create_response.json()["job_id"]
+        # Track job for cleanup
+        job_cleanup.append((job_id, mock_experiment_id))
 
         # Mock the async client and response
         mock_response = MagicMock()
@@ -207,7 +238,7 @@ class TestLaunchRemote:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        assert data["job_id"] == job_id
+        assert data["job_id"] == str(job_id)
 
     def test_launch_remote_missing_env_vars(self, client, no_gpu_orchestration_env, mock_experiment_id):
         """Test launching when GPU orchestration env vars are not set"""
@@ -224,7 +255,7 @@ class TestLaunchRemote:
         assert "GPU_ORCHESTRATION_SERVER" in data["message"]
 
     @patch("transformerlab.routers.remote.httpx.AsyncClient")
-    def test_launch_remote_orchestrator_error(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id):
+    def test_launch_remote_orchestrator_error(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id, job_cleanup):
         """Test handling orchestrator error response"""
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -247,13 +278,16 @@ class TestLaunchRemote:
         data = response.json()
         assert data["status"] == "error"
         assert "500" in data["message"]
+        # Even if launch failed, a job might have been created, so track it if present
+        if "job_id" in data:
+            job_cleanup.append((data["job_id"], mock_experiment_id))
 
 
 class TestStopRemote:
     """Test the /remote/stop endpoint"""
 
     @patch("transformerlab.routers.remote.httpx.AsyncClient")
-    def test_stop_remote_success(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id):
+    def test_stop_remote_success(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id, job_cleanup):
         """Test stopping a remote job successfully"""
         # Create a job first
         create_response = client.post(
@@ -264,6 +298,8 @@ class TestStopRemote:
             },
         )
         job_id = create_response.json()["job_id"]
+        # Track job for cleanup
+        job_cleanup.append((job_id, mock_experiment_id))
 
         # Mock the async client and response
         mock_response = MagicMock()
@@ -365,18 +401,29 @@ class TestCheckRemoteJobStatus:
         assert data["updated_jobs"] == []
 
     @patch("transformerlab.routers.remote.httpx.AsyncClient")
-    def test_check_status_with_jobs(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id):
+    def test_check_status_with_jobs(self, mock_client_class, client, gpu_orchestration_env_vars, mock_experiment_id, job_cleanup):
         """Test checking status with LAUNCHING jobs"""
         # Create a remote job in LAUNCHING state
-        client.post(
+        create_response = client.post(
             f"/remote/create-job?experimentId={mock_experiment_id}",
             data={
                 "cluster_name": "test-cluster",
                 "command": "echo 'test'",
             },
         )
+        # Track job for cleanup
+        job_id = None
+        if create_response.status_code == 200:
+            job_data = create_response.json()
+            if "job_id" in job_data:
+                job_id = job_data["job_id"]
+                job_cleanup.append((job_id, mock_experiment_id))
+
+        # Verify job was created
+        assert job_id is not None, "Job should have been created"
 
         # Mock the async client and response for status check
+        # This mocks the call to check_remote_job_status which calls the orchestrator
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
