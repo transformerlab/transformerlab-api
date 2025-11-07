@@ -13,6 +13,7 @@ import unicodedata
 from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
+from collections import deque
 
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_update_status_sync, job_update_status
@@ -322,7 +323,10 @@ async def async_run_python_daemon_and_update_status(
     await process.wait()
     returncode = process.returncode
     if not error_msg:
-        error_msg = f"Process terminated prematurely with exit code {returncode}"
+        tail = "\n".join(recent_lines) if recent_lines else ""
+        error_msg = f"Process terminated prematurely with exit code {returncode}."
+        if tail:
+            error_msg = f"{error_msg} \nError:\n{tail}"
 
     print(f"ERROR: Worker job {job_id} failed with exit code {returncode}.")
     print(error_msg)
