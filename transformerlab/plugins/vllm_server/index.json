@@ -4,7 +4,7 @@
   "description": "vLLM is a fast and easy-to-use library for LLM inference and serving.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.18",
+  "version": "1.0.20",
   "supports": [
     "chat",
     "completion",
@@ -50,11 +50,20 @@
       "type": "integer",
       "default": 0,
       "minimum": 0
+    },
+    "pipeline_parallel_size": {
+      "title": "Pipeline Parallel Size",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
     }
   },
   "parameters_ui": {
     "max_model_len": {
       "ui:help": "Max model length to use for the model. If 0, the model will use the default max length."
+    },
+    "pipeline_parallel_size": {
+      "ui:help": "Number of chunks of model layers divided across gpus/nodes for parallel inference. Default is 1 (no pipeline parallelism)."
     }
   }
 }

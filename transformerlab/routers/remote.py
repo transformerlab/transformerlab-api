@@ -513,7 +513,9 @@ async def get_orchestrator_logs(request: Request, request_id: str):
                     outbound_headers["AUTHORIZATION"] = incoming_auth
 
                 # Stream the response from orchestrator
-                async with client.stream("GET", logs_url, headers=outbound_headers, cookies=request.cookies) as response:
+                async with client.stream(
+                    "GET", logs_url, headers=outbound_headers, cookies=request.cookies
+                ) as response:
                     if response.status_code == 200:
                         # Stream each chunk from orchestrator to client in real-time
                         async for chunk in response.aiter_bytes():
