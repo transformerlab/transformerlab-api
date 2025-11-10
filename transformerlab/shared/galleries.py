@@ -7,6 +7,7 @@ import os
 import json
 import shutil
 import urllib.request
+import time
 
 from transformerlab.shared import dirs
 
@@ -101,6 +102,41 @@ def update_cache_from_remote(gallery_filename: str):
         print(f"☁️  Updated gallery from remote: {remote_gallery}")
     except Exception:
         print(f"❌ Failed to update gallery from remote: {remote_gallery}")
+
+
+def update_cache_from_remote_if_stale(gallery_filename: str, max_age_seconds: int = 3600):
+    """
+    Updates the gallery cache from remote only if the cache is older than max_age_seconds.
+    Default max_age_seconds is 3600 (1 hour).
+    
+    Handles fused filesystems where getmtime() might be unreliable.
+    """
+    local_cache_filename = gallery_cache_file_path(gallery_filename)
+    
+    # If file doesn't exist, update it
+    if not os.path.isfile(local_cache_filename):
+        update_cache_from_remote(gallery_filename)
+        return
+    
+    # Check if cache is stale
+    # Handle fused filesystems where getmtime() might be unreliable or unavailable
+    try:
+        mtime = os.path.getmtime(local_cache_filename)
+        current_time = time.time()
+        file_age = current_time - mtime
+        
+        # Sanity check: if mtime is in the future or file_age is negative, treat as unreliable
+        if file_age < 0 or mtime > current_time:
+            # Fused filesystem returned unreliable timestamp, update to be safe
+            update_cache_from_remote(gallery_filename)
+            return
+        
+        if file_age > max_age_seconds:
+            update_cache_from_remote(gallery_filename)
+    except (OSError, ValueError) as e:
+        # getmtime() failed (e.g., on some fused filesystems), update to be safe
+        print(f"⚠️  Could not determine cache age for {gallery_filename}, updating: {e}")
+        update_cache_from_remote(gallery_filename)
 
 
 def get_gallery_file(filename: str):
