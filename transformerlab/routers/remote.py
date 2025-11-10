@@ -27,6 +27,53 @@ def validate_gpu_orchestrator_env_vars():
     return gpu_orchestrator_url, gpu_orchestrator_port
 
 
+@router.get("/templates")
+async def get_templates(request: Request):
+    """
+    Fetch templates from the GPU orchestrator.
+    Returns a list of available templates for instance creation.
+    """
+    # Validate environment variables
+    result = validate_gpu_orchestrator_env_vars()
+    gpu_orchestrator_url, gpu_orchestrator_port = result
+    if isinstance(gpu_orchestrator_url, dict):
+        return gpu_orchestrator_url  # Error response
+    elif isinstance(gpu_orchestrator_port, dict):
+        return gpu_orchestrator_port  # Error response
+
+    # Build the templates endpoint URL
+    templates_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/templates"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
+            outbound_headers = {"Content-Type": "application/json"}
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
+
+            response = await client.get(templates_url, headers=outbound_headers, cookies=request.cookies, timeout=30.0)
+
+            if response.status_code == 200:
+                return {
+                    "status": "success",
+                    "data": response.json(),
+                    "message": "Templates retrieved successfully",
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Orchestrator returned status {response.status_code}: {response.text}",
+                }
+
+    except httpx.TimeoutException:
+        return {"status": "error", "message": "Request to orchestrator timed out"}
+    except httpx.RequestError:
+        return {"status": "error", "message": "Request error occurred"}
+    except Exception:
+        return {"status": "error", "message": "Unexpected error occurred"}
+
+
 @router.post("/create-job")
 async def create_remote_job(
     request: Request,
@@ -41,6 +88,8 @@ async def create_remote_job(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    region: Optional[str] = Form(None),
+    zone: Optional[str] = Form(None),
 ):
     """
     Create a remote job without launching it. Returns job info for frontend to show placeholder.
@@ -63,6 +112,10 @@ async def create_remote_job(
         job_data["setup"] = setup
     if uploaded_dir_path:
         job_data["uploaded_dir_path"] = uploaded_dir_path
+    if region:
+        job_data["region"] = region
+    if zone:
+        job_data["zone"] = zone
 
     try:
         job_id = job_service.job_create(
@@ -99,6 +152,8 @@ async def launch_remote(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    region: Optional[str] = Form(None),
+    zone: Optional[str] = Form(None),
 ):
     """
     Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
@@ -110,6 +165,26 @@ async def launch_remote(
     else:
         # Create a new REMOTE job
         job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+        
+        # Add optional parameters if provided
+        if cpus:
+            job_data["cpus"] = cpus
+        if memory:
+            job_data["memory"] = memory
+        if disk_space:
+            job_data["disk_space"] = disk_space
+        if accelerators:
+            job_data["accelerators"] = accelerators
+        if num_nodes:
+            job_data["num_nodes"] = num_nodes
+        if setup:
+            job_data["setup"] = setup
+        if uploaded_dir_path:
+            job_data["uploaded_dir_path"] = uploaded_dir_path
+        if region:
+            job_data["region"] = region
+        if zone:
+            job_data["zone"] = zone
 
         try:
             job_id = job_service.job_create(
@@ -158,6 +233,10 @@ async def launch_remote(
         request_data["setup"] = setup
     if uploaded_dir_path:
         request_data["uploaded_dir_path"] = uploaded_dir_path
+    if region:
+        request_data["region"] = region
+    if zone:
+        request_data["zone"] = zone
 
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
 
