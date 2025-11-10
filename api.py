@@ -5,6 +5,9 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
+import psutil
+from typing import Iterable
+from transformerlab.plugin_sdk.transformerlab.plugin import register_process
 
 import json
 import signal
@@ -241,10 +244,63 @@ controller_process = None
 worker_process = None
 
 
+def _parse_ports_env(env_name: str, default: str = "8000") -> set[int]:
+    val = os.getenv(env_name, default)
+    ports = set()
+    for part in str(val).split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            ports.add(int(part))
+        except ValueError:
+            continue
+    return ports
+
+
+def _kill_processes_listening_on_ports(ports: Iterable[int], timeout: float = 3.0) -> None:
+    """Find processes with listening inet sockets on any of `ports` and attempt graceful terminate,
+    then force kill after timeout if still alive."""
+    if not ports:
+        return
+    seen_pids = set()
+    try:
+        for proc in psutil.process_iter(attrs=["pid", "name"]):
+            pid = proc.info["pid"]
+            if pid in seen_pids:
+                continue
+            try:
+                for conn in proc.connections(kind="inet"):
+                    if conn.status == psutil.CONN_LISTEN and getattr(conn.laddr, "port", None) in ports:
+                        seen_pids.add(pid)
+                        break
+            except (psutil.AccessDenied, psutil.NoSuchProcess):
+                continue
+
+        for pid in seen_pids:
+            try:
+                p = psutil.Process(pid)
+                print(f"🔴 Terminating process {pid} ({p.name()}) listening on configured ports")
+                p.terminate()
+            except Exception as e:
+                print(f"Error terminating process {pid}: {e}")
+
+        gone, alive = psutil.wait_procs([psutil.Process(p) for p in seen_pids if psutil.pid_exists(p)], timeout=timeout)
+        if alive:
+            for p in alive:
+                try:
+                    print(f"🔴 Killing process {p.pid} ({p.name()}) after timeout")
+                    p.kill()
+                except Exception as e:
+                    print(f"Error killing process {p.pid}: {e}")
+    except Exception as e:
+        print(f"Error while scanning/killing processes on ports {ports}: {e}")
+
+
 def spawn_fastchat_controller_subprocess():
     global controller_process
     logfile = open(os.path.join(dirs.FASTCHAT_LOGS_DIR, "controller.log"), "w")
-    port = "21001"
+    port = os.getenv("FASTCHAT_CONTROLLER_PORT", "21001")
 
     controller_process = subprocess.Popen(
         [
@@ -259,6 +315,11 @@ def spawn_fastchat_controller_subprocess():
         stdout=logfile,
         stderr=logfile,
     )
+    # register pid so cleanup/stop endpoints can reliably find and kill it
+    try:
+        register_process(controller_process.pid)
+    except Exception as e:
+        print(f"Warning: failed to register controller process pid: {e}")
     print(f"Started fastchat controller on port {port}")
 
 
@@ -506,13 +567,20 @@ app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="ap
 def cleanup_at_exit():
     if controller_process is not None:
         print("🔴 Quitting spawned controller.")
-        controller_process.kill()
+        try:
+            controller_process.kill()
+        except Exception as e:
+            print(f"Error killing controller process: {e}")
+
     if worker_process is not None:
         print("🔴 Quitting spawned workers.")
         try:
             worker_process.kill()
         except ProcessLookupError:
             print(f"Process {worker_process.pid} doesn't exist so nothing to kill")
+        except Exception as e:
+            print(f"Error killing worker process: {e}")
+
     if os.path.isfile("worker.pid"):
         with open("worker.pid", "r") as f:
             pids = [line.strip() for line in f if line.strip()]
@@ -524,6 +592,13 @@ def cleanup_at_exit():
                 except Exception as e:
                     print(f"Error killing process {pid}: {e}")
             os.remove("worker.pid")
+
+    # Also attempt to find and kill processes that are still listening on configured plugin ports
+    plugin_ports = _parse_ports_env("PLUGIN_SERVER_PORTS", default="8000")
+    if plugin_ports:
+        print(f"🔴 Scanning for processes listening on ports: {sorted(plugin_ports)}")
+        _kill_processes_listening_on_ports(plugin_ports)
+
     # Perform NVML Shutdown if CUDA is available
     if torch.cuda.is_available():
         try:
