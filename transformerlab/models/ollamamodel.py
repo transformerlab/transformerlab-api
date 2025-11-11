@@ -7,15 +7,16 @@ from transformerlab.models import basemodel
 
 import os
 import json
+import shutil
 import errno
 
 
 async def list_models():
-    if "OLLAMA_MODELS" not in os.environ:
-        return []
-
     try:
         ollama_model_library = ollama_models_library_dir()
+    except FileNotFoundError:
+        print("Skipping Ollama models: manifests directory not found")
+        return []
     except Exception as e:
         print("Failed to locate Ollama models library:")
         print(str(e))
@@ -221,6 +222,10 @@ def ollama_models_dir():
     # Check that the directory actually exists
     if not os.path.isdir(ollama_dir):
         return None
+
+    if shutil.which("ollama") is not None:
+        print(f"OLLAMA_MODELS not set but 'ollama' CLI found; assuming default: {ollama_dir}", file=sys.stderr)
+        return ollama_dir
 
     return ollama_dir
 
