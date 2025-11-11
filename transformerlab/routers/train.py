@@ -3,7 +3,6 @@ import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, Body
-import logging
 import transformerlab.db.db as db
 import transformerlab.services.job_service as job_service
 from transformerlab.shared import shared
@@ -89,11 +88,11 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
         return output
     except ValueError as e:
         # Handle specific error
-        logging.error(f"ValueError: {e}")
+        print(f"ValueError: {e}")
         return "An internal error has occurred!"
     except Exception as e:
         # Handle general error
-        logging.error(f"Error: {e}")
+        print(f"Error: {e}")
         return "An internal error has occurred!"
 
 
@@ -110,14 +109,14 @@ async def sweep_results(job_id: str):
                     output = json.load(f)
                 return {"status": "success", "data": output}
             except json.JSONDecodeError as e:
-                logging.error(f"JSON decode error for job {job_id}: {e}")
+                print(f"JSON decode error for job {job_id}: {e}")
                 return {"status": "error", "message": "Invalid JSON format in sweep results file."}
         else:
-            logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
+            print(f"Sweep results file not found for job {job_id}: {output_file}")
             return {"status": "error", "message": "Sweep results file not found."}
 
     except Exception as e:
-        logging.error(f"Error loading sweep results for job {job_id}: {e}")
+        print(f"Error loading sweep results for job {job_id}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
 
 
