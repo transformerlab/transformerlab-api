@@ -130,7 +130,7 @@ def test_job_edge_cases(client):
 
 
 def test_train_sweep_results(client):
-    resp = client.get("/experiment/alpha/jobs/job/1/sweep_results")
+    resp = client.get("/experiment/alpha/jobs/1/sweep_results")
     assert resp.status_code == 200
     data = resp.json()
     assert "status" in data
