@@ -545,7 +545,6 @@ async def get_checkpoints(job_id: str, request: Request):
         return {"checkpoints": []}
 
     job_data = job["job_data"]
-
     # First try to use the new SDK method to get checkpoints
     try:
         from lab.job import Job
@@ -554,26 +553,33 @@ async def get_checkpoints(job_id: str, request: Request):
         sdk_job = Job(job_id)
         checkpoint_paths = sdk_job.get_checkpoint_paths()
 
+
         if checkpoint_paths and len(checkpoint_paths) > 0:
             checkpoints = []
             for checkpoint_path in checkpoint_paths:
                 try:
-                    stat = os.stat(checkpoint_path)
-                    modified_time = stat.st_mtime
-                    filesize = stat.st_size
-                    # Format the timestamp as ISO 8601 string
-                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                    if os.path.isdir(checkpoint_path):
+                        # Dont set formatted_time and filesize for directories (os.stat messes it up for fused filesystems)
+                        formatted_time = None
+                        filesize = None
+                    else:
+                        stat = os.stat(checkpoint_path)
+                        modified_time = stat.st_mtime
+                        filesize = stat.st_size
+                        # Format the timestamp as ISO 8601 string
+                        formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+
                     filename = os.path.basename(checkpoint_path)
                     checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
                 except Exception as e:
-                    logging.error(f"Error getting stat for checkpoint {checkpoint_path}: {e}")
+                    print(f"Error getting stat for checkpoint {checkpoint_path}: {e}")
                     continue
 
             # Sort checkpoints by filename in reverse (descending) order for consistent ordering
             checkpoints.sort(key=lambda x: x["filename"], reverse=True)
             return {"checkpoints": checkpoints}
     except Exception as e:
-        logging.info(f"SDK checkpoint method failed for job {job_id}, falling back to legacy method: {e}")
+        print(f"SDK checkpoint method failed for job {job_id}, falling back to legacy method: {e}")
 
     # Fallback to the original logic if SDK method doesn't work or returns nothing
     # Check if the job has a supports_checkpoints flag
@@ -596,18 +602,35 @@ async def get_checkpoints(job_id: str, request: Request):
     default_adaptor_dir = os.path.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
 
     # print(f"Default adaptor directory: {default_adaptor_dir}")
-
-    checkpoints_dir = job_data.get("checkpoints_dir", default_adaptor_dir)
+    # Get job directory from t
+    checkpoints_dir = job_data.get("checkpoints_dir")
+    if not checkpoints_dir:
+        from lab.dirs import get_job_checkpoints_dir
+        checkpoints_dir = get_job_checkpoints_dir(job_id)
     if not checkpoints_dir or not os.path.exists(checkpoints_dir):
-        # print(f"Checkpoints directory does not exist: {checkpoints_dir}")
         return {"checkpoints": []}
+    elif os.path.isdir(checkpoints_dir):
+        checkpoints = []
+        if len(os.listdir(checkpoints_dir)) > 0:
+            for filename in os.listdir(checkpoints_dir):
+                if fnmatch(filename, "*_adapters.safetensors"):
+                    file_path = os.path.join(checkpoints_dir, filename)
+                    stat = os.stat(file_path)
+                    modified_time = stat.st_mtime
+                    filesize = stat.st_size
+                    checkpoints.append({"filename": filename, "date": modified_time, "size": filesize})
+                # allow directories too
+                elif os.path.isdir(os.path.join(checkpoints_dir, filename)):
+                    checkpoints.append({"filename": filename, "date": None, "size": None})
+            return {"checkpoints": checkpoints}
+        
 
+    # Fallback to using default adaptor directory as checkpoints directory
+    checkpoints_dir = default_adaptor_dir
     checkpoints_file_filter = job_data.get("checkpoints_file_filter", "*_adapters.safetensors")
     if not checkpoints_file_filter:
         checkpoints_file_filter = "*_adapters.safetensors"
 
-    # print(f"Checkpoints directory: {checkpoints_dir}")
-    # print(f"Checkpoints file filter: {checkpoints_file_filter}")
 
     checkpoints = []
     try:
@@ -626,7 +649,7 @@ async def get_checkpoints(job_id: str, request: Request):
                     filesize = None
                 checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
     except OSError as e:
-        logging.error(f"Error reading checkpoints directory {checkpoints_dir}: {e}")
+        print(f"Error reading checkpoints directory {checkpoints_dir}: {e}")
 
     # Sort checkpoints by filename in reverse (descending) order for consistent ordering
     checkpoints.sort(key=lambda x: x["filename"], reverse=True)
@@ -715,3 +738,66 @@ async def get_artifacts(job_id: str, request: Request):
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
 
     return {"artifacts": artifacts}
+
+
+@router.get("/{job_id}")
+async def get_training_job_by_path(job_id: str):
+    return job_service.job_get(job_id)
+
+
+@router.get("/{job_id}/output")
+async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
+    try:
+        if sweeps:
+            job = job_service.job_get(job_id)
+            job_data = json.loads(job["job_data"])
+            output_file = job_data.get("sweep_output_file", None)
+            if output_file is not None and os.path.exists(output_file):
+                with open(output_file, "r") as f:
+                    output = f.read()
+                return output
+            else:
+                # Get experiment information for new job directory structure
+                experiment_id = job["experiment_id"]
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
+
+        else:
+            # Get experiment information for new job directory structure
+            experiment_id = job["experiment_id"]
+            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
+
+        with open(output_file_name, "r") as f:
+            output = f.read()
+        return output
+    except ValueError as e:
+        # Handle specific error
+        logging.error(f"ValueError: {e}")
+        return "An internal error has occurred!"
+    except Exception as e:
+        # Handle general error
+        logging.error(f"Error: {e}")
+        return "An internal error has occurred!"
+
+
+@router.get("/{job_id}/sweep_results")
+async def sweep_results(job_id: str):
+    try:
+        job = job_service.job_get(job_id)
+        job_data = job.get("job_data", {})
+
+        output_file = job_data.get("sweep_results_file", None)
+        if output_file and os.path.exists(output_file):
+            try:
+                with open(output_file, "r") as f:
+                    output = json.load(f)
+                return {"status": "success", "data": output}
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON decode error for job {job_id}: {e}")
+                return {"status": "error", "message": "Invalid JSON format in sweep results file."}
+        else:
+            logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
+            return {"status": "error", "message": "Sweep results file not found."}
+
+    except Exception as e:
+        logging.error(f"Error loading sweep results for job {job_id}: {e}")
+        return {"status": "error", "message": "An internal error has occurred!"}
