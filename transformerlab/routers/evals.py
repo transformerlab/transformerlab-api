@@ -87,5 +87,5 @@ async def compare_eval(job_list: str = ""):
         return JSONResponse(content=combined.to_json(orient="records"), media_type="application/json")
 
     except Exception:
-        print("An error occurred while comparing evaluations", exc_info=True)
+        print("An error occurred while comparing evaluations")
         return {"error": "An internal error has occurred. Please try again later."}
