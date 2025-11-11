@@ -290,6 +290,7 @@ async def tasks_local_gallery_list():
                                 "task_dir": item,
                                 "source": "local",
                                 "tag": task_data.get("tag", "OTHER"),
+                                "logo": task_data.get("logo", ""),
                             }
                         )
                     except Exception as e:
