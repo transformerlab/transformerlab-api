@@ -706,34 +706,48 @@ async def get_training_job_by_path(job_id: str):
 @router.get("/{job_id}/output")
 async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
     try:
+        job = job_service.job_get(job_id)
+        if job is None:
+            return "Job not found"
+
+        job_data = job.get("job_data", {})
+
+        # Handle both dict and JSON string formats
+        if not isinstance(job_data, dict):
+            try:
+                job_data = json.loads(job_data)
+            except JSONDecodeError:
+                print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                job_data = {}
+
         if sweeps:
-            job = job_service.job_get(job_id)
-            job_data = json.loads(job["job_data"])
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and os.path.exists(output_file):
-                with open(output_file, "r") as f:
+            if output_file is not None and storage.exists(output_file):
+                with storage.open(output_file, "r") as f:
                     output = f.read()
                 return output
             else:
-                # Get experiment information for new job directory structure
+                # Fall back to regular output file logic
                 experiment_id = job["experiment_id"]
                 output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
-
         else:
             # Get experiment information for new job directory structure
             experiment_id = job["experiment_id"]
             output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
-        with open(output_file_name, "r") as f:
-            output = f.read()
-        return output
+        if storage.exists(output_file_name):
+            with storage.open(output_file_name, "r") as f:
+                output = f.read()
+            return output
+        else:
+            return "Output file not found"
     except ValueError as e:
         # Handle specific error
-        logging.error(f"ValueError: {e}")
+        print(f"ValueError: {e}")
         return "An internal error has occurred!"
     except Exception as e:
         # Handle general error
-        logging.error(f"Error: {e}")
+        print(f"Error: {e}")
         return "An internal error has occurred!"
 
 
@@ -741,21 +755,32 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
 async def sweep_results(job_id: str):
     try:
         job = job_service.job_get(job_id)
+        if job is None:
+            return {"status": "error", "message": "Job not found."}
+
         job_data = job.get("job_data", {})
 
-        output_file = job_data.get("sweep_results_file", None)
-        if output_file and os.path.exists(output_file):
+        # Handle both dict and JSON string formats
+        if not isinstance(job_data, dict):
             try:
-                with open(output_file, "r") as f:
+                job_data = json.loads(job_data)
+            except JSONDecodeError:
+                print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                job_data = {}
+
+        output_file = job_data.get("sweep_results_file", None)
+        if output_file and storage.exists(output_file):
+            try:
+                with storage.open(output_file, "r") as f:
                     output = json.load(f)
                 return {"status": "success", "data": output}
             except json.JSONDecodeError as e:
-                logging.error(f"JSON decode error for job {job_id}: {e}")
+                print(f"JSON decode error for job {job_id}: {e}")
                 return {"status": "error", "message": "Invalid JSON format in sweep results file."}
         else:
-            logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
+            print(f"Sweep results file not found for job {job_id}: {output_file}")
             return {"status": "error", "message": "Sweep results file not found."}
 
     except Exception as e:
-        logging.error(f"Error loading sweep results for job {job_id}: {e}")
+        print(f"Error loading sweep results for job {job_id}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
