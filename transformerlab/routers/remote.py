@@ -7,6 +7,7 @@ from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
 from transformerlab.routers.auth.api_key_auth import get_user_or_api_key
 from transformerlab.services.auth import AuthenticatedIdentity, auth_service
+from lab import storage
 
 
 router = APIRouter(prefix="/remote", tags=["remote"])
@@ -349,16 +350,16 @@ async def upload_directory(
     try:
         # Create local storage directory
         workspace_dir = get_workspace_dir()
-        local_uploads_dir = os.path.join(workspace_dir, "uploads")
-        os.makedirs(local_uploads_dir, exist_ok=True)
+        local_uploads_dir = storage.join(workspace_dir, "uploads")
+        storage.makedirs(local_uploads_dir, exist_ok=True)
 
         # Create unique directory for this upload
         import uuid
 
         upload_id = str(uuid.uuid4())
         base_upload_dir = f"upload_{upload_id}"
-        local_storage_dir = os.path.join(local_uploads_dir, base_upload_dir)
-        os.makedirs(local_storage_dir, exist_ok=True)
+        local_storage_dir = storage.join(local_uploads_dir, base_upload_dir)
+        storage.makedirs(local_storage_dir, exist_ok=True)
 
         # Store files locally
         for file in dir_files:
@@ -367,10 +368,15 @@ async def upload_directory(
             content = await file.read()
 
             # Create directory structure if filename contains path separators
-            file_path = os.path.join(local_storage_dir, file.filename)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            file_path = storage.join(local_storage_dir, file.filename)
+            # Get parent directory and create it if needed
+            file_dir = storage.join(*file_path.split("/")[:-1]) if "/" in file_path else local_storage_dir
+            storage.makedirs(file_dir, exist_ok=True)
 
-            with open(file_path, "wb") as f:
+            # For file uploads, we need to write to local filesystem for HTTP upload
+            # If storage is remote, we might need to handle this differently
+            # For now, write directly using storage.open which handles both local and remote
+            with storage.open(file_path, "wb") as f:
                 f.write(content)
 
         # Prepare the request data for Lattice orchestrator
