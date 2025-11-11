@@ -125,14 +125,36 @@ def update_cache_from_remote_if_stale(gallery_filename: str, max_age_seconds: in
     local_cache_filename = gallery_cache_file_path(gallery_filename)
     
     # If file doesn't exist, update it
-    if not os.path.isfile(local_cache_filename):
+    if not storage.isfile(local_cache_filename):
         update_cache_from_remote(gallery_filename)
         return
     
     # Check if cache is stale
     # Handle fused filesystems where getmtime() might be unreliable or unavailable
     try:
-        mtime = os.path.getmtime(local_cache_filename)
+        # Get file info using storage module
+        file_info = storage.filesystem().info(local_cache_filename)
+        
+        # Extract modification time - handle different filesystem formats
+        mtime = None
+        if 'mtime' in file_info:
+            mtime = file_info['mtime']
+        elif 'LastModified' in file_info:
+            # S3 and some other filesystems use LastModified (datetime object)
+            from datetime import datetime
+            last_modified = file_info['LastModified']
+            if isinstance(last_modified, datetime):
+                mtime = last_modified.timestamp()
+            else:
+                mtime = float(last_modified)
+        elif 'modified' in file_info:
+            mtime = file_info['modified']
+        
+        if mtime is None:
+            # Could not determine modification time, update to be safe
+            update_cache_from_remote(gallery_filename)
+            return
+        
         current_time = time.time()
         file_age = current_time - mtime
         
@@ -144,7 +166,7 @@ def update_cache_from_remote_if_stale(gallery_filename: str, max_age_seconds: in
         
         if file_age > max_age_seconds:
             update_cache_from_remote(gallery_filename)
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, KeyError, AttributeError) as e:
         # getmtime() failed (e.g., on some fused filesystems), update to be safe
         print(f"⚠️  Could not determine cache age for {gallery_filename}, updating: {e}")
         update_cache_from_remote(gallery_filename)
