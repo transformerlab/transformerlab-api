@@ -17,6 +17,7 @@ from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
+from transformerlab.shared.galleries import TASKS_GALLERY_FILE, update_cache_from_remote_if_stale
 from transformerlab.shared.shared import slugify
 from lab.dirs import get_workspace_dir
 
@@ -254,6 +255,8 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
 async def tasks_gallery_list():
     """List tasks available in the remote galleries index."""
     try:
+        # Update the gallery cache from remote if it's stale (older than 1 hour)
+        update_cache_from_remote_if_stale(TASKS_GALLERY_FILE)
         gallery = galleries.get_tasks_gallery()
         return {"status": "success", "data": gallery}
     except Exception as e:
@@ -287,6 +290,7 @@ async def tasks_local_gallery_list():
                                 "task_dir": item,
                                 "source": "local",
                                 "tag": task_data.get("tag", "OTHER"),
+                                "logo": task_data.get("logo", ""),
                             }
                         )
                     except Exception as e:
