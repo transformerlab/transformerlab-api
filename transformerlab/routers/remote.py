@@ -516,7 +516,7 @@ async def check_remote_jobs_status(request: Request):
             launching_remote_jobs.extend(exp_jobs)
 
         if not launching_remote_jobs:
-            return {"message": "No REMOTE jobs in LAUNCHING state", "updated_jobs": []}
+            return {"message": "No REMOTE jobs in LAUNCHING state", "updated_jobs": [], "status": "success"}
 
         updated_jobs = []
         print(f"Checking {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state")
