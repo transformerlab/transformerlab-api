@@ -9,6 +9,7 @@ import os
 import json
 import shutil
 import errno
+import sys
 
 
 async def list_models():
