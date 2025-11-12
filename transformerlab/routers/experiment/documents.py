@@ -97,11 +97,11 @@ async def document_list(experimentId: str, folder: str = None):
                 size = 0 if is_dir else 0
                 mtime = None
             if is_dir:
-                date_str = datetime.datetime.fromtimestamp(mtime.timestamp()).strftime("%Y-%m-%d %H:%M:%S") if mtime else ""
+                date_str = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S") if mtime else ""
                 documents.append({"name": name, "size": 0, "date": date_str, "type": "folder", "path": full_path})
             else:
                 if any(name.endswith(ext) for ext in allowed_file_types):
-                    date_str = datetime.datetime.fromtimestamp(mtime.timestamp()).strftime("%Y-%m-%d %H:%M:%S") if mtime else ""
+                    date_str = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S") if mtime else ""
                     ext = os.path.splitext(name)[1]
                     documents.append({"name": name, "size": size, "date": date_str, "type": ext, "path": full_path})
 
