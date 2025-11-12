@@ -633,7 +633,6 @@ async def get_checkpoints(job_id: str, request: Request):
 
     # Sort checkpoints by filename in reverse (descending) order for consistent ordering
     checkpoints.sort(key=lambda x: x["filename"], reverse=True)
-    # print(f"Sorted checkpoints: {checkpoints}")
 
     return {
         "checkpoints": checkpoints,
