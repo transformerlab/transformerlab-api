@@ -186,10 +186,12 @@ async def launch_remote(
 
     # Build a unified data structure with all parameters
     data = {
-        "cluster_name": cluster_name,
         "command": command,
         "task_name": task_name,
     }
+
+    if not use_existing_cluster:
+        data["cluster_name"] = formatted_cluster_name
 
     # Add resume metadata if resuming from checkpoint
     if checkpoint and parent_job_id:
@@ -244,6 +246,7 @@ async def launch_remote(
             if not use_existing_cluster:
               # Format cluster_name as <user_value>-job-<job_id> and persist it
               formatted_cluster_name = f"{cluster_name}-job-{job_id}"
+
             job_service.job_update_job_data_insert_key_value(job_id, "cluster_name", formatted_cluster_name, experimentId)
         except Exception as e:
             print(f"Failed to create job: {str(e)}")
@@ -261,10 +264,8 @@ async def launch_remote(
         return gpu_orchestrator_port  # Error response
 
     # Prepare the request data for Lattice orchestrator
-    request_data = {
-        "command": command,
-        "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
-    }
+    request_data = data.copy()
+    request_data["tlab_job_id"] = job_id
 
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
     request_data["job_name"] = task_name if task_name else cluster_name
@@ -273,7 +274,8 @@ async def launch_remote(
     # Determine which endpoint to use based on use_existing_cluster flag
     if use_existing_cluster:
         # Submit job to existing cluster
-        gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{cluster_name}/submit"
+        gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{formatted_cluster_name}/submit"
+
     else:
         # Launch new instance
         request_data["cluster_name"] = formatted_cluster_name
