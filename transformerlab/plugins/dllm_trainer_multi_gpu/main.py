@@ -9,9 +9,7 @@ from transformerlab.plugin import get_python_executable
 tlab_trainer.add_argument(
     "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
 )
-tlab_trainer.add_argument(
-    "--training_method", type=str, default="bert", help="Training method: bert, dream, or llada"
-)
+tlab_trainer.add_argument("--training_method", type=str, default="bert", help="Training method: bert, dream, or llada")
 
 
 def setup_accelerate_environment():
@@ -48,12 +46,18 @@ def setup_accelerate_environment():
 @tlab_trainer.job_wrapper()
 def train_model():
     """Main training function using dllm for SFT training"""
+    print("STARTING THIS TRAIN")
     # Get configuration from tlab_trainer
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
+    from random import randrange
+
+    print(dataset[randrange(len(dataset))])
+
     # Get training method
     training_method = tlab_trainer.params.get("training_method", "bert")
+    print(f"Training method: {training_method}")
     if training_method not in ["bert", "dream", "llada"]:
         raise ValueError(f"training_method must be one of: bert, dream, llada. Got: {training_method}")
 
@@ -218,7 +222,9 @@ def train_model():
 
     # Process dataset with dllm
     with accelerate.PartialState().local_main_process_first():
-        if not data_args.load_preprocessed_data:
+        # Check if load_preprocessed_data attribute exists, default to False if not
+        load_preprocessed_data = getattr(data_args, "load_preprocessed_data", False)
+        if not load_preprocessed_data:
             map_fn = partial(
                 default_sft_map_fn,
                 tokenizer=tokenizer,
@@ -233,9 +239,10 @@ def train_model():
 
     # Create trainer based on method
     print(f"Using {training_method} training method")
-    
+
     if training_method == "bert":
         from dllm.core.trainers import MDLMTrainer
+
         trainer = MDLMTrainer(
             model=model,
             tokenizer=tokenizer,
@@ -252,12 +259,12 @@ def train_model():
     elif training_method == "dream":
         from dllm.pipelines.dream import DreamTrainer
         from dllm.pipelines.dream.utils import DreamSFTCollator
-        
+
         # Dream-specific parameters
         perbatch_cutoff = tlab_trainer.params.get("perbatch_cutoff", True)
         resp_cutoff_ratio = tlab_trainer.params.get("resp_cutoff_ratio", 0.0)
         loss_weight_type = tlab_trainer.params.get("loss_weight_type", "cart[geo_p:0.3]")
-        
+
         trainer = DreamTrainer(
             model=model,
             tokenizer=tokenizer,
@@ -275,6 +282,7 @@ def train_model():
         )
     elif training_method == "llada":
         from dllm.core.trainers import MDLMTrainer
+
         trainer = MDLMTrainer(
             model=model,
             tokenizer=tokenizer,
@@ -309,6 +317,4 @@ def train_model():
     return "Training completed successfully"
 
 
-if __name__ == "__main__":
-    train_model()
-
+train_model()
