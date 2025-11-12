@@ -4,7 +4,6 @@ import json
 import os
 import csv
 import pandas as pd
-import logging
 from fastapi import APIRouter, Body, Response, Request
 from fastapi.responses import StreamingResponse, FileResponse
 
@@ -169,7 +168,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             try:
                 job_data = json.loads(job_data)
             except JSONDecodeError:
-                logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
                 job_data = {}
 
         # Handle sweeps case first
@@ -198,7 +197,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
         # If the value error starts with "No output file found for job" then wait 4 seconds and try again
         # because the file might not have been created yet
         if str(e).startswith("No output file found for job"):
-            logging.info(f"Output file not found for job {job_id}, retrying in 4 seconds...")
+            print(f"Output file not found for job {job_id}, retrying in 4 seconds...")
             await asyncio.sleep(4)
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
@@ -212,7 +211,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                     return ["Output file not found after retry"]
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
-                logging.warning(
+                print(
                     f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
                 )
                 # Use the Job class to get the proper directory and create the file
@@ -223,11 +222,11 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                     f.write("")
                 return []
         else:
-            logging.error(f"ValueError in get_tasks_job_output: {e}")
+            print(f"ValueError in get_tasks_job_output: {e}")
             return ["An internal error has occurred!"]
     except Exception as e:
         # Handle general error
-        logging.error(f"Error in get_tasks_job_output: {e}")
+        print(f"Error in get_tasks_job_output: {e}")
         return ["An internal error has occurred!"]
 
 
@@ -252,10 +251,10 @@ async def update_training_template(
         datasets = configObject["dataset_name"]
         job_service.update_training_template(template_id, name, description, type, datasets, config)
     except JSONDecodeError as e:
-        logging.error(f"JSON decode error: {e}")
+        print(f"JSON decode error: {e}")
         return {"status": "error", "message": "An error occurred while processing the request."}
     except Exception as e:
-        logging.error(f"Unexpected error: {e}")
+        print(f"Unexpected error: {e}")
         return {"status": "error", "message": "An internal error has occurred."}
     return {"status": "success"}
 
@@ -276,7 +275,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             try:
                 job_data = json.loads(job_data)
             except JSONDecodeError:
-                logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
                 job_data = {}
 
         # Handle sweeps case first
@@ -295,13 +294,13 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
         # If the value error starts with "No output file found for job" then wait 4 seconds and try again
         # because the file might not have been created yet
         if str(e).startswith("No output file found for job"):
-            logging.info(f"Output file not found for job {job_id}, retrying in 4 seconds...")
+            print(f"Output file not found for job {job_id}, retrying in 4 seconds...")
             await asyncio.sleep(4)
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
-                logging.warning(
+                print(
                     f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
                 )
                 # Use the Job class to get the proper directory and create the file
@@ -311,7 +310,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 with open(output_file_name, "w") as f:
                     f.write("")
         else:
-            logging.error(f"ValueError in stream_job_output: {e}")
+            print(f"ValueError in stream_job_output: {e}")
             return StreamingResponse(
                 iter(["data: Error: An internal error has occurred!\n\n"]),
                 media_type="text/event-stream",
@@ -319,7 +318,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             )
     except Exception as e:
         # Handle general error
-        logging.error(f"Error in stream_job_output: {e}")
+        print(f"Error in stream_job_output: {e}")
         return StreamingResponse(
             iter(["data: Error: An internal error has occurred!\n\n"]),
             media_type="text/event-stream",
@@ -461,7 +460,7 @@ async def get_eval_images(job_id: str):
                         }
                     )
     except OSError as e:
-        logging.error(f"Error reading images directory {images_dir}: {e}")
+        print(f"Error reading images directory {images_dir}: {e}")
         return {"images": []}
 
     # Sort by filename for consistent ordering
@@ -625,7 +624,7 @@ async def get_checkpoints(job_id: str, request: Request):
                     # Format the timestamp as ISO 8601 string
                     formatted_time = datetime.fromtimestamp(modified_time).isoformat()
                 except Exception as e:
-                    logging.error(f"Error getting stat for file {file_path}: {e}")
+                    print(f"Error getting stat for file {file_path}: {e}")
                     formatted_time = None
                     filesize = None
                 checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
@@ -675,14 +674,14 @@ async def get_artifacts(job_id: str, request: Request):
                     filename = os.path.basename(artifact_path)
                     artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
                 except Exception as e:
-                    logging.error(f"Error getting stat for artifact {artifact_path}: {e}")
+                    print(f"Error getting stat for artifact {artifact_path}: {e}")
                     continue
 
             # Sort artifacts by filename in reverse (descending) order for consistent ordering
             artifacts.sort(key=lambda x: x["filename"], reverse=True)
             return {"artifacts": artifacts}
     except Exception as e:
-        logging.info(f"SDK artifact method failed for job {job_id}, falling back to legacy method: {e}")
+        print(f"SDK artifact method failed for job {job_id}, falling back to legacy method: {e}")
 
     # Fallback to the original logic if SDK method doesn't work or returns nothing
     # Get artifacts directory from job_data or use default location
@@ -708,12 +707,12 @@ async def get_artifacts(job_id: str, request: Request):
                     # Format the timestamp as ISO 8601 string
                     formatted_time = datetime.fromtimestamp(modified_time).isoformat()
                 except Exception as e:
-                    logging.error(f"Error getting stat for file {file_path}: {e}")
+                    print(f"Error getting stat for file {file_path}: {e}")
                     formatted_time = None
                     filesize = None
                 artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
     except OSError as e:
-        logging.error(f"Error reading artifacts directory {artifacts_dir}: {e}")
+        print(f"Error reading artifacts directory {artifacts_dir}: {e}")
 
     # Sort artifacts by filename in reverse (descending) order for consistent ordering
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
@@ -752,11 +751,11 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
         return output
     except ValueError as e:
         # Handle specific error
-        logging.error(f"ValueError: {e}")
+        print(f"ValueError: {e}")
         return "An internal error has occurred!"
     except Exception as e:
         # Handle general error
-        logging.error(f"Error: {e}")
+        print(f"Error: {e}")
         return "An internal error has occurred!"
 
 
@@ -773,12 +772,12 @@ async def sweep_results(job_id: str):
                     output = json.load(f)
                 return {"status": "success", "data": output}
             except json.JSONDecodeError as e:
-                logging.error(f"JSON decode error for job {job_id}: {e}")
+                print(f"JSON decode error for job {job_id}: {e}")
                 return {"status": "error", "message": "Invalid JSON format in sweep results file."}
         else:
-            logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
+            print(f"Sweep results file not found for job {job_id}: {output_file}")
             return {"status": "error", "message": "Sweep results file not found."}
 
     except Exception as e:
-        logging.error(f"Error loading sweep results for job {job_id}: {e}")
+        print(f"Error loading sweep results for job {job_id}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
