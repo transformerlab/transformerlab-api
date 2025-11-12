@@ -39,8 +39,7 @@
       "type": "string",
       "required": true,
       "enum": ["bert", "dream", "llada"],
-      "default": "bert",
-      "description": "Training method: bert (MDLM), dream (DreamTrainer), or llada (MDLM for LLaDA)"
+      "default": "bert"
     },
     "batch_size": {
       "title": "Batch Size",
@@ -75,20 +74,17 @@
     "mask_prompt_loss": {
       "title": "Mask Prompt Loss",
       "type": "boolean",
-      "default": true,
-      "description": "Whether to mask the loss on prompt tokens"
+      "default": true
     },
     "load_in_4bit": {
       "title": "Load in 4-bit",
       "type": "boolean",
-      "default": false,
-      "description": "Load model with 4-bit quantization"
+      "default": false
     },
     "lora": {
       "title": "Use LoRA",
       "type": "boolean",
-      "default": false,
-      "description": "Use LoRA for parameter-efficient fine-tuning"
+      "default": false
     },
     "lora_r": {
       "title": "LoRA R",
@@ -112,12 +108,6 @@
       "minimum": 0.05,
       "maximum": 0.9,
       "default": 0.05
-    },
-    "target_modules": {
-      "title": "LoRA Target Modules",
-      "type": "string",
-      "default": "all-linear",
-      "description": "Comma-separated list of module names to apply LoRA to, or 'all-linear' for all linear layers"
     },
     "dtype": {
       "title": "Data Type",
@@ -153,47 +143,40 @@
     "eval_steps": {
       "title": "Evaluation Steps",
       "type": "number",
-      "default": 0.25,
-      "description": "Fraction of training steps between evaluations (if eval_strategy is 'steps')"
+      "default": 0.25
     },
     "save_steps": {
       "title": "Save Steps",
       "type": "number",
-      "default": 0.25,
-      "description": "Fraction of training steps between checkpoints"
+      "default": 0.25
     },
     "num_proc": {
       "title": "Number of Processes",
       "type": "integer",
-      "default": 8,
-      "description": "Number of processes for dataset preprocessing"
+      "default": 8
     },
     "truncation": {
       "title": "Truncation Strategy",
       "type": "string",
       "enum": ["filter", "right"],
-      "default": "right",
-      "description": "Truncation strategy: 'filter' keeps only sequences shorter than max_length, 'right' keeps rightmost max_length tokens"
+      "default": "right"
     },
     "perbatch_cutoff": {
       "title": "Per-batch Cutoff (Dream only)",
       "type": "boolean",
-      "default": true,
-      "description": "Randomly pick a response length from batch and trim other responses (Dream training only)"
+      "default": true
     },
     "resp_cutoff_ratio": {
       "title": "Response Cutoff Ratio (Dream only)",
       "type": "number",
       "default": 0.0,
       "minimum": 0,
-      "maximum": 1,
-      "description": "Probability of randomly cutting sequences during training (Dream training only)"
+      "maximum": 1
     },
     "loss_weight_type": {
       "title": "Loss Weight Type (Dream only)",
       "type": "string",
-      "default": "cart[geo_p:0.3]",
-      "description": "Loss weight type for Dream training (e.g., 'cart[geo_p:0.3]' or 'scheduler')"
+      "default": "cart[geo_p:0.3]"
     },
     "adaptor_name": {
       "title": "Adaptor Name",
@@ -258,4 +241,3 @@
     }
   }
 }
-
