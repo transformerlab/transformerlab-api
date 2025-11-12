@@ -10,6 +10,7 @@ don't have to interact directly with the source and model classes.
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import localmodel
+from transformerlab.models import lmstudiomodel
 
 import traceback
 
@@ -49,7 +50,7 @@ def list_model_sources():
     Supported strings that can be passsed as model_source
     to the functons that follow.
     """
-    return ["huggingface", "ollama"]
+    return ["huggingface", "ollama", "lmstudio"]
 
 
 def get_model_by_source_id(model_source: str, model_source_id: str):
@@ -65,6 +66,8 @@ def get_model_by_source_id(model_source: str, model_source_id: str):
                 return ollamamodel.OllamaModel(model_source_id)
             case "huggingface":
                 return huggingfacemodel.HuggingFaceModel(model_source_id)
+            case "lmstudio":
+                return lmstudiomodel.LMStudioModel(model_source_id)
     except Exception:
         print(f"Caught exception getting model {model_source_id} from {model_source}:")
         traceback.print_exc()
