@@ -12,7 +12,7 @@
   <p align="center">
     API for <a href="http://github.com/transformerlab/transformerlab-app">Transformer Lab App</a>.
     <br />
-    <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
+    <a href="https://transformerlab.ai/docs"><strong>Explore the docs »</strong></a>
   </p>
 </div>
 
@@ -84,4 +84,4 @@ uv pip compile requirements.in -o requirements-no-gpu-uv.txt
 
 # Windows Notes
 
-https://transformerlab.ai/docs/install/install-on-windows
+https://transformerlab.ai/docs/install/#install-on-windows

@@ -28,17 +28,11 @@ from werkzeug.utils import secure_filename
 
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
-import logging
 from transformerlab.services import dataset_service as dataset_service_module
 
 
 jinja_environment = Environment()
 sandboxed_jinja2_environment = SandboxedEnvironment()
-
-logging.basicConfig(level=logging.ERROR)
-
-
-# Configure logging
 
 
 def log(msg):
@@ -187,7 +181,7 @@ async def dataset_preview(
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True, streaming=streaming)
     except Exception as e:
-        logging.error(f"Exception occurred: {type(e).__name__}: {e}")
+        print(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred."}
 
     if split is None or split == "":
@@ -329,7 +323,7 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
         try:
             dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
         except Exception as e:
-            logging.error(f"Error loading dataset: {type(e).__name__}: {e}")
+            print(f"Error loading dataset: {type(e).__name__}: {e}")
             return {"status": "error", "message": "An internal error has occurred."}
         dataset_len = len(dataset["train"])
         result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
@@ -487,7 +481,7 @@ async def dataset_edit_with_template(
                     else:
                         continue
                 except Exception as e:
-                    logging.error(f"Failed to read metadata from {metadata_path}: {e}")
+                    print(f"Failed to read metadata from {metadata_path}: {e}")
                     return {"status": "error", "message": "Failed to read metadata file!"}
 
                 for entry in data:
@@ -526,7 +520,7 @@ async def dataset_edit_with_template(
                         image_data_url = f"data:image/jpeg;base64,{encoded_img}"
                         img.close()
                     except Exception as e:
-                        logging.error(f"Failed to process image {image_path}: {e}")
+                        print(f"Failed to process image {image_path}: {e}")
                         return {"status": "error", "message": "Failed to process images!"}
 
                     row = dict(entry)  # Start with all metadata fields
@@ -586,7 +580,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
     try:
         updates = json.loads(updates_raw.decode("utf-8"))
     except Exception as e:
-        logging.error(f"Invalid JSON file: {e}")
+        print(f"Invalid JSON file: {e}")
         return {"status": "error", "message": "Invalid JSON file!"}
 
     # Scan source metadata
@@ -630,7 +624,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                             "metadata_root": root,
                         }
                 except Exception as e:
-                    logging.error(f"Error reading metadata {metadata_path}: {e}")
+                    print(f"Error reading metadata {metadata_path}: {e}")
                     return {"status": "error", "message": "Failed to read metadata!"}
 
     metadata_accumulator = {}
@@ -665,7 +659,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
         try:
             storage.copy_file(source_path, dest_path)
         except Exception as e:
-            logging.error(f"Failed to copy {source_path} to {dest_path}: {e}")
+            print(f"Failed to copy {source_path} to {dest_path}: {e}")
             return {"status": "error", "message": "Failed to copy from source to destination"}
 
         # Prepare metadata entry
@@ -692,7 +686,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                     full_entry = {col: entry.get(col, "") for col in all_columns}
                     f.write(json.dumps(full_entry) + "\n")
         except Exception as e:
-            logging.error(f"Failed to write metadata file {metadata_file}: {e}")
+            print(f"Failed to write metadata file {metadata_file}: {e}")
             return {"status": "error", "message": "Failed to write metadata file!"}
 
     result = await dataset_new(dataset_id=new_dataset_id, generated=False)
@@ -783,7 +777,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
         )
         log(f"Dataset created in filesystem for dataset_id: {dataset_id}")
     except Exception as e:
-        logging.error(f"Failed to write dataset metadata to SDK store: {type(e).__name__}: {e}")
+        print(f"Failed to write dataset metadata to SDK store: {type(e).__name__}: {e}")
 
     # Download the dataset
     # Later on we can move this to a job
@@ -898,7 +892,7 @@ async def dataset_new(dataset_id: str, generated: bool = False):
             json_data={"generated": True} if generated else {},
         )
     except Exception as e:
-        logging.error(f"Failed to write dataset metadata to SDK store: {type(e).__name__}: {e}")
+        print(f"Failed to write dataset metadata to SDK store: {type(e).__name__}: {e}")
     return {"status": "success", "dataset_id": dataset_id}
 
 

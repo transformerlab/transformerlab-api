@@ -14,7 +14,6 @@ from transformers import AutoTokenizer
 
 import os
 from pathlib import Path
-import logging
 
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
@@ -31,7 +30,6 @@ from lab import storage
 
 from werkzeug.utils import secure_filename
 
-logging.basicConfig(level=logging.ERROR)
 
 router = APIRouter(tags=["model"])
 
@@ -226,7 +224,7 @@ async def upload_model_to_huggingface(
         elif organization_name in orgs and organization_name != "":
             username = organization_name
     except Exception as e:
-        logging.error(f"Error getting Hugging Face user info: {e}")
+        print(f"Error getting Hugging Face user info: {e}")
         return {"status": "error", "message": "An internal error has occurred while getting Hugging Face user info."}
     repo_id = f"{username}/{model_name}"
     try:  # Checking if repo already exists.
@@ -237,7 +235,7 @@ async def upload_model_to_huggingface(
             # Should we add a toggle for them to allow private repos?
             create_repo(repo_id)
         else:
-            logging.error(f"Error creating Hugging Face repo: {e}")
+            print(f"Error creating Hugging Face repo: {e}")
             return {"status": "error", "message": "An internal error has occurred while creating Hugging Face repo."}
 
     # Upload regardless in case they want to make changes/add to to an existing repo.
@@ -464,7 +462,7 @@ def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
         download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(model_id, allow_patterns)
     except Exception as e:
-        logging.error(f"Error in get_model_download_size: {type(e).__name__}: {e}")
+        print(f"Error in get_model_download_size: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred."}
 
     return {"status": "success", "data": download_size_in_bytes}
@@ -571,7 +569,7 @@ async def download_huggingface_model(
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         # Log the detailed error message
-        print(error_msg)  # Replace with appropriate logging mechanism
+        print(error_msg)  
         await job_update_status(
             job_id, "FAILED", experiment_id=experiment_id, error_msg="An internal error has occurred."
         )
@@ -613,7 +611,7 @@ Hugging Face token on the settings page, \
 and you must agree to the terms \
 on the model's Huggingface page."
         # Log the detailed error message
-        print(error_msg)  # Replace with appropriate logging mechanism
+        print(error_msg)
         if job_id:
             await job_update_status(job_id, "UNAUTHORIZED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "unauthorized", "message": error_msg}
@@ -928,7 +926,7 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
                     base_config = json.load(f)
                 break
     except Exception as e:
-        logging.warning(f"Failed to load {model_id} config: {e}")
+        print(f"Failed to load {model_id} config: {e}")
         return {
             "status": "error",
             "message": "Failed to load local base model config",
@@ -974,7 +972,7 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
                 check_status[f"{field}_status"] = "unknown"
 
     except Exception as e:
-        logging.error(f"[ERROR] Failed to fetch adapter info for '{peft}: {e}'")
+        print(f"[ERROR] Failed to fetch adapter info for '{peft}: {e}'")
         return {
             "status": "error",
             "message": "adapter not found",
@@ -985,18 +983,18 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
     try:
         model_details = await huggingfacemodel.get_model_details_from_huggingface(peft)
     except EntryNotFoundError:
-        logging.warning(f"Adaptor {peft} does not have a config.json. Proceeding without details.")
+        print(f"Adaptor {peft} does not have a config.json. Proceeding without details.")
         model_details = {}
     except GatedRepoError:
         error_msg = f"{peft} is a gated adapter. Please log in and accept the terms on the adapter's Hugging Face page."
-        logging.error(error_msg)
+        print(error_msg)
         return {
             "status": "unauthorized",
             "message": "This is a gated adapter. Please log in and accept the terms on the adapter's Hugging Face page.",
         }
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        logging.error(error_msg)
+        print(error_msg)
         return {"status": "error", "message": "An error has occurred"}
 
     print(f"Model Details: {model_details}")
@@ -1176,7 +1174,7 @@ def import_error(message: str):
     """
     Separate function just to factor out printing and returning the same error.
     """
-    logging.error("Import error: %s", message)
+    print("Import error: %s", message)
     return {"status": "error", "message": "An internal error has occurred. Please try again later."}
 
 
