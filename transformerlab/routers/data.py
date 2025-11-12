@@ -949,7 +949,7 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
             json_data["files"] = all_files
             ds.set_metadata(json_data=json_data)
         except Exception as e:
-            logging.error(f"Failed to update dataset metadata with files: {type(e).__name__}: {e}")
+            print(f"Failed to update dataset metadata with files: {type(e).__name__}: {e}")
 
     return {"status": "success"}
 
