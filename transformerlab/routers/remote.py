@@ -7,6 +7,7 @@ from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
 from transformerlab.routers.auth.api_key_auth import get_user_or_api_key
 from transformerlab.services.auth import AuthenticatedIdentity, auth_service
+from lab.dirs import get_workspace_dir, get_job_checkpoints_dir
 
 
 router = APIRouter(prefix="/remote", tags=["remote"])
@@ -119,7 +120,7 @@ async def launch_remote(
     experimentId: str,
     identity: AuthenticatedIdentity = Depends(get_user_or_api_key),
     job_id: Optional[str] = Form(None),
-    cluster_name: str = Form(...),
+    cluster_name: Optional[str] = Form(None),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
     subtype: Optional[str] = Form(None),
@@ -130,16 +131,94 @@ async def launch_remote(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    checkpoint: Optional[str] = Form(None),
+    parent_job_id: Optional[str] = Form(None),
 ):
     """
     Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
+    If checkpoint and parent_job_id are provided, resume training from the specified checkpoint.
     """
-    # If job_id is provided, use existing job, otherwise create a new one
     formatted_cluster_name = cluster_name
-    if job_id:
-        # Trust the frontend-provided cluster_name when re-launching an existing job.
-        pass
-    else:
+    # Handle resume from checkpoint logic
+    if checkpoint and parent_job_id:
+        # Get the parent job
+        parent_job = job_service.job_get(parent_job_id)
+        if not parent_job:
+            return {"status": "error", "message": f"Parent job {parent_job_id} not found"}
+
+        # Get the parent job data
+        parent_job_data = parent_job.get("job_data", {})
+
+        # Validate checkpoint existence
+        checkpoints_dir = get_job_checkpoints_dir(parent_job_id)
+        checkpoint_path = os.path.normpath(os.path.join(checkpoints_dir, checkpoint))
+
+        # Validate that the checkpoint path is within the checkpoints directory
+        if not checkpoint_path.startswith(os.path.abspath(checkpoints_dir) + os.sep):
+            return {"status": "error", "message": "Invalid checkpoint name (potential directory traversal detected)"}
+
+        if not os.path.exists(checkpoint_path):
+            return {"status": "error", "message": f"Checkpoint {checkpoint} not found at {checkpoint_path}"}
+
+        # Get the original command
+        command = parent_job_data.get("command", "")
+        if not command:
+            return {"status": "error", "message": "Original command not found in parent job data"}
+
+        # Create a simple, meaningful task name for the resumed training
+        task_name = f"resume_training_{parent_job_id}"
+
+        # Use ALL parameters from parent job for resume (user just presses button)
+        cluster_name = parent_job_data.get("cluster_name")
+        cpus = parent_job_data.get("cpus")
+        memory = parent_job_data.get("memory")
+        disk_space = parent_job_data.get("disk_space")
+        accelerators = parent_job_data.get("accelerators")
+        num_nodes = parent_job_data.get("num_nodes")
+        setup = parent_job_data.get("setup")
+        uploaded_dir_path = parent_job_data.get("uploaded_dir_path")
+
+        # Force creation of new job for resume (don't use existing job_id)
+        job_id = None
+
+    # Validate required fields
+    if not cluster_name:
+        return {"status": "error", "message": "cluster_name is required"}
+
+    # Build a unified data structure with all parameters
+    data = {
+        "cluster_name": cluster_name,
+        "command": command,
+        "task_name": task_name,
+    }
+    
+    if subtype:
+        data["subtype"] = subtype
+
+    # Add resume metadata if resuming from checkpoint
+    if checkpoint and parent_job_id:
+        data["resumed_from_checkpoint"] = checkpoint
+        data["checkpoint_path"] = checkpoint_path
+        data["parent_job_id"] = parent_job_id
+
+    # Add optional parameters if provided
+    if cpus:
+        data["cpus"] = cpus
+    if memory:
+        data["memory"] = memory
+    if disk_space:
+        data["disk_space"] = disk_space
+    if accelerators:
+        data["accelerators"] = accelerators
+    if num_nodes:
+        data["num_nodes"] = num_nodes
+    if setup:
+        data["setup"] = setup
+    if uploaded_dir_path:
+        data["uploaded_dir_path"] = uploaded_dir_path
+
+    # If job_id is provided, use existing job, otherwise create a new one
+    if not job_id:
         # Get user information from the authentication identity
         user_info_payload = auth_service.get_user_info(identity)
         
@@ -152,24 +231,18 @@ async def launch_remote(
             ]).strip()
         if user_info_payload.get("email"):
             user_info["email"] = user_info_payload["email"]
-        
-        # Create a new REMOTE job
-        job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
-        if subtype:
-            job_data["subtype"] = subtype
-        
+                
         # Add user_info to job_data if we have any user information
         if user_info:
-            job_data["user_info"] = user_info
-
+            data["user_info"] = user_info
         try:
             job_id = job_service.job_create(
                 type="REMOTE",
                 status="LAUNCHING",
                 experiment_id=experimentId,
             )
-            # Update the job data to add fields from job_data (this ensures default fields stay in the job)
-            for key, value in job_data.items():
+            # Store all data in the job (this ensures default fields stay in the job)
+            for key, value in data.items():
                 job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
 
             # Format cluster_name as <user_value>-job-<job_id> and persist it
@@ -179,6 +252,9 @@ async def launch_remote(
             print(f"Failed to create job: {str(e)}")
             return {"status": "error", "message": "Failed to create job"}
 
+    # Use task_name as job_name if provided, otherwise fall back to cluster_name
+    job_name = task_name if task_name else formatted_cluster_name
+    data["job_name"] = job_name
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -187,36 +263,13 @@ async def launch_remote(
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
 
-    # Prepare the request data for Lattice orchestrator
-    request_data = {
-        "cluster_name": formatted_cluster_name,
-        "command": command,
-        "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
-    }
+    # Prepare request data for orchestrator by copying the data and adding orchestrator-specific fields
+    request_data = data.copy()
+    request_data["tlab_job_id"] = job_id
+    request_data["cluster_name"] = formatted_cluster_name
 
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
-    job_name = task_name if task_name else formatted_cluster_name
-    request_data["job_name"] = job_name
-
-    # Add optional parameters if provided
-    if cpus:
-        request_data["cpus"] = cpus
-    if memory:
-        request_data["memory"] = memory
-    if disk_space:
-        request_data["disk_space"] = disk_space
-    if accelerators:
-        request_data["accelerators"] = accelerators
-    if num_nodes:
-        request_data["num_nodes"] = num_nodes
-    if setup:
-        request_data["setup"] = setup
-    if uploaded_dir_path:
-        request_data["uploaded_dir_path"] = uploaded_dir_path
-
-    # Store subtype in orchestrator request if present (pass-through metadata)
-    if subtype:
-        request_data["subtype"] = subtype
+    request_data["job_name"] = task_name if task_name else cluster_name
 
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
 
@@ -254,7 +307,7 @@ async def launch_remote(
                     "status": "success",
                     "data": response_data,
                     "job_id": job_id,
-                    "message": "Remote instance launched successfully",
+                    "message": f"Training resumed from checkpoint {checkpoint}" if checkpoint else "Remote instance launched successfully",
                 }
             else:
                 return {
@@ -344,7 +397,6 @@ async def upload_directory(
     Upload a directory to the remote Lattice orchestrator for later use in cluster launches.
     Files are stored locally first, then sent to orchestrator.
     """
-    from lab.dirs import get_workspace_dir
 
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
