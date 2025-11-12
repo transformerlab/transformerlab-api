@@ -224,10 +224,6 @@ def ollama_models_dir():
     if not os.path.isdir(ollama_dir):
         return None
 
-    if shutil.which("ollama") is not None:
-        print(f"OLLAMA_MODELS not set but 'ollama' CLI found; assuming default: {ollama_dir}", file=sys.stderr)
-        return ollama_dir
-
     return ollama_dir
 
 
