@@ -48,7 +48,7 @@ class AuthService:
             has_auth_api_key = os.getenv("AUTH_API_KEY") is not None
             has_auth_client_id = os.getenv("AUTH_CLIENT_ID") is not None
             
-            if is_multitenant or (has_auth_api_key and has_auth_client_id):
+            if is_multitenant and has_auth_api_key and has_auth_client_id:
                 self._provider = WorkOSProvider()
             else:
                 # Set to None when not in multitenant mode and auth vars not set
