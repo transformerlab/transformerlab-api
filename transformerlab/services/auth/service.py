@@ -42,7 +42,20 @@ class AuthService:
         organization_cookie_name: Optional[str] = None,
         cookie_password: Optional[str] = None,
     ) -> None:
-        self._provider = provider or WorkOSProvider()
+        # Only initialize WorkOSProvider if in MULTITENANT mode or if auth env vars are set
+        if provider is None:
+            is_multitenant = os.getenv("TFL_MULTITENANT") == "true"
+            has_auth_api_key = os.getenv("AUTH_API_KEY") is not None
+            has_auth_client_id = os.getenv("AUTH_CLIENT_ID") is not None
+            
+            if is_multitenant and has_auth_api_key and has_auth_client_id:
+                self._provider = WorkOSProvider()
+            else:
+                # Set to None when not in multitenant mode and auth vars not set
+                # This allows API key auth to still work without WorkOS
+                self._provider = None
+        else:
+            self._provider = provider
         self._session_cookie_name = session_cookie_name or os.getenv("AUTH_SESSION_COOKIE_NAME", "tlab_session")
         self._refresh_cookie_name = refresh_cookie_name or os.getenv("AUTH_REFRESH_COOKIE_NAME", "tlab_refresh_token")
         self._organization_cookie_name = organization_cookie_name or os.getenv(
@@ -74,10 +87,14 @@ class AuthService:
     # Public API ------------------------------------------------------------
 
     def generate_login_url(self, request: Request, provider: Optional[str] = None) -> str:
+        if self._provider is None:
+            raise HTTPException(status_code=503, detail="Authentication provider not configured")
         redirect_uri = self._build_redirect_uri(request)
         return self._provider.get_authorization_url(redirect_uri=redirect_uri, provider=provider)
 
     async def handle_auth_callback(self, request: Request, code: str) -> Response:
+        if self._provider is None:
+            raise HTTPException(status_code=503, detail="Authentication provider not configured")
         session = self._provider.authenticate_with_code(
             code=code,
             seal_session=self._seal_session,
@@ -102,7 +119,7 @@ class AuthService:
     async def logout_user(self, request: Request) -> Response:
         response = self._redirect_response(self._logout_redirect, request)
         sealed_session = request.cookies.get(self._session_cookie_name)
-        if sealed_session:
+        if sealed_session and self._provider is not None:
             try:
                 session = self._provider.load_sealed_session(
                     sealed_session=sealed_session, cookie_password=self._cookie_password
@@ -144,6 +161,8 @@ class AuthService:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     async def refresh_user_session(self, request: Request, response: Response) -> Dict[str, Any]:
+        if self._provider is None:
+            raise HTTPException(status_code=503, detail="Authentication provider not configured")
         refresh_token = request.cookies.get(self._refresh_cookie_name)
         if not refresh_token:
             raise HTTPException(status_code=401, detail="Missing refresh token")
@@ -181,6 +200,8 @@ class AuthService:
     # Internal helpers ------------------------------------------------------
 
     def _load_session_identity(self, request: Request) -> AuthenticatedIdentity:
+        if self._provider is None:
+            raise HTTPException(status_code=401, detail="Session authentication not available. Use API key authentication.")
         sealed_session = request.cookies.get(self._session_cookie_name)
         if not sealed_session:
             raise HTTPException(status_code=401, detail="Not authenticated")
