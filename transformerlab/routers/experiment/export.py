@@ -167,9 +167,8 @@ async def run_exporter_script(
                 }
 
     except Exception as e:
-        import logging
 
-        logging.error(f"Failed to export model. Exception: {e}")
+        print(f"Failed to export model. Exception: {e}")
         job = job_get(job_id)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
