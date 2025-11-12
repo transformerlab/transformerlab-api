@@ -1,10 +1,12 @@
 import os
 import json
 import httpx
-from fastapi import APIRouter, Form, Request, File, UploadFile
+from fastapi import APIRouter, Form, Request, File, UploadFile, Depends
 from typing import Optional, List
 from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
+from transformerlab.routers.auth.api_key_auth import get_user_or_api_key
+from transformerlab.services.auth import AuthenticatedIdentity, auth_service
 
 
 router = APIRouter(prefix="/remote", tags=["remote"])
@@ -31,6 +33,7 @@ def validate_gpu_orchestrator_env_vars():
 async def create_remote_job(
     request: Request,
     experimentId: str,
+    identity: AuthenticatedIdentity = Depends(get_user_or_api_key),
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
@@ -45,8 +48,25 @@ async def create_remote_job(
     """
     Create a remote job without launching it. Returns job info for frontend to show placeholder.
     """
+    # Get user information from the authentication identity
+    user_info_payload = auth_service.get_user_info(identity)
+    
+    # Extract user info for storage (name/email for display)
+    user_info = {}
+    if user_info_payload.get("first_name") or user_info_payload.get("last_name"):
+        user_info["name"] = " ".join([
+            user_info_payload.get("first_name", ""),
+            user_info_payload.get("last_name", "")
+        ]).strip()
+    if user_info_payload.get("email"):
+        user_info["email"] = user_info_payload["email"]
+    
     # First, create a REMOTE job
     job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+    
+    # Add user_info to job_data if we have any user information
+    if user_info:
+        job_data["user_info"] = user_info
 
     # Add optional parameters if provided
     if cpus:
@@ -74,9 +94,14 @@ async def create_remote_job(
         for key, value in job_data.items():
             job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
 
+        # Format cluster_name as <user_value>-job-<job_id> and persist it
+        formatted_cluster_name = f"{cluster_name}-job-{job_id}"
+        job_service.job_update_job_data_insert_key_value(job_id, "cluster_name", formatted_cluster_name, experimentId)
+
         return {
             "status": "success",
             "job_id": job_id,
+            "cluster_name": formatted_cluster_name,
             "message": "Remote job created successfully",
         }
     except Exception as e:
@@ -88,6 +113,7 @@ async def create_remote_job(
 async def launch_remote(
     request: Request,
     experimentId: str,
+    identity: AuthenticatedIdentity = Depends(get_user_or_api_key),
     job_id: Optional[str] = Form(None),
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
@@ -107,12 +133,30 @@ async def launch_remote(
     If job_id is provided, use existing job, otherwise create new one.
     """
     # If job_id is provided, use existing job, otherwise create a new one
+    formatted_cluster_name = cluster_name
     if job_id:
-        # Use existing job
+        # Trust the frontend-provided cluster_name when re-launching an existing job.
         pass
     else:
+        # Get user information from the authentication identity
+        user_info_payload = auth_service.get_user_info(identity)
+        
+        # Extract user info for storage (name/email for display)
+        user_info = {}
+        if user_info_payload.get("first_name") or user_info_payload.get("last_name"):
+            user_info["name"] = " ".join([
+                user_info_payload.get("first_name", ""),
+                user_info_payload.get("last_name", "")
+            ]).strip()
+        if user_info_payload.get("email"):
+            user_info["email"] = user_info_payload["email"]
+        
         # Create a new REMOTE job
         job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+        
+        # Add user_info to job_data if we have any user information
+        if user_info:
+            job_data["user_info"] = user_info
 
         try:
             job_id = job_service.job_create(
@@ -123,6 +167,11 @@ async def launch_remote(
             # Update the job data to add fields from job_data (this ensures default fields stay in the job)
             for key, value in job_data.items():
                 job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
+                
+            if not use_existing_cluster:
+              # Format cluster_name as <user_value>-job-<job_id> and persist it
+              formatted_cluster_name = f"{cluster_name}-job-{job_id}"
+            job_service.job_update_job_data_insert_key_value(job_id, "cluster_name", formatted_cluster_name, experimentId)
         except Exception as e:
             print(f"Failed to create job: {str(e)}")
             return {"status": "error", "message": "Failed to create job"}
@@ -142,7 +191,7 @@ async def launch_remote(
     }
 
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
-    job_name = task_name if task_name else cluster_name
+    job_name = task_name if task_name else formatted_cluster_name
     request_data["job_name"] = job_name
 
     # Add optional parameters if provided
@@ -167,7 +216,7 @@ async def launch_remote(
         gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{cluster_name}/submit"
     else:
         # Launch new instance
-        request_data["cluster_name"] = cluster_name
+        request_data["cluster_name"] = formatted_cluster_name
         gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
 
     try:
