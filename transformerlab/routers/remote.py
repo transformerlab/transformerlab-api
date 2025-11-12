@@ -29,6 +29,7 @@ def validate_gpu_orchestrator_env_vars():
 
     return gpu_orchestrator_url, gpu_orchestrator_port
 
+    
 
 @router.post("/create-job")
 async def create_remote_job(
@@ -38,6 +39,7 @@ async def create_remote_job(
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
+    subtype: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
     memory: Optional[str] = Form(None),
     disk_space: Optional[str] = Form(None),
@@ -64,6 +66,8 @@ async def create_remote_job(
     
     # First, create a REMOTE job
     job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
+    if subtype:
+        job_data["subtype"] = subtype
     
     # Add user_info to job_data if we have any user information
     if user_info:
@@ -119,6 +123,7 @@ async def launch_remote(
     cluster_name: Optional[str] = Form(None),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
+    subtype: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
     memory: Optional[str] = Form(None),
     disk_space: Optional[str] = Form(None),
@@ -189,6 +194,9 @@ async def launch_remote(
         "command": command,
         "task_name": task_name,
     }
+    
+    if subtype:
+        data["subtype"] = subtype
 
     if not use_existing_cluster:
         data["cluster_name"] = formatted_cluster_name
