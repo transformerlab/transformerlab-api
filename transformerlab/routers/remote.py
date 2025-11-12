@@ -126,6 +126,8 @@ async def launch_remote(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    checkpoint: Optional[str] = Form(None),
+    parent_job_id: Optional[str] = Form(None),
     use_existing_cluster: Optional[bool] = Form(False),
 ):
     """
