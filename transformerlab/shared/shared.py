@@ -230,15 +230,11 @@ async def async_run_python_daemon_and_update_status(
             break
 
     # Open a file to write the output to:
-<<<<<<< HEAD
-    log = storage.open(get_global_log_path(), "a")
-=======
     # Use context manager to ensure proper cleanup, but we need to keep it open
     # so we'll use a different approach - store the handle and close it later
     log = None
     try:
-        log = open(get_global_log_path(), "a")
->>>>>>> ad7a10aa0a23d0dba21ce6b515912462b5f0148b
+        log = storage.open(get_global_log_path(), "a")
 
         # Check if plugin has a venv directory
         if plugin_location:
@@ -271,18 +267,12 @@ async def async_run_python_daemon_and_update_status(
         pid = process.pid
         from lab.dirs import get_temp_dir
 
-        pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
-        with open(pid_file, "w") as f:
+        pid_file = storage.join(get_temp_dir(), f"worker_job_{job_id}.pid")
+        with storage.open(pid_file, "w") as f:
             f.write(str(pid))
 
-<<<<<<< HEAD
-    pid_file = storage.join(get_temp_dir(), f"worker_job_{job_id}.pid")
-    with storage.open(pid_file, "w") as f:
-        f.write(str(pid))
-=======
         # keep a tail of recent lines so we can show them on failure:
         recent_lines = deque(maxlen=10)
->>>>>>> ad7a10aa0a23d0dba21ce6b515912462b5f0148b
 
         line = await process.stdout.readline()
         error_msg = None
