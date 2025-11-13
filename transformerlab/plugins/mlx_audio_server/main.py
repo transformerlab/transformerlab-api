@@ -22,7 +22,7 @@ from mlx_audio.tts.generate import generate_audio
 from mlx_audio.stt.generate import generate
 from datetime import datetime
 
-from lab.dirs import get_experiments_dir
+from lab.dirs import get_experiments_dir, get_workspace_dir
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -89,10 +89,15 @@ class MLXAudioWorker(BaseModelWorker):
             lang_code = params.get("lang_code", None)
             stream = params.get("stream", False)
             
+            experiment_dir = get_experiments_dir()
             audio_dir = params.get("audio_dir", None)
             if not audio_dir:
-                experiment_dir = get_experiments_dir()
                 audio_dir = os.path.join(experiment_dir, "audio")
+            else:
+                # Resolve to absolute path and ensure it's within experiment_dir
+                audio_dir = os.path.abspath(audio_dir)
+                if not audio_dir.startswith(os.path.abspath(experiment_dir)):
+                    raise ValueError("Invalid audio_dir: path must be within experiment directory")
             os.makedirs(name=audio_dir, exist_ok=True)
 
             try:
@@ -151,11 +156,14 @@ class MLXAudioWorker(BaseModelWorker):
             model = params.get("model", None)
             format = params.get("format", "txt")
             transcriptions_dir = params.get("output_path", None)
-            format = params.get("format", "txt")
-
 
             if not transcriptions_dir:
-                transcriptions_dir = os.path.join(WORKSPACE_DIR, "transcriptions")
+                transcriptions_dir = os.path.join(get_workspace_dir(), "transcriptions")
+            else:
+                # Resolve to absolute path and ensure it's within WORKSPACE_DIR
+                transcriptions_dir = os.path.abspath(transcriptions_dir)
+                if not transcriptions_dir.startswith(os.path.abspath(get_workspace_dir())):
+                    raise ValueError("Invalid output_path: path must be within workspace directory")
             os.makedirs(name=transcriptions_dir, exist_ok=True)
 
             # Generate a UUID for this file name:
