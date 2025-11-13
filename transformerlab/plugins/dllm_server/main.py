@@ -252,7 +252,7 @@ class DLLMWorker(BaseModelWorker):
             ret = {
                 "text": "",
                 "error_code": 1,
-                "error": str(e),
+                "error": "An internal error occurred",
                 "finish_reason": "error",
             }
             yield (json.dumps(ret) + "\0").encode()
