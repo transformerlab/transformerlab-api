@@ -93,7 +93,7 @@ class ChatCompletionRequest(BaseModel):
     tools: Optional[List[Dict[str, Any]]] = None
 
 
-class AudioSpeechRequest(BaseModel):
+class AudioGenerationRequest(BaseModel):
     experiment_id: str
     model: str
     adaptor: Optional[str] = ""
@@ -514,7 +514,7 @@ async def show_available_models():
 
 
 @router.post("/v1/audio/speech", tags=["audio"])
-async def create_audio_tts(request: AudioSpeechRequest):
+async def create_audio_tts(request: AudioGenerationRequest):
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
         if isinstance(error_check_ret, JSONResponse):
