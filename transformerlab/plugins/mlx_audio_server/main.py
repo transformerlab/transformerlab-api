@@ -16,7 +16,6 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from transformerlab.plugin import WORKSPACE_DIR
 
 from mlx_audio.tts.generate import generate_audio
 from mlx_audio.stt.generate import generate
