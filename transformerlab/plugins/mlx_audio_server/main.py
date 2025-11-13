@@ -79,7 +79,7 @@ class MLXAudioWorker(BaseModelWorker):
             text = params.get("text", "")
             model = params.get("model", None)
             speed = params.get("speed", 1.0)
-            # file_prefix = params.get("file_prefix", "audio")
+            file_prefix = params.get("file_prefix", "audio")
             audio_format = params.get("audio_format", "wav")
             sample_rate = params.get("sample_rate", 24000)
             temperature = params.get("temperature", 0.0)
