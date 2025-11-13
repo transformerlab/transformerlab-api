@@ -88,14 +88,14 @@ class MLXAudioWorker(BaseModelWorker):
             lang_code = params.get("lang_code", None)
             stream = params.get("stream", False)
             
-            experiment_dir = get_experiments_dir()
+            experiment_dir = os.path.abspath(os.path.normpath(get_experiments_dir()))
             audio_dir = params.get("audio_dir", None)
             if not audio_dir:
                 audio_dir = os.path.join(experiment_dir, "audio")
             else:
-                # Resolve to absolute path and ensure it's within experiment_dir
-                audio_dir = os.path.abspath(audio_dir)
-                if not audio_dir.startswith(os.path.abspath(experiment_dir)):
+                # Normalize audio_dir and enforce containment to experiment directory
+                audio_dir = os.path.abspath(os.path.normpath(audio_dir))
+                if not audio_dir.startswith(experiment_dir + os.sep):
                     raise ValueError("Invalid audio_dir: path must be within experiment directory")
             os.makedirs(name=audio_dir, exist_ok=True)
 
