@@ -4,10 +4,9 @@ import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, Body
-import logging
 import transformerlab.db.db as db
-import transformerlab.db.jobs as db_jobs
-from transformerlab.shared import dirs
+import transformerlab.services.job_service as job_service
+from lab import Experiment
 
 from werkzeug.utils import secure_filename
 
@@ -58,107 +57,6 @@ async def delete_training_template(template_id: str):
     return {"message": "OK"}
 
 
-@router.get("/job/{job_id}")
-async def get_training_job(job_id: str):
-    return await db_jobs.job_get(job_id)
-
-
-async def get_output_file_name(job_id: str):
-    try:
-        # First get the template Id from this job:
-        job = await db_jobs.job_get(job_id)
-
-        job_data = job["job_data"]
-        if "template_id" not in job_data:
-            if job_data.get("output_file_path") is not None:
-                # if the job data has an output file path, use that
-                return job_data["output_file_path"]
-            raise ValueError("Template ID not found in job data")
-
-        template_config = job_data["config"]
-        if "plugin_name" not in template_config:
-            raise ValueError("Plugin name not found in template config")
-
-        # get the output.txt from the plugin which is stored in
-        plugin_name = template_config["plugin_name"]
-        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-
-        job_id = secure_filename(job_id)
-
-        # job output is stored in separate files with a job number in the name...
-        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
-
-        # job output is stored in separate files with a job number in the name...
-        if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
-            output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
-        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-
-        # but it used to be all stored in a single file called output.txt, so check that as well
-        elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
-            output_file = os.path.join(plugin_dir, "output.txt")
-        else:
-            raise ValueError(f"No output file found for job {job_id}")
-
-        return output_file
-    except Exception as e:
-        raise e
-
-
-@router.get("/job/{job_id}/output")
-async def get_training_job_output(job_id: str, sweeps: bool = False):
-    try:
-        if sweeps:
-            job = await db_jobs.job_get(job_id)
-            job_data = json.loads(job["job_data"])
-            output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and os.path.exists(output_file):
-                with open(output_file, "r") as f:
-                    output = f.read()
-                return output
-            else:
-                output_file_name = await get_output_file_name(job_id)
-
-        else:
-            output_file_name = await get_output_file_name(job_id)
-
-        with open(output_file_name, "r") as f:
-            output = f.read()
-        return output
-    except ValueError as e:
-        # Handle specific error
-        logging.error(f"ValueError: {e}")
-        return "An internal error has occurred!"
-    except Exception as e:
-        # Handle general error
-        logging.error(f"Error: {e}")
-        return "An internal error has occurred!"
-
-
-@router.get("/job/{job_id}/sweep_results")
-async def sweep_results(job_id: str):
-    try:
-        job = await db_jobs.job_get(job_id)
-        job_data = job.get("job_data", {})
-
-        output_file = job_data.get("sweep_results_file", None)
-        if output_file and os.path.exists(output_file):
-            try:
-                with open(output_file, "r") as f:
-                    output = json.load(f)
-                return {"status": "success", "data": output}
-            except json.JSONDecodeError as e:
-                logging.error(f"JSON decode error for job {job_id}: {e}")
-                return {"status": "error", "message": "Invalid JSON format in sweep results file."}
-        else:
-            logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
-            return {"status": "error", "message": "Sweep results file not found."}
-
-    except Exception as e:
-        logging.error(f"Error loading sweep results for job {job_id}: {e}")
-        return {"status": "error", "message": "An internal error has occurred!"}
-
-
 tensorboard_process = None
 
 
@@ -187,15 +85,11 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     # First get the experiment name from the job
     experiment_id = job["experiment_id"]
-    data = await db.experiment_get(experiment_id)
-    if data is None:
-        return {"message": f"Experiment {experiment_id} does not exist"}
-
-    experiment_dir = dirs.experiment_dir_by_name(data["name"])
-
+    exp_obj = Experiment(experiment_id)
+    experiment_dir = exp_obj.get_dir()
     job_data = job["job_data"]
 
     if "template_name" not in job_data.keys():

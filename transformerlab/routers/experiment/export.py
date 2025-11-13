@@ -7,9 +7,12 @@ import sys
 
 from fastapi import APIRouter
 
-import transformerlab.db.db as db
-import transformerlab.db.jobs as db_jobs
-from transformerlab.shared import dirs
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_create, job_get
+from lab import dirs as lab_dirs
+from transformerlab.shared import dirs, shared
+
+from transformerlab.services.job_service import job_update_status
 
 from werkzeug.utils import secure_filename
 
@@ -18,7 +21,7 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 @router.get("/run_exporter_script")
 async def run_exporter_script(
-    id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
+    id: str, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
 ):
     """
     plugin_name: the id of the exporter plugin to run
@@ -28,12 +31,18 @@ async def run_exporter_script(
     """
 
     # Load experiment details into config
-    experiment_details = await db.experiment_get(id=id)
+    experiment_details = experiment_get(id=id)
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
 
+    experiment_name = experiment_details["name"]
+
     # Get input model parameters
-    config = json.loads(experiment_details["config"])
+    config = (
+        experiment_details["config"]
+        if isinstance(experiment_details["config"], dict)
+        else json.loads(experiment_details["config"] or "{}")
+    )
     input_model_id = config["foundation"]
     input_model_id_without_author = input_model_id.split("/")[-1]
     input_model_architecture = config["foundation_model_architecture"]
@@ -73,13 +82,18 @@ async def run_exporter_script(
             output_model_id = f"{input_model_id_without_author}-{conversion_time}-{q_type}.gguf"
 
         output_filename = output_model_id
+    else:
+        # For directory-based models (non-GGUF), set model_filename to "." to indicate the directory itself
+        output_filename = "."
 
     # Figure out plugin and model output directories
-    script_directory = dirs.plugin_dir_by_name(plugin_name)
+    script_directory = lab_dirs.plugin_dir_by_name(plugin_name)
 
     output_model_id = secure_filename(output_model_id)
 
-    output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
+    from lab.dirs import get_models_dir
+
+    output_path = os.path.join(get_models_dir(), output_model_id)
 
     # Create a job in the DB with the details of this export (only if job_id not provided)
     if job_id is None:
@@ -95,7 +109,8 @@ async def run_exporter_script(
             params=params,
         )
         job_data_json = json.dumps(job_data)
-        job_id = await db.export_job_create(experiment_id=id, job_data_json=job_data_json)
+        job_id = job_create(type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json)
+        return job_id
 
     # Setup arguments to pass to plugin
     args = [
@@ -124,7 +139,7 @@ async def run_exporter_script(
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + args
     try:
         # Get the output file path
-        job_output_file = await get_output_file_name(job_id)
+        job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         # Create the output file and run the process with output redirection
         with open(job_output_file, "w") as f:
@@ -143,87 +158,43 @@ async def run_exporter_script(
                 f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                job = await db_jobs.job_get(job_id)
+                job = job_get(job_id)
                 experiment_id = job["experiment_id"]
-                await db_jobs.job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
+                await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
                 return {
                     "status": "error",
                     "message": "Export failed due to an internal error. Please check the output file for more details.",
                 }
 
     except Exception as e:
-        import logging
 
-        logging.error(f"Failed to export model. Exception: {e}")
-        job = await db_jobs.job_get(job_id)
+        print(f"Failed to export model. Exception: {e}")
+        job = job_get(job_id)
         experiment_id = job["experiment_id"]
-        await db_jobs.job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
+        await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
         return {"message": "Failed to export model due to an internal error."}
 
     # Model create was successful!
-    # Create an info.json file so this can be read by the system
+    # Create an index.json file so this can be read by the system (SDK format)
     output_model_full_id = f"TransformerLab/{output_model_id}"
-    model_description = [
-        {
-            "model_id": output_model_full_id,
-            "model_filename": output_filename,
+    model_description = {
+        "model_id": output_model_full_id,
+        "model_filename": output_filename,
+        "name": output_model_name,
+        "local_model": True,
+        "json_data": {
+            "uniqueID": output_model_full_id,
             "name": output_model_name,
-            "local_model": True,
-            "json_data": {
-                "uniqueID": output_model_full_id,
-                "name": output_model_name,
-                "model_filename": output_filename,
-                "description": f"{output_model_architecture} model generated by Transformer Lab based on {input_model_id}",
-                "source": "transformerlab",
-                "architecture": output_model_architecture,
-                "huggingface_repo": "",
-                "params": plugin_params,
-            },
-        }
-    ]
-    model_description_file = open(os.path.join(output_path, "info.json"), "w")
+            "model_filename": output_filename,
+            "description": f"{output_model_architecture} model generated by Transformer Lab based on {input_model_id}",
+            "source": "transformerlab",
+            "architecture": output_model_architecture,
+            "huggingface_repo": "",
+            "params": plugin_params,
+        },
+    }
+    model_description_file = open(os.path.join(output_path, "index.json"), "w")
     json.dump(model_description, model_description_file)
     model_description_file.close()
 
-    job = await db_jobs.job_get(job_id)
-    experiment_id = job["experiment_id"]
-    await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
     return {"status": "success", "job_id": job_id}
-
-
-async def get_output_file_name(job_id: str):
-    try:
-        # Ensure job_id is a string
-        job_id = str(job_id)
-
-        # Get job data
-        job = await db_jobs.job_get(job_id)
-        job_data = job["job_data"]
-
-        # Check if it has a custom output file path
-        if job_data.get("output_file_path") is not None:
-            return job_data["output_file_path"]
-
-        # Get the plugin name from the job data
-        plugin_name = job_data.get("plugin")
-        if not plugin_name:
-            raise ValueError("Plugin not found in job data")
-
-        # Get the plugin directory
-        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-
-        job_id = secure_filename(job_id)
-
-        # Check for output file with job id
-        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
-        if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
-            output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
-        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-        else:
-            # Create the output file path even if it doesn't exist yet
-            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-
-        return output_file
-    except Exception as e:
-        raise e

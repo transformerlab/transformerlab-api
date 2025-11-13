@@ -12,6 +12,7 @@ from typing import AsyncGenerator
 import psutil
 import torch
 from fastapi import APIRouter
+from lab.dirs import get_global_log_path
 
 
 try:
@@ -30,8 +31,6 @@ except Exception:
 
     HAS_AMD = True
 
-
-from transformerlab.shared import dirs
 
 pyTorch_version = torch.__version__
 print(f"🔥 PyTorch version: {pyTorch_version}")
@@ -265,12 +264,39 @@ async def get_computer_information():
 
 @router.get("/python_libraries")
 async def get_python_library_versions():
-    # get the list of installed python packages
-    packages = subprocess.check_output(sys.executable + " -m pip list --format=json", shell=True)
+    # Prefer importlib.metadata (std lib, no subprocess) to enumerate installed distributions.
+    # Fallback to invoking pip only if necessary.
+    try:
+        try:
+            from importlib import metadata
+        except ImportError:  # pragma: no cover
+            import importlib_metadata as metadata  # type: ignore
 
-    packages = packages.decode("utf-8")
-    packages = json.loads(packages)
-    return packages
+        dists = []
+        for dist in metadata.distributions():
+            name = dist.metadata.get("Name") or dist.metadata.get("Summary") or dist.metadata.get("name")
+            version = dist.version if hasattr(dist, "version") else dist.metadata.get("Version", "")
+            if name and version:
+                dists.append({"name": name, "version": version})
+
+        if dists:
+            dists.sort(key=lambda x: x["name"].lower())
+            return dists
+
+        # If we got no distributions, attempt pip as a fallback
+        try:
+            pip_output = subprocess.check_output(
+                [sys.executable, "-m", "pip", "list", "--format=json"],
+                stderr=subprocess.STDOUT,
+            )
+            parsed = json.loads(pip_output.decode("utf-8"))
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            pass
+    except Exception:
+        return []
+    return []
 
 
 @router.get("/pytorch_collect_env")
@@ -278,9 +304,6 @@ async def get_pytorch_collect_env():
     # run python -m torch.utils.collect_env and return the output
     output = subprocess.check_output(sys.executable + " -m torch.utils.collect_env", shell=True)
     return output.decode("utf-8")
-
-
-GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 
 
 async def watch_file(filename: str, start_from_beginning=False, force_polling=True) -> AsyncGenerator[str, None]:
@@ -317,8 +340,9 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
 
 @router.get("/stream_log")
 async def watch_log():
+    global_log_path = get_global_log_path()
     return StreamingResponse(
-        watch_file(GLOBAL_LOG_PATH),
+        watch_file(global_log_path),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )

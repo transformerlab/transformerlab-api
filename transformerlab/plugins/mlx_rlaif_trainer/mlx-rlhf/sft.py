@@ -78,8 +78,9 @@ def reward_loss(mdl, better_inputs, worse_inputs):
 
 def iterate_batches(dset, tok, batch_size, train_mode=False, reward_modeling=False, chat_data=False):
     # Shuffle indices
-    len_warning_message = "[WARNING] Some sequences are longer than 2048 tokens. " \
-                          "Consider pre-splitting your data to save memory."
+    len_warning_message = (
+        "[WARNING] Some sequences are longer than 2048 tokens. Consider pre-splitting your data to save memory."
+    )
     while True:
         indices = np.arange(len(dset))
         if train_mode:
@@ -110,9 +111,9 @@ def iterate_batches(dset, tok, batch_size, train_mode=False, reward_modeling=Fal
             else:
                 if chat_data:
                     batch = [dset[indices[i + j]] for j in range(batch_size)]
-                    input_ids = [x['input_ids'] for x in batch]
-                    labels = [x['labels'] for x in batch]
-                    lengths = [len(x['input_ids']) for x in batch]
+                    input_ids = [x["input_ids"] for x in batch]
+                    labels = [x["labels"] for x in batch]
+                    lengths = [len(x["input_ids"]) for x in batch]
                     batch_arr = np.ones((batch_size, max(lengths)), np.int32) * tok.pad_token_id
                     label_arr = np.ones_like(batch_arr) * -100
                     for j in range(batch_size):
@@ -145,9 +146,14 @@ def evaluate(mdl, dataset, loss_fn, tok, train_args):
     all_losses = []
     ntokens = 0
     for it, batch in zip(
-            range(train_args.val_batches),
-            iterate_batches(dataset, tok, train_args.batch_size,
-                            reward_modeling=train_args.reward_model, chat_data=train_args.data_base == 'chat'),
+        range(train_args.val_batches),
+        iterate_batches(
+            dataset,
+            tok,
+            train_args.batch_size,
+            reward_modeling=train_args.reward_model,
+            chat_data=train_args.data_base == "chat",
+        ),
     ):
         losses, toks = loss_fn(mdl, *batch)
         all_losses.append((losses * toks).item())
@@ -175,12 +181,16 @@ def train(mdl, train_ds, val_set, optimizer, loss_fn, tok, train_args):
     # Main training loop
     start = time.perf_counter()
     for it, batch in zip(
-            range(train_args.iters),
-            iterate_batches(train_ds, tok, train_args.batch_size,
-                            train_mode=True, reward_modeling=train_args.reward_model,
-                            chat_data=train_args.data_base == 'chat'),
+        range(train_args.iters),
+        iterate_batches(
+            train_ds,
+            tok,
+            train_args.batch_size,
+            train_mode=True,
+            reward_modeling=train_args.reward_model,
+            chat_data=train_args.data_base == "chat",
+        ),
     ):
-
         # Forward and backward pass
         (lvalue, toks), grad = loss_value_and_grad(mdl, *batch)
 
@@ -194,7 +204,7 @@ def train(mdl, train_ds, val_set, optimizer, loss_fn, tok, train_args):
 
         # Report training loss if needed
         if (it + 1) % train_args.steps_per_report == 0:
-            train_loss = np.mean(losses[-train_args.steps_per_report:])
+            train_loss = np.mean(losses[-train_args.steps_per_report :])
 
             stop = time.perf_counter()
             print(
@@ -208,14 +218,8 @@ def train(mdl, train_ds, val_set, optimizer, loss_fn, tok, train_args):
         # Report validation loss if needed
         if (it == 0 or (it + 1) % train_args.steps_per_eval == 0) and val_set is not None:
             stop = time.perf_counter()
-            val_loss = evaluate(
-                mdl, val_set, loss_fn, tok, train_args
-            )
-            print(
-                f"Iter {it + 1}: "
-                f"Val loss {val_loss:.3f}, "
-                f"Val took {(time.perf_counter() - stop):.3f}s"
-            )
+            val_loss = evaluate(mdl, val_set, loss_fn, tok, train_args)
+            print(f"Iter {it + 1}: Val loss {val_loss:.3f}, Val took {(time.perf_counter() - stop):.3f}s")
             val_losses.append(val_loss)
 
             start = time.perf_counter()
@@ -223,23 +227,18 @@ def train(mdl, train_ds, val_set, optimizer, loss_fn, tok, train_args):
         # Save prompt weights if needed
         if (it + 1) % train_args.save_every == 0:
             save_adapter(model, train_args.save_file)
-            checkpoint = (
-                    Path(train_args.save_file).parent / f"{it:07d}_adapters.safetensors"
-            )
+            checkpoint = Path(train_args.save_file).parent / f"{it:07d}_adapters.safetensors"
             save_adapter(model, checkpoint)
-            print(
-                f"Iter {it}: Saved adapter weights to "
-                f"{train_args.save_file} and {checkpoint}."
-            )
-    fn = ''
+            print(f"Iter {it}: Saved adapter weights to {train_args.save_file} and {checkpoint}.")
+    fn = ""
     if train_args.prompt_tuning:
-        fn += 'prompt_tuning_'
+        fn += "prompt_tuning_"
     else:
-        fn += 'lora_'
+        fn += "lora_"
     plt.plot(losses)
-    plt.savefig(f'{fn}train_losses.png')
+    plt.savefig(f"{fn}train_losses.png")
     plt.plot(val_losses)
-    plt.savefig(f'{fn}val_losses.png')
+    plt.savefig(f"{fn}val_losses.png")
 
 
 if __name__ == "__main__":
@@ -270,22 +269,13 @@ if __name__ == "__main__":
 
     # Load the weights which we assume should exist by this point
     if not Path(args.save_file).is_file():
-        raise ValueError(
-            f"Save file {args.save_file} missing. "
-            "Use --train to learn and save the prompts.npz."
-        )
+        raise ValueError(f"Save file {args.save_file} missing. Use --train to learn and save the prompts.npz.")
     model.load_weights(args.save_file, strict=False)
 
     if args.test and test_set is not None:
         print("Testing")
         model.eval()
-        test_loss = evaluate(
-            model,
-            test_set,
-            loss,
-            tokenizer,
-            args
-        )
+        test_loss = evaluate(model, test_set, loss, tokenizer, args)
         test_ppl = math.exp(test_loss)
 
         print(f"Test loss {test_loss:.3f}, Test ppl {test_ppl:.3f}.")

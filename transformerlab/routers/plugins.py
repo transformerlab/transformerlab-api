@@ -9,6 +9,7 @@ import aiofiles
 import subprocess
 import shutil
 
+from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
@@ -58,7 +59,9 @@ async def plugin_gallery():
     gallery = workspace_gallery + remote_gallery
 
     # Now get a list of the plugins that are already installed:
-    local_workspace_gallery_directory = dirs.PLUGIN_DIR
+    from lab.dirs import get_plugin_dir
+
+    local_workspace_gallery_directory = get_plugin_dir()
     installed_plugins = []
     if os.path.exists(local_workspace_gallery_directory):
         for lp in os.listdir(local_workspace_gallery_directory):
@@ -82,20 +85,24 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
 
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
     # create the directory if it doesn't exist
-    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    from lab.dirs import get_plugin_dir
+
+    new_directory = os.path.join(get_plugin_dir(), plugin_id)
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in gallery.")
         return
     if not os.path.exists(new_directory):
         os.makedirs(new_directory)
     # Now copy it to the workspace:
-    copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
+    copy_tree(plugin_path, lab_dirs.plugin_dir_by_name(plugin_id))
 
 
 async def delete_plugin_files_from_workspace(plugin_id: str):
     plugin_id = secure_filename(plugin_id)
 
-    plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    from lab.dirs import get_plugin_dir
+
+    plugin_path = os.path.join(get_plugin_dir(), plugin_id)
     # return if the directory doesn't exist
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in workspace.")
@@ -106,7 +113,9 @@ async def delete_plugin_files_from_workspace(plugin_id: str):
 
 async def run_installer_for_plugin(plugin_id: str, log_file):
     plugin_id = secure_filename(plugin_id)
-    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    from lab.dirs import get_plugin_dir
+
+    new_directory = os.path.join(get_plugin_dir(), plugin_id)
     venv_path = os.path.join(new_directory, "venv")
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
 
@@ -127,6 +136,28 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
         await log_file.write(f"## Running setup script for {plugin_id} in virtual environment...\n")
 
         setup_script_name = plugin_index["setup-script"]
+        setup_script_path = os.path.join(new_directory, setup_script_name)
+
+        # Normalize CRLF -> LF centrally before running any setup script so each installer
+        # doesn't need to include the conversion itself.
+        try:
+            if os.path.exists(setup_script_path):
+                with open(setup_script_path, "rb") as f:
+                    data = f.read()
+                if b"\r" in data:
+                    normalized = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+                    with open(setup_script_path, "wb") as f:
+                        f.write(normalized)
+                    # Ensure the script is executable
+                    try:
+                        os.chmod(setup_script_path, os.stat(setup_script_path).st_mode | 0o111)
+                    except Exception:
+                        pass
+                    await log_file.write(f"## Normalized line endings for {setup_script_name}\n")
+        except Exception as e:
+            print(f"Failed to normalize line endings for {setup_script_name}: {e}")
+            await log_file.write(f"## Failed to normalize line endings for {setup_script_name}: {e}\n")
+
         # Use bash -c to properly source the activation script before running setup script
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
@@ -169,7 +200,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
 
 @router.get(path="/delete_plugin")
 async def delete_plugin(plugin_name: str):
-    final_path = dirs.plugin_dir_by_name(plugin_name)
+    final_path = lab_dirs.plugin_dir_by_name(plugin_name)
     remove_tree(final_path)
     return {"message": f"Plugin {plugin_name} deleted successfully."}
 
@@ -191,18 +222,43 @@ async def install_plugin(plugin_id: str):
 
     await copy_plugin_files_to_workspace(plugin_id)
 
-    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    new_directory = os.path.join(lab_dirs.get_plugin_dir(), plugin_id)
     venv_path = os.path.join(new_directory, "venv")
 
-    global_log_file_name = dirs.GLOBAL_LOG_PATH
+    from lab.dirs import get_global_log_path
+
+    global_log_file_name = get_global_log_path()
     async with aiofiles.open(global_log_file_name, "a") as log_file:
         # Create virtual environment using uv
         print("Creating virtual environment for plugin...")
         await log_file.write(f"## Creating virtual environment for {plugin_id}...\n")
+        # We specifically switch yourbench to python 3.12 as it doesnt seem to support python 3.11 (refer: https://github.com/huggingface/yourbench/issues/65)
+        if "yourbench" in plugin_id:
+            await log_file.write("## Setting up python 3.12 for yourbench...\n")
+            proc = await asyncio.create_subprocess_exec(
+                "uv",
+                "venv",
+                venv_path,
+                "--python",
+                "3.12",
+                "--clear",
+                cwd=new_directory,
+                stdout=log_file,
+                stderr=log_file,
+            )
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                "uv",
+                "venv",
+                venv_path,
+                "--python",
+                "3.11",
+                "--clear",
+                cwd=new_directory,
+                stdout=log_file,
+                stderr=log_file,
+            )
 
-        proc = await asyncio.create_subprocess_exec(
-            "uv", "venv", venv_path, "--python", "3.11", cwd=new_directory, stdout=log_file, stderr=log_file
-        )
         await proc.wait()
 
         # Run uv sync after setup script, also with environment activated
@@ -214,11 +270,11 @@ async def install_plugin(plugin_id: str):
             # If we have a GPU, use the requirements file for GPU
             print("NVIDIA GPU detected, using GPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
+            additional_flags = ""
         elif check_amd_gpu():
             # If we have an AMD GPU, use the requirements file for AMD
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.3'"
+            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.4' --index-strategy unsafe-best-match"
         # Check if system is MacOS with Apple Silicon
         elif sys.platform == "darwin":
             # If we have a MacOS with Apple Silicon, use the requirements file for MacOS
@@ -228,7 +284,7 @@ async def install_plugin(plugin_id: str):
         else:
             # If we don't have a GPU, use the requirements file for CPU
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/cpu'"
+            additional_flags = "--index 'https://download.pytorch.org/whl/cpu' --index-strategy unsafe-best-match"
 
         print(f"Using requirements file: {requirements_file_path}")
         proc = await asyncio.create_subprocess_exec(
@@ -270,7 +326,9 @@ async def install_plugin(plugin_id: str):
 
 @router.get("/{plugin_id}/run_installer_script", summary="Run the installer script for a plugin.")
 async def run_installer_script(plugin_id: str):
-    global_log_file_name = dirs.GLOBAL_LOG_PATH
+    from lab.dirs import get_global_log_path
+
+    global_log_file_name = get_global_log_path()
     async with aiofiles.open(global_log_file_name, "a") as log_file:
         return await run_installer_for_plugin(plugin_id, log_file)
     return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
@@ -280,7 +338,14 @@ async def run_installer_script(plugin_id: str):
 async def list_plugins() -> list[object]:
     """Get list of plugins that are currently installed"""
 
-    local_workspace_gallery_directory = dirs.PLUGIN_DIR
+    from lab.dirs import get_plugin_dir
+
+    local_workspace_gallery_directory = get_plugin_dir()
+
+    # Return empty if multitenant mode is enabled as we don't need plugins in this mode.
+    # TODO: Optimize this later on with similar index as jobs.json
+    if os.getenv("TFL_MULTITENANT") == "true":
+        return []
 
     # now get the local workspace gallery
     workspace_gallery = []
@@ -384,20 +449,20 @@ def patch_rocm_runtime_for_venv(venv_path):
             if file.startswith("libhsa-runtime64.so"):
                 os.remove(os.path.join(torch_lib_path, file))
 
-        # Copy ROCm .so file
-        src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
-        dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
-        shutil.copy(src, dst)
+        # # Copy ROCm .so file
+        # src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
+        # dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
+        # shutil.copy(src, dst)
 
-        # Create symlinks
-        def force_symlink(target, link_name):
-            full_link = os.path.join(torch_lib_path, link_name)
-            if os.path.islink(full_link) or os.path.exists(full_link):
-                os.remove(full_link)
-            os.symlink(target, full_link)
+        # # Create symlinks
+        # def force_symlink(target, link_name):
+        #     full_link = os.path.join(torch_lib_path, link_name)
+        #     if os.path.islink(full_link) or os.path.exists(full_link):
+        #         os.remove(full_link)
+        #     os.symlink(target, full_link)
 
-        force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
-        force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
+        # force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
+        # force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
 
         print("ROCm runtime patched successfully.")
         return {"status": "success", "message": "ROCm runtime patched successfully."}

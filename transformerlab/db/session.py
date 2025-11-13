@@ -1,10 +1,11 @@
 import os
+import shutil
 import aiosqlite
-from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
+from lab.dirs import get_workspace_dir
 from transformerlab.shared.models import models
 
 
@@ -28,6 +29,23 @@ async def init():
     Create the database, tables, and workspace folder if they don't exist.
     """
     global db
+    # Migrate database from old location if necessary
+    old_db_base = os.path.join(get_workspace_dir(), "llmlab.sqlite3")
+    if os.path.exists(old_db_base):
+        if not os.path.exists(DATABASE_FILE_NAME):
+            for ext in ["", "-wal", "-shm"]:
+                old_path = old_db_base + ext
+                new_path = DATABASE_FILE_NAME + ext
+                if os.path.exists(old_path):
+                    shutil.copy2(old_path, new_path)
+                    os.remove(old_path)
+            print("Migrated database from workspace to parent directory")
+        else:
+            for ext in ["", "-wal", "-shm"]:
+                old_path = old_db_base + ext
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+            print("Old database files removed (new database already exists)")
     os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
     await db.execute("PRAGMA journal_mode=WAL")
@@ -60,29 +78,10 @@ async def init():
 
     print("✅ Database initialized")
 
-    print("✅ SEED DATA")
-    async with async_session() as session:
-        for name in ["alpha", "beta", "gamma"]:
-            # Check if experiment already exists
-            exists = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
-            if not exists.scalar_one_or_none():
-                session.add(models.Experiment(name=name, config={}))
-        await session.commit()
-
-    # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
-    # This is to handle the case where the server is restarted while a job is running.
-    await job_cancel_in_progress_jobs()
     # Run migrations
     await migrate_workflows_non_preserving()
     # await init_sql_model()
 
-    return
-
-
-async def job_cancel_in_progress_jobs():
-    async with async_session() as session:
-        await session.execute(update(models.Job).where(models.Job.status == "RUNNING").values(status="CANCELLED"))
-        await session.commit()
     return
 
 

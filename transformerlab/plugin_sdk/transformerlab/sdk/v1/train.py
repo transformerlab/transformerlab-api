@@ -165,7 +165,8 @@ class TrainerTLabPlugin(TLabPlugin):
         except Exception as e:
             error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            self.job.set_job_completion_status("failed", "Error loading configuration")
+            self.job.update_job_data_field("completion_status", "failed")
+            self.job.update_job_data_field("completion_details", "Error loading configuration")
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
@@ -360,15 +361,58 @@ class TrainerTLabPlugin(TLabPlugin):
             print(f"Error saving metrics to file: {str(e)}")
 
     def create_transformerlab_model(
-        self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True
+        self,
+        fused_model_name,
+        model_architecture,
+        json_data,
+        output_dir=None,
+        generate_json=True,
+        pipeline_tag=None,
+        parent_model=None,
     ):
-        if generate_json:
-            generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)
+        # Handle pipeline tag logic
+        if pipeline_tag is None and parent_model is not None:
+            # Try to fetch pipeline tag from parent model
+            try:
+                from huggingface_hub import HfApi
+
+                api = HfApi()
+                model_info = api.model_info(parent_model)
+                pipeline_tag = model_info.pipeline_tag
+                print(f"Fetched pipeline tag '{pipeline_tag}' from parent model '{parent_model}'")
+            except Exception as e:
+                print(f"Error fetching pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
+                pipeline_tag = None  # Default fallback
+
+        # Add pipeline tag to json_data if provided
+        if pipeline_tag is not None:
+            json_data = json_data.copy() if json_data else {}
+            json_data["pipeline_tag"] = pipeline_tag
 
         if output_dir is None:
             fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
         else:
             fused_model_location = os.path.join(output_dir, fused_model_name)
+
+        # Determine model_filename based on architecture
+        # Most models are directory-based, only GGUF models are file-based
+        # Default to directory-based (use "." to indicate the directory itself)
+        model_filename = "."
+        
+        # GGUF architecture indicates a file-based model
+        # The actual filename will be set by the export process, so we don't set it here
+        # For now, if it's GGUF and the file exists, use the filename
+        if "GGUF" in model_architecture.upper() or model_architecture.upper() == "GGUF":
+            if os.path.exists(fused_model_location):
+                if os.path.isfile(fused_model_location):
+                    # File-based model - use the filename
+                    model_filename = os.path.basename(fused_model_location)
+                # If it's a directory for GGUF, keep "." (directory-based)
+                # This shouldn't normally happen for GGUF, but handle it gracefully
+            # If GGUF file doesn't exist yet, the export process will set the filename
+
+        if generate_json:
+            generate_model_json(fused_model_name, model_architecture, model_filename=model_filename, json_data=json_data, output_directory=output_dir)
 
         # Create the hash files for the model
         md5_objects = self.create_md5_checksum_model_files(fused_model_location)
