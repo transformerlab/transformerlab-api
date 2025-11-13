@@ -93,7 +93,7 @@ class ChatCompletionRequest(BaseModel):
     tools: Optional[List[Dict[str, Any]]] = None
 
 
-class AudioRequest(BaseModel):
+class AudioSpeechRequest(BaseModel):
     experiment_id: str
     model: str
     adaptor: Optional[str] = ""
@@ -109,6 +109,7 @@ class AudioRequest(BaseModel):
 class AudioTranscriptionsRequest(BaseModel):
     experiment_id: str
     model: str
+    adaptor: Optional[str] = ""
     audio_path: str
     # format: str
     # output_path: str note: probably we set this by ourself

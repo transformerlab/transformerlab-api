@@ -195,7 +195,7 @@ async def delete_audio(experimentId: str, id: str):
     return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
 
 @router.get("/list_transcription")
-async def list_transcription(experimentId: int):
+async def list_transcription(experimentId: str):
     # Get experiment name and directory
     data = await experiment_get(experimentId)
     
