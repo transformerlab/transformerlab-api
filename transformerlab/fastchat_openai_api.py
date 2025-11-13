@@ -93,7 +93,7 @@ class ChatCompletionRequest(BaseModel):
     tools: Optional[List[Dict[str, Any]]] = None
 
 
-class AudioRequest(BaseModel):
+class AudioGenerationRequest(BaseModel):
     experiment_id: str
     model: str
     adaptor: Optional[str] = ""
@@ -105,6 +105,14 @@ class AudioRequest(BaseModel):
     top_p: Optional[float] = 1.0
     voice: Optional[str] = None
     audio_path: Optional[str] = None
+
+class AudioTranscriptionsRequest(BaseModel):
+    experiment_id: str
+    model: str
+    adaptor: Optional[str] = ""
+    audio_path: str
+    # format: str
+    # output_path: str note: probably we set this by ourself
 
 
 class VisualizationRequest(PydanticBaseModel):
@@ -518,7 +526,7 @@ async def show_available_models():
 
 
 @router.post("/v1/audio/speech", tags=["audio"])
-async def create_audio_tts(request: AudioRequest):
+async def create_audio_tts(request: AudioGenerationRequest):
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
         if isinstance(error_check_ret, JSONResponse):
@@ -544,6 +552,8 @@ async def create_audio_tts(request: AudioRequest):
         "top_p": request.top_p,
         "audio_path": request.audio_path,
     }
+    gen_params["task"] = "tts"
+
 
     # Add voice parameter if provided
     if request.voice:
@@ -575,6 +585,34 @@ async def upload_audio_reference(experimentId: str, audio: UploadFile = File(...
         f.write(content)
 
     return JSONResponse({"audioPath": file_path})
+
+@router.post("/v1/audio/transcriptions", tags=["audio"])
+async def create_text_stt(request: AudioTranscriptionsRequest):
+    error_check_ret = await check_model(request)
+    if error_check_ret is not None:
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+
+    exp_obj = Experiment.get(request.experiment_id)
+    experiment_dir = exp_obj.get_dir()
+    transcription_dir = os.path.join(experiment_dir, "transcriptions")
+    os.makedirs(transcription_dir, exist_ok=True)
+
+    gen_params = {
+        "model": request.model,
+        "audio_path": request.audio_path,
+        "output_path": transcription_dir,
+        #"format": request.format,
+    }
+    gen_params["task"] = "stt"
+    try:
+        content = await generate_completion(gen_params)
+        return content
+    except Exception as e:
+        return create_error_response(ErrorCode.INTERNAL_ERROR, str(e))
+
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
