@@ -22,6 +22,7 @@ from mlx_audio.stt.generate import generate
 from datetime import datetime
 
 from lab.dirs import get_experiments_dir, get_workspace_dir
+from werkzeug.utils import secure_filename
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -78,7 +79,7 @@ class MLXAudioWorker(BaseModelWorker):
             text = params.get("text", "")
             model = params.get("model", None)
             speed = params.get("speed", 1.0)
-            file_prefix = params.get("file_prefix", "audio")
+            file_prefix = secure_filename(params.get("file_prefix", "audio"))
             audio_format = params.get("audio_format", "wav")
             sample_rate = params.get("sample_rate", 24000)
             temperature = params.get("temperature", 0.0)
@@ -88,14 +89,9 @@ class MLXAudioWorker(BaseModelWorker):
             lang_code = params.get("lang_code", None)
             stream = params.get("stream", False)
             
-            experiment_dir = os.path.realpath(os.path.abspath(os.path.normpath(get_experiments_dir())))
-            audio_dir = params.get("audio_dir", None)
-            if not audio_dir:
-                audio_dir = os.path.join(experiment_dir, "audio")
-            audio_dir = os.path.realpath(os.path.abspath(os.path.normpath(audio_dir)))
-            common_path = os.path.commonpath([experiment_dir, audio_dir])
-            if common_path != experiment_dir:
-                raise ValueError("Invalid audio_dir: path must be within experiment directory")
+            experiment_dir = get_experiments_dir()
+            audio_dir_name = secure_filename(params.get("audio_dir", "audio"))
+            audio_dir = os.path.join(experiment_dir, audio_dir_name)
             os.makedirs(name=audio_dir, exist_ok=True)
 
             try:
@@ -153,15 +149,8 @@ class MLXAudioWorker(BaseModelWorker):
             audio_path = params.get("audio_path", "")
             model = params.get("model", None)
             format = params.get("format", "txt")
-            transcriptions_dir = params.get("output_path", None)
-
-            if not transcriptions_dir:
-                transcriptions_dir = os.path.join(get_workspace_dir(), "transcriptions")
-            else:
-                # Resolve to absolute path and ensure it's within WORKSPACE_DIR
-                transcriptions_dir = os.path.abspath(transcriptions_dir)
-                if not transcriptions_dir.startswith(os.path.abspath(get_workspace_dir())):
-                    raise ValueError("Invalid output_path: path must be within workspace directory")
+            output_path_name = secure_filename(params.get("output_path", "transcriptions"))
+            transcriptions_dir = os.path.join(get_workspace_dir(), output_path_name)
             os.makedirs(name=transcriptions_dir, exist_ok=True)
 
             # Generate a UUID for this file name:
