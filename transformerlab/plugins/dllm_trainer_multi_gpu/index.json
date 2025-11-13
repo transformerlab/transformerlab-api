@@ -11,6 +11,7 @@
     "DreamModel",
     "LLaDAModelLM"
   ],
+  "training_template_format": "none",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
