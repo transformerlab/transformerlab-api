@@ -619,8 +619,6 @@ async def get_task_file_content(task_dir: str, file_path: str):
         return {"status": "error", "message": "An error occurred while getting task file content"}
 
 
-
-
 @router.post("/install_from_gallery", summary="Install a task from transformerlab/galleries to local tasks-gallery")
 async def install_task_from_gallery(
     id: str = Form(...),
@@ -958,9 +956,7 @@ async def import_task_from_local_gallery(
                                 remote_info = resp.json()
                                 # Extract uploaded_dir path from response
                                 uploaded_dir = (
-                                    remote_info.get("uploaded_files", {})
-                                    .get("dir_files", {})
-                                    .get("uploaded_dir")
+                                    remote_info.get("uploaded_files", {}).get("dir_files", {}).get("uploaded_dir")
                                 )
                                 if uploaded_dir:
                                     try:
