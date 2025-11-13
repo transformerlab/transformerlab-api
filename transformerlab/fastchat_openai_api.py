@@ -1573,19 +1573,23 @@ async def text_diffusion_stream_generator(
             finish_reason = content.get("finish_reason")
             
             # Format response with diffusion metadata
+            # Always include text (even if empty) and step info for each diffusion step
             response_data = {
                 "id": id,
                 "object": "text_diffusion",
                 "model": model_name,
-                "text": text,
-                "diffusion_step": diffusion_step,
-                "total_steps": total_steps,
-                "masks_remaining": masks_remaining,
-                "finish_reason": finish_reason,
+                "text": text if text is not None else "",
             }
             
-            # Remove None values
-            response_data = {k: v for k, v in response_data.items() if v is not None}
+            # Add diffusion step metadata if available
+            if diffusion_step is not None:
+                response_data["diffusion_step"] = diffusion_step
+            if total_steps is not None:
+                response_data["total_steps"] = total_steps
+            if masks_remaining is not None:
+                response_data["masks_remaining"] = masks_remaining
+            if finish_reason is not None:
+                response_data["finish_reason"] = finish_reason
             
             response_json = json.dumps(response_data, ensure_ascii=False)
             yield f"data: {response_json}\n\n"
