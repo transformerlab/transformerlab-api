@@ -1597,7 +1597,7 @@ async def text_diffusion_stream_generator(
     except Exception as e:
         logger.error(f"Error in text diffusion stream: {e}")
         error_msg = json.dumps({
-            "error": f"Error in text diffusion stream: {str(e)}",
+            "error": "Error in text diffusion stream",
             "error_code": ErrorCode.INTERNAL_ERROR,
         })
         yield f"data: {error_msg}\n\n"
