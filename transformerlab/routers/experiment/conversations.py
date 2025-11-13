@@ -130,10 +130,13 @@ async def list_audio(experimentId: str):
 
 
 @router.get(path="/download_audio")
-async def download_audio(experimentId: str, filename: str):
+async def download_audio(experimentId: str, filename: str, audioFolder: str = "audio"):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    audio_dir = os.path.join(experiment_dir, "audio")
+    
+    # Use the provided audioFolder parameter, defaulting to "audio"
+    audioFolder = secure_filename(audioFolder)
+    audio_dir = os.path.join(experiment_dir, audioFolder)
 
     # now download the audio file
     filename = secure_filename(filename)
@@ -196,14 +199,9 @@ async def delete_audio(experimentId: str, id: str):
 
 @router.get("/list_transcription")
 async def list_transcription(experimentId: str):
-    # Get experiment name and directory
-    data = await experiment_get(experimentId)
-    
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-    
-    experiment_name = secure_filename(data["name"])
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    # Get experiment object and directory
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
     transcription_dir = os.path.join(experiment_dir, "transcriptions")
     os.makedirs(transcription_dir, exist_ok=True)
 
@@ -225,12 +223,9 @@ async def list_transcription(experimentId: str):
     return transcription_files_metadata
 
 @router.get("/download_transcription")
-async def download_transcription(experimentId: int, filename: str):
-    data = await experiment_get(experimentId)
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-    experiment_name = secure_filename(data["name"])
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+async def download_transcription(experimentId: str, filename: str):
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
     text_dir = os.path.join(experiment_dir, "transcriptions")
     filename = secure_filename(filename)
     file_path = os.path.join(text_dir, filename)
@@ -239,12 +234,9 @@ async def download_transcription(experimentId: int, filename: str):
     return FileResponse(path=file_path, filename=filename, media_type="text/plain")
 
 @router.delete("/delete_transcription")
-async def delete_transcription(experimentId: int, id: str):
-    data = await experiment_get(experimentId)
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-    experiment_name = secure_filename(data["name"])
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+async def delete_transcription(experimentId: str, id: str):
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
     text_dir = os.path.join(experiment_dir, "transcriptions")
     id = secure_filename(id)
     text_path = os.path.join(text_dir, id + ".json")
