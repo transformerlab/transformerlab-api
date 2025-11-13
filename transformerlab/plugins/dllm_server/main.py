@@ -160,6 +160,7 @@ class DLLMWorker(BaseModelWorker):
             config = self.model.config
             self.context_len = get_context_length(config, default=self.manual_context_len)
         except Exception as e:
+            print(f"Error getting context length: {e}")
             self.context_len = self.manual_context_len
 
         logger.info(f"Context length: {self.context_len}")
