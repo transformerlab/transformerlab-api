@@ -141,9 +141,17 @@ def train_model():
     mask_prompt_loss = tlab_trainer.params.get("mask_prompt_loss", True)
 
     output_dir = tlab_trainer.params.get("output_dir", "./output")
-    training_args = TrainingArguments(
+    raw_num_train_epochs = tlab_trainer.params.get("num_train_epochs", 0)
+    try:
+        parsed_num_train_epochs = int(raw_num_train_epochs)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("num_train_epochs must be an integer.") from exc
+
+    train_steps_param = tlab_trainer.params.get("train_steps", tlab_trainer.params.get("max_steps"))
+    use_train_steps = parsed_num_train_epochs <= 0
+
+    training_args_kwargs = dict(
         output_dir=output_dir,
-        num_train_epochs=int(tlab_trainer.params.num_train_epochs),
         per_device_train_batch_size=int(tlab_trainer.params.batch_size),
         per_device_eval_batch_size=int(tlab_trainer.params.batch_size),
         learning_rate=float(tlab_trainer.params.learning_rate),
@@ -158,6 +166,21 @@ def train_model():
         seed=tlab_trainer.params.get("seed", 42),
         gradient_accumulation_steps=tlab_trainer.params.get("gradient_accumulation_steps", 1),
     )
+
+    if use_train_steps:
+        if train_steps_param is None:
+            raise ValueError("train_steps must be provided when num_train_epochs is 0.")
+        try:
+            max_steps = int(train_steps_param)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("train_steps must be an integer when num_train_epochs is 0.") from exc
+        if max_steps <= 0:
+            raise ValueError("train_steps must be a positive integer when num_train_epochs is 0.")
+        training_args_kwargs["max_steps"] = max_steps
+    else:
+        training_args_kwargs["num_train_epochs"] = parsed_num_train_epochs
+
+    training_args = TrainingArguments(**training_args_kwargs)
 
     print_args_main(model_args, data_args, training_args)
     initial_training_setup(model_args, data_args, training_args)

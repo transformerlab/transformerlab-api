@@ -57,7 +57,13 @@
     "num_train_epochs": {
       "title": "Number of Training Epochs",
       "type": "integer",
-      "default": 4,
+      "default": 0,
+      "minimum": 0
+    },
+    "train_steps": {
+      "title": "Number of Training Steps",
+      "type": "integer",
+      "default": 1000,
       "minimum": 1
     },
     "max_length": {
@@ -171,6 +177,7 @@
     "loss_weight_type": {
       "title": "Loss Weight Type (Dream only)",
       "type": "string",
+      "enum": ["cart[geo_p:0.3]", "scheduler"],
       "default": "cart[geo_p:0.3]"
     },
     "adaptor_name": {
@@ -228,8 +235,14 @@
     "resp_cutoff_ratio": {
       "ui:help": "The probability of randomly cutting sequences during training. Only applies to Dream training method."
     },
+    "num_train_epochs": {
+      "ui:help": "Number of epochs to train for. Set to 0 to train by number of steps instead."
+    },
+    "train_steps": {
+      "ui:help": "Total number of optimizer steps to run when epochs is set to 0."
+    },
     "loss_weight_type": {
-      "ui:help": "The loss weight type for Dream training. Options include 'cart[geo_p:0.3]' for CART weighting or 'scheduler' for scheduler-based weighting."
+      "ui:help": "The loss weight type for Dream training. Choose 'cart[geo_p:0.3]' for CART weighting or 'scheduler' for scheduler-based weighting."
     },
     "log_to_wandb": {
       "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
