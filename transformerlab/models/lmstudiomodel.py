@@ -4,7 +4,6 @@ import os
 import json
 import errno
 import shutil
-import glob
 
 _LM_MODEL_EXTS = (".gguf", ".safetensors", ".pt", ".bin")
 
