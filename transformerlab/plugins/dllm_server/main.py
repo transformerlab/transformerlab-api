@@ -281,30 +281,73 @@ class DLLMWorker(BaseModelWorker):
         # For streaming, we can yield intermediate states from histories if available
         # If histories are available, we can stream intermediate states
         if outputs.histories and len(outputs.histories) > 0:
+            total_steps = len(outputs.histories) - 1  # Exclude initial state
             # Stream intermediate states from diffusion process
             # Skip the first history state (it's usually the initial state)
             for i, history_state in enumerate(outputs.histories[1:], 1):
-                # Decode intermediate state
+                # Decode intermediate state - decode FULL sequence like terminal visualizer
                 # history_state is a tensor of shape [B, T], convert to list format
                 if isinstance(history_state, torch.Tensor):
-                    history_list = [history_state.tolist()]
+                    # Get the first sequence if batch dimension exists
+                    if history_state.dim() > 1:
+                        token_ids = history_state[0].tolist()
+                    else:
+                        token_ids = history_state.tolist()
+                    
+                    # Count masks (if mask_token_id is available)
+                    masks_remaining = 0
+                    if hasattr(self.tokenizer, 'mask_token_id') and self.tokenizer.mask_token_id is not None:
+                        mask_token_id = self.tokenizer.mask_token_id
+                        if history_state.dim() > 1:
+                            masks_remaining = (history_state[0] == mask_token_id).sum().item()
+                        else:
+                            masks_remaining = (history_state == mask_token_id).sum().item()
                 else:
-                    history_list = history_state
-                intermediate_sequences = decode_trim(
-                    self.tokenizer,
-                    history_list,
-                    inputs,
-                )
-                intermediate_text = intermediate_sequences[0] if intermediate_sequences and len(intermediate_sequences) > 0 else ""
+                    # If it's already a list, use it directly
+                    if isinstance(history_state, list) and len(history_state) > 0:
+                        if isinstance(history_state[0], list):
+                            token_ids = history_state[0]
+                        else:
+                            token_ids = history_state
+                    else:
+                        token_ids = history_state
+                    masks_remaining = 0
+                
+                # Decode the FULL sequence (like terminal visualizer does) to show text evolution
+                # This shows the prompt + generation at each step
+                try:
+                    # Decode the full sequence, similar to terminal visualizer's _detok method
+                    intermediate_text = self.tokenizer.decode(
+                        token_ids,
+                        skip_special_tokens=False,
+                        clean_up_tokenization_spaces=True,
+                    )
+                    # Remove control characters for display
+                    intermediate_text = intermediate_text.replace("\r", "")
+                except Exception as e:
+                    logger.error(f"Error decoding step {i}: {e}")
+                    intermediate_text = ""
 
-                # Check for stop strings in intermediate text
+                # For visualization, we show the full sequence at each step
+                # Stop string checking will be done on the final result
+                # But we still need to check if we should stop early
                 should_stop = False
-                for stop_str in stop:
-                    if stop_str in intermediate_text:
-                        idx = intermediate_text.find(stop_str)
-                        intermediate_text = intermediate_text[:idx]
-                        should_stop = True
-                        break
+                # Only check stop strings in the generated portion (after prompt)
+                # Extract just the generated part for stop string checking
+                try:
+                    prompt_text = self.tokenizer.decode(input_ids, skip_special_tokens=False)
+                    if prompt_text in intermediate_text:
+                        generated_portion = intermediate_text[len(prompt_text):]
+                        for stop_str in stop:
+                            if stop_str in generated_portion:
+                                should_stop = True
+                                break
+                except Exception:
+                    # Fallback: check in full text
+                    for stop_str in stop:
+                        if stop_str in intermediate_text:
+                            should_stop = True
+                            break
 
                 ret = {
                     "text": intermediate_text,
@@ -315,6 +358,10 @@ class DLLMWorker(BaseModelWorker):
                         "total_tokens": len(input_ids) + (len(intermediate_text.split()) if intermediate_text else 0),
                     },
                     "finish_reason": None,
+                    # Add diffusion step metadata for visualization
+                    "diffusion_step": i,
+                    "total_steps": total_steps,
+                    "masks_remaining": masks_remaining,
                 }
                 yield (json.dumps(ret) + "\0").encode()
 

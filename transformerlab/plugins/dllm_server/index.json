@@ -6,9 +6,7 @@
   "type": "loader",
   "version": "0.0.1",
   "supports": [
-    "chat",
-    "completion",
-    "template"
+    "text_diffusion"
   ],
   "model_architectures": [
     "BertForMaskedLM",
