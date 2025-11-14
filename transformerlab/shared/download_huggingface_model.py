@@ -218,16 +218,18 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files
             "total_bytes": total_bytes,
             "monitoring_type": "cache_based",
         }
-        
+
         # Add file tracking if provided
         if files_downloaded is not None and files_total is not None:
             job_data["files_downloaded"] = files_downloaded
             job_data["files_total"] = files_total
-        
+
         job.set_job_data(job_data)
 
         if files_downloaded is not None and files_total is not None:
-            print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB) - Files: {files_downloaded}/{files_total}")
+            print(
+                f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB) - Files: {files_downloaded}/{files_total}"
+            )
         else:
             print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)")
 

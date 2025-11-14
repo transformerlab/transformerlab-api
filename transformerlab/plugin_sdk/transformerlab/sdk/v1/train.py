@@ -402,7 +402,7 @@ class TrainerTLabPlugin(TLabPlugin):
         # Most models are directory-based, only GGUF models are file-based
         # Default to directory-based (use "." to indicate the directory itself)
         model_filename = "."
-        
+
         # GGUF architecture indicates a file-based model
         # The actual filename will be set by the export process, so we don't set it here
         # For now, if it's GGUF and the file exists, use the filename
@@ -416,7 +416,13 @@ class TrainerTLabPlugin(TLabPlugin):
             # If GGUF file doesn't exist yet, the export process will set the filename
 
         if generate_json:
-            generate_model_json(fused_model_name, model_architecture, model_filename=model_filename, json_data=json_data, output_directory=output_dir)
+            generate_model_json(
+                fused_model_name,
+                model_architecture,
+                model_filename=model_filename,
+                json_data=json_data,
+                output_directory=output_dir,
+            )
 
         # Create the hash files for the model
         md5_objects = self.create_md5_checksum_model_files(fused_model_location)

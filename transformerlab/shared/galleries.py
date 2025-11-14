@@ -119,51 +119,52 @@ def update_cache_from_remote_if_stale(gallery_filename: str, max_age_seconds: in
     """
     Updates the gallery cache from remote only if the cache is older than max_age_seconds.
     Default max_age_seconds is 3600 (1 hour).
-    
+
     Handles fused filesystems where getmtime() might be unreliable.
     """
     local_cache_filename = gallery_cache_file_path(gallery_filename)
-    
+
     # If file doesn't exist, update it
     if not storage.isfile(local_cache_filename):
         update_cache_from_remote(gallery_filename)
         return
-    
+
     # Check if cache is stale
     # Handle fused filesystems where getmtime() might be unreliable or unavailable
     try:
         # Get file info using storage module
         file_info = storage.filesystem().info(local_cache_filename)
-        
+
         # Extract modification time - handle different filesystem formats
         mtime = None
-        if 'mtime' in file_info:
-            mtime = file_info['mtime']
-        elif 'LastModified' in file_info:
+        if "mtime" in file_info:
+            mtime = file_info["mtime"]
+        elif "LastModified" in file_info:
             # S3 and some other filesystems use LastModified (datetime object)
             from datetime import datetime
-            last_modified = file_info['LastModified']
+
+            last_modified = file_info["LastModified"]
             if isinstance(last_modified, datetime):
                 mtime = last_modified.timestamp()
             else:
                 mtime = float(last_modified)
-        elif 'modified' in file_info:
-            mtime = file_info['modified']
-        
+        elif "modified" in file_info:
+            mtime = file_info["modified"]
+
         if mtime is None:
             # Could not determine modification time, update to be safe
             update_cache_from_remote(gallery_filename)
             return
-        
+
         current_time = time.time()
         file_age = current_time - mtime
-        
+
         # Sanity check: if mtime is in the future or file_age is negative, treat as unreliable
         if file_age < 0 or mtime > current_time:
             # Fused filesystem returned unreliable timestamp, update to be safe
             update_cache_from_remote(gallery_filename)
             return
-        
+
         if file_age > max_age_seconds:
             update_cache_from_remote(gallery_filename)
     except (OSError, ValueError, KeyError, AttributeError) as e:

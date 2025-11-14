@@ -85,14 +85,14 @@ async def document_list(experimentId: str, folder: str = None):
         for entry in entries:
             # fsspec detail entry may be dict; otherwise derive name from path
             if isinstance(entry, dict):
-                full_path = entry.get('name') or entry.get('path') or ''
-                name = os.path.basename(full_path.rstrip('/'))
-                is_dir = entry.get('type') == 'directory'
-                size = int(entry.get('size') or 0)
-                mtime = entry.get('mtime')
+                full_path = entry.get("name") or entry.get("path") or ""
+                name = os.path.basename(full_path.rstrip("/"))
+                is_dir = entry.get("type") == "directory"
+                size = int(entry.get("size") or 0)
+                mtime = entry.get("mtime")
             else:
                 full_path = entry
-                name = os.path.basename(full_path.rstrip('/'))
+                name = os.path.basename(full_path.rstrip("/"))
                 is_dir = storage.isdir(full_path)
                 size = 0 if is_dir else 0
                 mtime = None

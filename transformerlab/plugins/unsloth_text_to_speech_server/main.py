@@ -130,7 +130,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             except (OSError, ValueError):
                 # If realpath fails (e.g., for remote fsspec paths), path is unsafe
                 is_safe = False
-        
+
         if not is_safe:
             return {
                 "status": "error",
