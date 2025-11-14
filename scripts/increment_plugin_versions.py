@@ -11,7 +11,6 @@ Run from the transformerlab-api directory or from this scripts directory.
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 
