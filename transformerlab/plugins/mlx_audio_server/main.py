@@ -22,7 +22,7 @@ from mlx_audio.tts.generate import generate_audio
 from mlx_audio.stt.generate import generate
 from datetime import datetime
 
-from lab.dirs import get_experiments_dir, get_workspace_dir
+from lab.dirs import get_experiments_dir
 from werkzeug.utils import secure_filename
 
 worker_id = str(uuid.uuid4())[:8]
