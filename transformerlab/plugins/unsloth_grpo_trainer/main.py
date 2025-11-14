@@ -1,13 +1,13 @@
 from unsloth import FastLanguageModel, PatchFastRL
 import time
 import re
-import os
 import torch
 from jinja2 import Environment
 from transformers import BitsAndBytesConfig
 from trl import GRPOConfig, GRPOTrainer
 
 from transformerlab.sdk.v1.train import tlab_trainer
+from lab import storage
 
 # Set up environment
 jinja_environment = Environment()
@@ -176,7 +176,7 @@ def train_model():
     # GRPO training configuration
     args = GRPOConfig(
         output_dir=output_dir,
-        logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
+        logging_dir=storage.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
         num_train_epochs=num_epochs,
         weight_decay=weight_decay,
         per_device_train_batch_size=batch_size,

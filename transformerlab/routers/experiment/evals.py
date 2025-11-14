@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
+from lab import storage
 from transformerlab.services.job_service import job_get
 from transformerlab.shared import shared
 from lab import dirs as lab_dirs
@@ -192,7 +193,7 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     from lab.dirs import get_temp_dir
 
     plugin_json_file = "plugin_input_" + secure_filename(str(plugin_name)) + ".json"
-    input_file = os.path.join(get_temp_dir(), plugin_json_file)
+    input_file = storage.join(get_temp_dir(), plugin_json_file)
 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
@@ -215,7 +216,7 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
-    with open(input_file, "w") as outfile:
+    with storage.open(input_file, "w") as outfile:
         json.dump(input_contents, outfile, indent=4)
 
     # For now, even though we have the file above, we are also going to pass all params
@@ -273,13 +274,13 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     output_file = await lab_dirs.eval_output_file(experimentId, eval_name)
     print(f">EVAL Output file: {job_output_file}")
 
-    with open(job_output_file, "w") as f:
+    with storage.open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
         await process.communicate()
 
-    with open(output_file, "w") as f:
+    with storage.open(output_file, "w") as f:
         # Copy all contents from job_output_file to output_file
-        with open(job_output_file, "r") as job_output:
+        with storage.open(job_output_file, "r") as job_output:
             for line in job_output:
                 f.write(line)
 
@@ -294,7 +295,7 @@ async def get_output(experimentId: str, eval_name: str):
         return {"message": f"Experiment {experimentId} does not exist"}
 
     eval_output_file = await lab_dirs.eval_output_file(experimentId, eval_name)
-    if not os.path.exists(eval_output_file):
+    if not storage.exists(eval_output_file):
         return {"message": "Output file does not exist"}
 
     print(f"Returning output file: {eval_output_file}.")

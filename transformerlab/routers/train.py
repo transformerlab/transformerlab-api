@@ -1,12 +1,11 @@
 import json
-import os
 import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, Body
 import transformerlab.db.db as db
 import transformerlab.services.job_service as job_service
-from lab import Experiment
+from lab import Experiment, storage
 
 from werkzeug.utils import secure_filename
 
@@ -98,8 +97,7 @@ async def spawn_tensorboard(job_id: str):
     template_name = job_data["template_name"]
     template_name = secure_filename(template_name)
 
-    os.makedirs(f"{experiment_dir}/tensorboards/{template_name}", exist_ok=True)
-
-    logdir = f"{experiment_dir}/tensorboards/{template_name}"
+    logdir = storage.join(experiment_dir, "tensorboards", template_name)
+    storage.makedirs(logdir, exist_ok=True)
 
     tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])

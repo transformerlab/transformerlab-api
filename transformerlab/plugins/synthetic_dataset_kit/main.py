@@ -24,7 +24,8 @@ import pandas as pd
 from pathlib import Path
 
 from transformerlab.sdk.v1.generate import tlab_gen
-from transformerlab.plugin import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 def get_synthetic_kit_cli_path():
@@ -57,12 +58,12 @@ def run_generation():
     prompt_template = tlab_gen.params.get("prompt_template", "")
     api_base = tlab_gen.params.get("vllm_api_base", "http://localhost:8338/v1")
     port = str(api_base.rsplit(":", 1)[-1].rstrip("/v1"))
-    workspace = WORKSPACE_DIR
+    workspace = get_workspace_dir()
     experiment = tlab_gen.params.experiment_name
-    documents_dir = os.path.join(workspace, "experiments", experiment, "documents")
+    documents_dir = storage.join(workspace, "experiments", experiment, "documents")
     doc_filenames = [d.strip() for d in docs_str.split(",") if d.strip()]
-    full_paths = [os.path.join(documents_dir, name) for name in doc_filenames]
-    tmp_dir = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data"
+    full_paths = [storage.join(documents_dir, name) for name in doc_filenames]
+    tmp_dir = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data")
     model_name = str(tlab_gen.params.get("model_name", "meta-llama/Llama-3-8B-Instruct"))
     tlab_gen.check_local_server()
 
@@ -177,18 +178,18 @@ def run_generation():
     sub_folder = str(uuid.uuid4().hex)
     paths = {
         "input": {
-            "pdf": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/pdf/",
-            "html": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/html/",
-            "youtube": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/youtube/",
-            "docx": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/docx/",
-            "ppt": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/ppt/",
-            "txt": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/txt/",
+            "pdf": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "pdf") + "/",
+            "html": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "html") + "/",
+            "youtube": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "youtube") + "/",
+            "docx": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "docx") + "/",
+            "ppt": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "ppt") + "/",
+            "txt": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "txt") + "/",
         },
         "output": {
-            "parsed": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/",
-            "generated": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
-            "cleaned": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/cleaned/",
-            "final": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/final/",
+            "parsed": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output") + "/",
+            "generated": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated") + "/",
+            "cleaned": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "cleaned") + "/",
+            "final": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "final") + "/",
         },
     }
 
@@ -225,9 +226,9 @@ def run_generation():
     }
 
     # Ensure temporary config directory exists
-    os.makedirs(tmp_dir, exist_ok=True)
-    config_path = os.path.join(tmp_dir, f"tmp_config_{sub_folder}.yaml")
-    with open(config_path, "w") as f:
+    storage.makedirs(tmp_dir, exist_ok=True)
+    config_path = storage.join(tmp_dir, f"tmp_config_{sub_folder}.yaml")
+    with storage.open(config_path, "w") as f:
         yaml.dump(config, f)
 
     final_outputs = []
@@ -237,10 +238,10 @@ def run_generation():
     for i, path in enumerate(full_paths):
         # Construct output filenames based on document basename and generation type
         base = Path(path).stem
-        output_txt = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/{base}.txt"
-        gen_json = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/{base}_{generation_type}_pairs.json"
-        clean_json = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/cleaned/{base}_{generation_type}_pairs_cleaned.json"
-        final_jsonl = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/final/{base}_{generation_type}_pairs_cleaned.jsonl"
+        output_txt = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output", f"{base}.txt")
+        gen_json = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated", f"{base}_{generation_type}_pairs.json")
+        clean_json = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "cleaned", f"{base}_{generation_type}_pairs_cleaned.json")
+        final_jsonl = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "final", f"{base}_{generation_type}_pairs_cleaned.jsonl")
 
         try:
             # 1. Ingest: convert input file to plain text
@@ -252,7 +253,7 @@ def run_generation():
                     "ingest",
                     path,
                     "-o",
-                    f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/",
+                    storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output") + "/",
                 ],
                 check=True,
             )
@@ -271,7 +272,7 @@ def run_generation():
                     "--model",
                     model_name,
                     "-o",
-                    f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
+                    storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated") + "/",
                 ],
                 check=True,
             )
@@ -329,7 +330,7 @@ def run_generation():
                 )
 
             # Read final output file and parse each line to return to TransformerLab
-            with open(final_jsonl) as f:
+            with storage.open(final_jsonl, "r") as f:
                 if output_format in {"jsonl", "chatml"}:
                     for line in f:
                         final_outputs.append(json.loads(line))
@@ -341,12 +342,12 @@ def run_generation():
             print("Error running command:")
             print("STDOUT:\n", e.stdout)
             print("STDERR:\n", e.stderr)
-            if os.path.exists(config_path):
-                os.remove(config_path)
+            if storage.exists(config_path):
+                storage.rm(config_path)
             raise RuntimeError(f"Subprocess failed with code {e.returncode}") from e
 
-    if os.path.exists(config_path):
-        os.remove(config_path)
+    if storage.exists(config_path):
+        storage.rm(config_path)
 
     df = pd.DataFrame(final_outputs)
     # Save the generated dataset

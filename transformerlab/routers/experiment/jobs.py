@@ -6,6 +6,7 @@ import csv
 import pandas as pd
 from fastapi import APIRouter, Body, Response, Request
 from fastapi.responses import StreamingResponse, FileResponse
+from lab import storage
 
 from transformerlab.shared import shared
 from typing import Annotated
@@ -136,8 +137,8 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 
     if sweeps:
         output_file = job_data.get("sweep_output_file", None)
-        if output_file is not None and os.path.exists(output_file):
-            with open(output_file, "r") as f:
+        if output_file is not None and storage.exists(output_file):
+            with storage.open(output_file, "r") as f:
                 output = f.read()
             return output
 
@@ -159,10 +160,12 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 
     # Now we can get the output.txt from the plugin which is stored in
     # /workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt
-    output_file = f"{dirs.plugin_dir_by_name(plugin_name)}/output.txt"
-    with open(output_file, "r") as f:
-        output = f.read()
-    return output
+    output_file = storage.join(dirs.plugin_dir_by_name(plugin_name), "output.txt")
+    if storage.exists(output_file):
+        with storage.open(output_file, "r") as f:
+            output = f.read()
+        return output
+    return ""
 
 
 @router.get("/{job_id}/tasks_output")
@@ -189,7 +192,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and os.path.exists(output_file):
+            if output_file is not None and storage.exists(output_file):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
@@ -199,9 +202,9 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             output_file_name = await shared.get_job_output_file_name(job_id)
 
         # Read and return the file content as JSON array of lines
-        if os.path.exists(output_file_name):
+        if storage.exists(output_file_name):
             lines = []
-            with open(output_file_name, "r") as f:
+            with storage.open(output_file_name, "r") as f:
                 for line in f:
                     lines.append(line.rstrip("\n"))  # Remove trailing newline
             return lines
@@ -216,9 +219,9 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             await asyncio.sleep(4)
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
-                if os.path.exists(output_file_name):
+                if storage.exists(output_file_name):
                     lines = []
-                    with open(output_file_name, "r") as f:
+                    with storage.open(output_file_name, "r") as f:
                         for line in f:
                             lines.append(line.rstrip("\n"))  # Remove trailing newline
                     return lines
@@ -232,8 +235,10 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
                 output_file_name = job_obj.get_log_path()
-                os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
-                with open(output_file_name, "w") as f:
+                # Get directory by removing filename from path using storage.join
+                output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
+                storage.makedirs(output_dir, exist_ok=True)
+                with storage.open(output_file_name, "w") as f:
                     f.write("")
                 return []
         else:
@@ -296,7 +301,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and os.path.exists(output_file):
+            if output_file is not None and storage.exists(output_file):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
@@ -321,8 +326,10 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
                 output_file_name = job_obj.get_log_path()
-                os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
-                with open(output_file_name, "w") as f:
+                # Get directory by removing filename from path using storage.join
+                output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
+                storage.makedirs(output_dir, exist_ok=True)
+                with storage.open(output_file_name, "w") as f:
                     f.write("")
         else:
             print(f"ValueError in stream_job_output: {e}")
@@ -350,7 +357,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
 
 @router.get("/{job_id}/stream_detailed_json_report")
 async def stream_detailed_json_report(job_id: str, file_name: str):
-    if not os.path.exists(file_name):
+    if not storage.exists(file_name):
         print(f"File not found: {file_name}")
         return "File not found", 404
 
@@ -380,12 +387,12 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
     if task == "download":
         return FileResponse(file_path, filename=filename, media_type=file_format)
 
-    if not os.path.exists(file_path):
+    if not storage.exists(file_path):
         return Response("No additional details found for this evaluation", media_type="text/csv")
 
     # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
     # contain fields that start and end with " and contain \n. Use a CSV parser instead.
-    with open(file_path, "r") as csvfile:
+    with storage.open(file_path, "r") as csvfile:
         contents = csv.reader(csvfile, delimiter=",", quotechar='"')
         # convert the csv to a JSON object
         csv_content = {"header": [], "body": []}
@@ -405,10 +412,11 @@ async def get_figure_path(job_id: str):
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
 
-    if file_path is None or not os.path.exists(file_path):
+    if file_path is None or not storage.exists(file_path):
         return Response("No plot data found for this evaluation", media_type="text/csv")
 
-    content = json.loads(open(file_path, "r").read())
+    with storage.open(file_path, "r") as f:
+        content = json.loads(f.read())
     return content
 
 
@@ -426,10 +434,11 @@ async def get_generated_dataset(job_id: str):
     else:
         return Response("No dataset found for this evaluation", media_type="text/csv")
 
-    if not os.path.exists(json_file_path):
+    if not storage.exists(json_file_path):
         return Response("No dataset found for this evaluation", media_type="text/csv")
     else:
-        json_content = json.loads(open(json_file_path, "r").read())
+        with storage.open(json_file_path, "r") as f:
+            json_content = json.loads(f.read())
 
         df = pd.DataFrame(json_content)
 
@@ -517,29 +526,71 @@ async def get_eval_images(job_id: str):
 
     images_dir = job_data["eval_images_dir"]
 
-    if not os.path.exists(images_dir):
+    if not storage.exists(images_dir):
         return {"images": []}
 
     # Supported image extensions
     image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg"}
     images = []
     try:
-        for filename in os.listdir(images_dir):
-            file_path = os.path.join(images_dir, filename)
-            if os.path.isfile(file_path):
-                _, ext = os.path.splitext(filename.lower())
-                if ext in image_extensions:
-                    # Get file stats for additional metadata
-                    stat = os.stat(file_path)
-                    images.append(
-                        {
-                            "filename": filename,
-                            "path": f"/jobs/{job_id}/image/{filename}",  # API endpoint path
-                            "size": stat.st_size,
-                            "modified": stat.st_mtime,
-                        }
-                    )
-    except OSError as e:
+        # Use storage.ls to list directory contents
+        items = storage.ls(images_dir, detail=True)
+        for item in items:
+            # Handle both dict (detail=True) and string (detail=False) formats
+            if isinstance(item, dict):
+                file_path = item.get("name", "")
+                filename = file_path.split("/")[-1] if "/" in file_path else file_path
+                file_type = item.get("type", "file")
+                if file_type == "file":
+                    _, ext = os.path.splitext(filename.lower())
+                    if ext in image_extensions:
+                        images.append(
+                            {
+                                "filename": filename,
+                                "path": f"/jobs/{job_id}/image/{filename}",  # API endpoint path
+                                "size": item.get("size", 0),
+                                "modified": item.get("mtime", 0) if "mtime" in item else None,
+                            }
+                        )
+            else:
+                # Fallback for string format - check if it's a file
+                file_path = item if isinstance(item, str) else str(item)
+                if storage.isfile(file_path):
+                    filename = file_path.split("/")[-1] if "/" in file_path else file_path
+                    _, ext = os.path.splitext(filename.lower())
+                    if ext in image_extensions:
+                        # Try to get file info - for remote storage, stats might not be available
+                        try:
+                            items_detail = storage.ls(file_path, detail=True)
+                            if items_detail and isinstance(items_detail[0], dict):
+                                file_info = items_detail[0]
+                                images.append(
+                                    {
+                                        "filename": filename,
+                                        "path": f"/jobs/{job_id}/image/{filename}",
+                                        "size": file_info.get("size", 0),
+                                        "modified": file_info.get("mtime", 0) if "mtime" in file_info else None,
+                                    }
+                                )
+                            else:
+                                images.append(
+                                    {
+                                        "filename": filename,
+                                        "path": f"/jobs/{job_id}/image/{filename}",
+                                        "size": None,
+                                        "modified": None,
+                                    }
+                                )
+                        except Exception:
+                            images.append(
+                                {
+                                    "filename": filename,
+                                    "path": f"/jobs/{job_id}/image/{filename}",
+                                    "size": None,
+                                    "modified": None,
+                                }
+                            )
+    except Exception as e:
         print(f"Error reading images directory {images_dir}: {e}")
         return {"images": []}
 
@@ -562,15 +613,22 @@ async def get_eval_image(job_id: str, filename: str):
 
     images_dir = job_data["eval_images_dir"]
 
-    if not os.path.exists(images_dir):
+    if not storage.exists(images_dir):
         return Response("Images directory not found", status_code=404)
 
     # Secure the filename to prevent directory traversal
     filename = secure_filename(filename)
-    file_path = os.path.join(images_dir, filename)
+    file_path = storage.join(images_dir, filename)
 
-    # Ensure the file exists and is within the images directory
-    if not os.path.exists(file_path) or not os.path.commonpath([images_dir, file_path]) == images_dir:
+    # Ensure the file exists
+    if not storage.exists(file_path):
+        return Response("Image not found", status_code=404)
+    
+    # For security, verify the file path is within the images directory
+    # Normalize paths for comparison
+    images_dir_normalized = images_dir.rstrip("/")
+    file_path_normalized = file_path.rstrip("/")
+    if not file_path_normalized.startswith(images_dir_normalized + "/") and file_path_normalized != images_dir_normalized:
         return Response("Image not found", status_code=404)
 
     # Determine media type based on file extension
@@ -618,18 +676,55 @@ async def get_checkpoints(job_id: str, request: Request):
             checkpoints = []
             for checkpoint_path in checkpoint_paths:
                 try:
-                    if os.path.isdir(checkpoint_path):
-                        # Dont set formatted_time and filesize for directories (os.stat messes it up for fused filesystems)
+                    if storage.isdir(checkpoint_path):
+                        # Don't set formatted_time and filesize for directories
                         formatted_time = None
                         filesize = None
                     else:
-                        stat = os.stat(checkpoint_path)
-                        modified_time = stat.st_mtime
-                        filesize = stat.st_size
-                        # Format the timestamp as ISO 8601 string
-                        formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                        # Try to get file info from storage
+                        try:
+                            # Use storage.ls to get file details if available
+                            file_info_list = storage.ls(checkpoint_path, detail=True)
+                            if file_info_list and isinstance(file_info_list, dict):
+                                file_info = file_info_list.get(checkpoint_path, {})
+                                filesize = file_info.get("size", 0)
+                                mtime = file_info.get("mtime", None)
+                                if mtime:
+                                    formatted_time = datetime.fromtimestamp(mtime).isoformat()
+                                else:
+                                    formatted_time = None
+                            elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
+                                file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                                filesize = file_info.get("size", 0)
+                                mtime = file_info.get("mtime", None)
+                                if mtime:
+                                    formatted_time = datetime.fromtimestamp(mtime).isoformat()
+                                else:
+                                    formatted_time = None
+                            else:
+                                # Fallback: try os.stat for local files (won't work for remote)
+                                try:
+                                    stat = os.stat(checkpoint_path)
+                                    modified_time = stat.st_mtime
+                                    filesize = stat.st_size
+                                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                                except (OSError, AttributeError):
+                                    # Remote storage or stat not available
+                                    formatted_time = None
+                                    filesize = None
+                        except Exception:
+                            # If storage.ls fails, try os.stat as fallback
+                            try:
+                                stat = os.stat(checkpoint_path)
+                                modified_time = stat.st_mtime
+                                filesize = stat.st_size
+                                formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                            except (OSError, AttributeError):
+                                formatted_time = None
+                                filesize = None
 
-                    filename = os.path.basename(checkpoint_path)
+                    # Get filename from path
+                    filename = checkpoint_path.split("/")[-1] if "/" in checkpoint_path else checkpoint_path
                     checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
                 except Exception as e:
                     print(f"Error getting stat for checkpoint {checkpoint_path}: {e}")
@@ -659,31 +754,57 @@ async def get_checkpoints(job_id: str, request: Request):
     model_name = config.get("model_name", "")
     adaptor_name = config.get("adaptor_name", "adaptor")
     workspace_dir = get_workspace_dir()
-    default_adaptor_dir = os.path.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
+    default_adaptor_dir = storage.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
 
-    # print(f"Default adaptor directory: {default_adaptor_dir}")
-    # Get job directory from t
+    # Get job directory
     checkpoints_dir = job_data.get("checkpoints_dir")
     if not checkpoints_dir:
         from lab.dirs import get_job_checkpoints_dir
         checkpoints_dir = get_job_checkpoints_dir(job_id)
-    if not checkpoints_dir or not os.path.exists(checkpoints_dir):
+    if not checkpoints_dir or not storage.exists(checkpoints_dir):
         return {"checkpoints": []}
-    elif os.path.isdir(checkpoints_dir):
+    elif storage.isdir(checkpoints_dir):
         checkpoints = []
-        if len(os.listdir(checkpoints_dir)) > 0:
-            for filename in os.listdir(checkpoints_dir):
+        try:
+            items = storage.ls(checkpoints_dir, detail=False)
+            for item in items:
+                file_path = item if isinstance(item, str) else str(item)
+                filename = file_path.split("/")[-1] if "/" in file_path else file_path
+                
                 if fnmatch(filename, "*_adapters.safetensors"):
-                    file_path = os.path.join(checkpoints_dir, filename)
-                    stat = os.stat(file_path)
-                    modified_time = stat.st_mtime
-                    filesize = stat.st_size
-                    checkpoints.append({"filename": filename, "date": modified_time, "size": filesize})
+                    # Try to get file info
+                    try:
+                        file_info_list = storage.ls(file_path, detail=True)
+                        if file_info_list and isinstance(file_info_list, dict):
+                            file_info = file_info_list.get(file_path, {})
+                            filesize = file_info.get("size", 0)
+                            mtime = file_info.get("mtime", None)
+                            modified_time = mtime if mtime else None
+                        elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
+                            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                            filesize = file_info.get("size", 0)
+                            mtime = file_info.get("mtime", None)
+                            modified_time = mtime if mtime else None
+                        else:
+                            # Fallback to os.stat for local files
+                            try:
+                                stat = os.stat(file_path)
+                                modified_time = stat.st_mtime
+                                filesize = stat.st_size
+                            except (OSError, AttributeError):
+                                modified_time = None
+                                filesize = None
+                        checkpoints.append({"filename": filename, "date": modified_time, "size": filesize})
+                    except Exception as e:
+                        print(f"Error getting file info for {file_path}: {e}")
+                        checkpoints.append({"filename": filename, "date": None, "size": None})
                 # allow directories too
-                elif os.path.isdir(os.path.join(checkpoints_dir, filename)):
+                elif storage.isdir(file_path):
                     checkpoints.append({"filename": filename, "date": None, "size": None})
-            return {"checkpoints": checkpoints}
-        
+            if checkpoints:
+                return {"checkpoints": checkpoints}
+        except Exception as e:
+            print(f"Error listing checkpoints directory {checkpoints_dir}: {e}")
 
     # Fallback to using default adaptor directory as checkpoints directory
     checkpoints_dir = default_adaptor_dir
@@ -691,24 +812,49 @@ async def get_checkpoints(job_id: str, request: Request):
     if not checkpoints_file_filter:
         checkpoints_file_filter = "*_adapters.safetensors"
 
-
     checkpoints = []
     try:
-        for filename in os.listdir(checkpoints_dir):
+        items = storage.ls(checkpoints_dir, detail=False)
+        for item in items:
+            file_path = item if isinstance(item, str) else str(item)
+            filename = file_path.split("/")[-1] if "/" in file_path else file_path
+            
             if fnmatch(filename, checkpoints_file_filter):
-                file_path = os.path.join(checkpoints_dir, filename)
                 try:
-                    stat = os.stat(file_path)
-                    modified_time = stat.st_mtime
-                    filesize = stat.st_size
-                    # Format the timestamp as ISO 8601 string
-                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                    # Try to get file info from storage
+                    file_info_list = storage.ls(file_path, detail=True)
+                    if file_info_list and isinstance(file_info_list, dict):
+                        file_info = file_info_list.get(file_path, {})
+                        filesize = file_info.get("size", 0)
+                        mtime = file_info.get("mtime", None)
+                        if mtime:
+                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
+                        else:
+                            formatted_time = None
+                    elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
+                        file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                        filesize = file_info.get("size", 0)
+                        mtime = file_info.get("mtime", None)
+                        if mtime:
+                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
+                        else:
+                            formatted_time = None
+                    else:
+                        # Fallback to os.stat for local files
+                        try:
+                            stat = os.stat(file_path)
+                            modified_time = stat.st_mtime
+                            filesize = stat.st_size
+                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                        except (OSError, AttributeError):
+                            formatted_time = None
+                            filesize = None
                 except Exception as e:
                     print(f"Error getting stat for file {file_path}: {e}")
                     formatted_time = None
                     filesize = None
                 checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
-    except OSError as e:
+    except Exception as e:
         print(f"Error reading checkpoints directory {checkpoints_dir}: {e}")
 
     # Sort checkpoints by filename in reverse (descending) order for consistent ordering
@@ -745,12 +891,47 @@ async def get_artifacts(job_id: str, request: Request):
             artifacts = []
             for artifact_path in artifact_paths:
                 try:
-                    stat = os.stat(artifact_path)
-                    modified_time = stat.st_mtime
-                    filesize = stat.st_size
-                    # Format the timestamp as ISO 8601 string
-                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                    filename = os.path.basename(artifact_path)
+                    # Try to get file info from storage
+                    try:
+                        file_info_list = storage.ls(artifact_path, detail=True)
+                        if file_info_list and isinstance(file_info_list, dict):
+                            file_info = file_info_list.get(artifact_path, {})
+                            filesize = file_info.get("size", 0)
+                            mtime = file_info.get("mtime", None)
+                            if mtime:
+                                formatted_time = datetime.fromtimestamp(mtime).isoformat()
+                            else:
+                                formatted_time = None
+                        elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
+                            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                            filesize = file_info.get("size", 0)
+                            mtime = file_info.get("mtime", None)
+                            if mtime:
+                                formatted_time = datetime.fromtimestamp(mtime).isoformat()
+                            else:
+                                formatted_time = None
+                        else:
+                            # Fallback to os.stat for local files
+                            try:
+                                stat = os.stat(artifact_path)
+                                modified_time = stat.st_mtime
+                                filesize = stat.st_size
+                                formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                            except (OSError, AttributeError):
+                                formatted_time = None
+                                filesize = None
+                    except Exception:
+                        # If storage.ls fails, try os.stat as fallback
+                        try:
+                            stat = os.stat(artifact_path)
+                            modified_time = stat.st_mtime
+                            filesize = stat.st_size
+                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                        except (OSError, AttributeError):
+                            formatted_time = None
+                            filesize = None
+                    
+                    filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
                     artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
                 except Exception as e:
                     print(f"Error getting stat for artifact {artifact_path}: {e}")
@@ -771,26 +952,51 @@ async def get_artifacts(job_id: str, request: Request):
 
         artifacts_dir = get_job_artifacts_dir(job_id)
 
-    if not artifacts_dir or not os.path.exists(artifacts_dir):
+    if not artifacts_dir or not storage.exists(artifacts_dir):
         return {"artifacts": []}
 
     artifacts = []
     try:
-        for filename in os.listdir(artifacts_dir):
-            file_path = os.path.join(artifacts_dir, filename)
-            if os.path.isfile(file_path):
+        items = storage.ls(artifacts_dir, detail=False)
+        for item in items:
+            file_path = item if isinstance(item, str) else str(item)
+            if storage.isfile(file_path):
+                filename = file_path.split("/")[-1] if "/" in file_path else file_path
                 try:
-                    stat = os.stat(file_path)
-                    modified_time = stat.st_mtime
-                    filesize = stat.st_size
-                    # Format the timestamp as ISO 8601 string
-                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                    # Try to get file info from storage
+                    file_info_list = storage.ls(file_path, detail=True)
+                    if file_info_list and isinstance(file_info_list, dict):
+                        file_info = file_info_list.get(file_path, {})
+                        filesize = file_info.get("size", 0)
+                        mtime = file_info.get("mtime", None)
+                        if mtime:
+                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
+                        else:
+                            formatted_time = None
+                    elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
+                        file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                        filesize = file_info.get("size", 0)
+                        mtime = file_info.get("mtime", None)
+                        if mtime:
+                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
+                        else:
+                            formatted_time = None
+                    else:
+                        # Fallback to os.stat for local files
+                        try:
+                            stat = os.stat(file_path)
+                            modified_time = stat.st_mtime
+                            filesize = stat.st_size
+                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                        except (OSError, AttributeError):
+                            formatted_time = None
+                            filesize = None
                 except Exception as e:
                     print(f"Error getting stat for file {file_path}: {e}")
                     formatted_time = None
                     filesize = None
                 artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
-    except OSError as e:
+    except Exception as e:
         print(f"Error reading artifacts directory {artifacts_dir}: {e}")
 
     # Sort artifacts by filename in reverse (descending) order for consistent ordering
@@ -807,27 +1013,41 @@ async def get_training_job_by_path(job_id: str):
 @router.get("/{job_id}/output")
 async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
     try:
+        job = job_service.job_get(job_id)
+        if job is None:
+            return "Job not found"
+
+        job_data = job.get("job_data", {})
+
+        # Handle both dict and JSON string formats
+        if not isinstance(job_data, dict):
+            try:
+                job_data = json.loads(job_data)
+            except JSONDecodeError:
+                print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                job_data = {}
+
         if sweeps:
-            job = job_service.job_get(job_id)
-            job_data = json.loads(job["job_data"])
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and os.path.exists(output_file):
-                with open(output_file, "r") as f:
+            if output_file is not None and storage.exists(output_file):
+                with storage.open(output_file, "r") as f:
                     output = f.read()
                 return output
             else:
-                # Get experiment information for new job directory structure
+                # Fall back to regular output file logic
                 experiment_id = job["experiment_id"]
                 output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
-
         else:
             # Get experiment information for new job directory structure
             experiment_id = job["experiment_id"]
             output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
-        with open(output_file_name, "r") as f:
-            output = f.read()
-        return output
+        if storage.exists(output_file_name):
+            with storage.open(output_file_name, "r") as f:
+                output = f.read()
+            return output
+        else:
+            return "Output file not found"
     except ValueError as e:
         # Handle specific error
         print(f"ValueError: {e}")
@@ -842,12 +1062,23 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
 async def sweep_results(job_id: str):
     try:
         job = job_service.job_get(job_id)
+        if job is None:
+            return {"status": "error", "message": "Job not found."}
+
         job_data = job.get("job_data", {})
 
-        output_file = job_data.get("sweep_results_file", None)
-        if output_file and os.path.exists(output_file):
+        # Handle both dict and JSON string formats
+        if not isinstance(job_data, dict):
             try:
-                with open(output_file, "r") as f:
+                job_data = json.loads(job_data)
+            except JSONDecodeError:
+                print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                job_data = {}
+
+        output_file = job_data.get("sweep_results_file", None)
+        if output_file and storage.exists(output_file):
+            try:
+                with storage.open(output_file, "r") as f:
                     output = json.load(f)
                 return {"status": "success", "data": output}
             except json.JSONDecodeError as e:

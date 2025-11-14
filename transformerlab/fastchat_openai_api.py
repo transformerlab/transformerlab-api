@@ -45,7 +45,7 @@ from fastchat.protocol.openai_api_protocol import (
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
-from lab import Experiment
+from lab import Experiment, storage
 
 WORKER_API_TIMEOUT = 3600
 
@@ -233,16 +233,23 @@ def log_prompt(prompt):
     from lab.dirs import get_logs_dir
 
     logs_dir = get_logs_dir()
-    if os.path.exists(os.path.join(logs_dir, "prompt.log")):
-        if os.path.getsize(os.path.join(logs_dir, "prompt.log")) > MAX_LOG_SIZE_BEFORE_ROTATE:
-            with open(os.path.join(logs_dir, "prompt.log"), "r") as f:
+    prompt_log_path = storage.join(logs_dir, "prompt.log")
+    if storage.exists(prompt_log_path):
+        # Get file size - for remote storage, we may need to read the file to check size
+        try:
+            with storage.open(prompt_log_path, "r") as f:
                 lines = f.readlines()
-            with open(os.path.join(logs_dir, "prompt.log"), "w") as f:
-                f.writelines(lines[-1000:])
-            with open(os.path.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w") as f:
-                f.writelines(lines[:-1000])
+            file_size = sum(len(line.encode('utf-8')) for line in lines)
+            if file_size > MAX_LOG_SIZE_BEFORE_ROTATE:
+                with storage.open(prompt_log_path, "w") as f:
+                    f.writelines(lines[-1000:])
+                with storage.open(storage.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w") as f:
+                    f.writelines(lines[:-1000])
+        except Exception:
+            # If we can't read the file, just continue with appending
+            pass
 
-    with open(os.path.join(logs_dir, "prompt.log"), "a") as f:
+    with storage.open(prompt_log_path, "a") as f:
         log_entry = {}
         log_entry["date"] = time.strftime("%Y-%m-%d %H:%M:%S")
         log_entry["log"] = prompt
@@ -254,7 +261,10 @@ def log_prompt(prompt):
 async def get_prompt_log():
     from lab.dirs import get_logs_dir
 
-    return FileResponse(os.path.join(get_logs_dir(), "prompt.log"))
+    prompt_log_path = storage.join(get_logs_dir(), "prompt.log")
+    # FileResponse needs a local file path, so use the path string directly
+    # For remote storage, this would need special handling
+    return FileResponse(prompt_log_path)
 
 
 async def check_length(request, prompt, max_tokens):
@@ -526,8 +536,8 @@ async def create_audio_tts(request: AudioGenerationRequest):
     exp_obj = Experiment.get(request.experiment_id)
     experiment_dir = exp_obj.get_dir()
 
-    audio_dir = os.path.join(experiment_dir, "audio")
-    os.makedirs(audio_dir, exist_ok=True)
+    audio_dir = storage.join(experiment_dir, "audio")
+    storage.makedirs(audio_dir, exist_ok=True)
 
     gen_params = {
         "audio_dir": audio_dir,
@@ -560,16 +570,16 @@ async def create_audio_tts(request: AudioGenerationRequest):
 async def upload_audio_reference(experimentId: str, audio: UploadFile = File(...)):
     exp_obj = Experiment(experimentId)
     experiment_dir = exp_obj.get_dir()
-    uploaded_audio_dir = os.path.join(experiment_dir, "uploaded_audio")
-    os.makedirs(uploaded_audio_dir, exist_ok=True)
+    uploaded_audio_dir = storage.join(experiment_dir, "uploaded_audio")
+    storage.makedirs(uploaded_audio_dir, exist_ok=True)
 
     file_prefix = str(uuid.uuid4())
     _, ext = os.path.splitext(audio.filename)
-    file_path = os.path.join(uploaded_audio_dir, file_prefix + ext)
+    file_path = storage.join(uploaded_audio_dir, file_prefix + ext)
 
     # Save the uploaded file
-    with open(file_path, "wb") as f:
-        content = await audio.read()
+    content = await audio.read()
+    with storage.open(file_path, "wb") as f:
         f.write(content)
 
     return JSONResponse({"audioPath": file_path})

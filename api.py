@@ -78,6 +78,7 @@ from transformerlab.db.filesystem_migrations import (
 )
 from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
+from lab import storage
 
 from dotenv import load_dotenv
 
@@ -91,7 +92,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # to be overriden by the user.
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab (default; per-request overrides computed in routes)
-temp_image_dir = os.path.join(get_workspace_dir(), "temp", "images")
+temp_image_dir = storage.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 # Check if anything is stored in GPU_ORCHESTRATION_SERVER, and if so, print a message
@@ -243,7 +244,10 @@ worker_process = None
 
 def spawn_fastchat_controller_subprocess():
     global controller_process
-    logfile = open(os.path.join(dirs.FASTCHAT_LOGS_DIR, "controller.log"), "w")
+    controller_log_path = storage.join(dirs.FASTCHAT_LOGS_DIR, "controller.log")
+    # Note: subprocess requires a local file handle, so we use open() directly
+    # but construct the path using storage.join for workspace consistency
+    logfile = open(controller_log_path, "w")
     port = "21001"
 
     controller_process = subprocess.Popen(
@@ -254,7 +258,7 @@ def spawn_fastchat_controller_subprocess():
             "--port",
             port,
             "--log-file",
-            os.path.join(dirs.FASTCHAT_LOGS_DIR, "controller.log"),
+            controller_log_path,
         ],
         stdout=logfile,
         stderr=logfile,
@@ -379,7 +383,7 @@ async def server_worker_start(
 
     from lab.dirs import get_global_log_path
 
-    with open(get_global_log_path(), "a") as global_log:
+    with storage.open(get_global_log_path(), "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
     process = await shared.async_run_python_daemon_and_update_status(
@@ -392,7 +396,7 @@ async def server_worker_start(
     if exitcode == 99:
         from lab.dirs import get_global_log_path
 
-        with open(get_global_log_path(), "a") as global_log:
+        with storage.open(get_global_log_path(), "a") as global_log:
             global_log.write(
                 "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
             )
@@ -403,7 +407,7 @@ async def server_worker_start(
     if exitcode is not None and exitcode != 0:
         from lab.dirs import get_global_log_path
 
-        with open(get_global_log_path(), "a") as global_log:
+        with storage.open(get_global_log_path(), "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
         job = job_get(job_id)
         error_msg = None
@@ -415,7 +419,7 @@ async def server_worker_start(
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
 
-    with open(get_global_log_path(), "a") as global_log:
+    with storage.open(get_global_log_path(), "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
 

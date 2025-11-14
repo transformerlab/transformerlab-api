@@ -8,6 +8,7 @@ from transformerlab.models import basemodel
 import os
 import json
 import errno
+from lab import storage
 
 
 async def list_models():
@@ -177,14 +178,27 @@ class OllamaModel(basemodel.BaseModel):
         # Create a directory for the model. Make sure it doesn't exist already.
         from lab.dirs import get_models_dir
 
-        output_path = os.path.join(get_models_dir(), output_model_id)
-        if os.path.exists(output_path):
+        output_path = storage.join(get_models_dir(), output_model_id)
+        if storage.exists(output_path):
             raise FileExistsError(errno.EEXIST, "Directory already exists", output_path)
-        os.makedirs(output_path)
+        storage.makedirs(output_path, exist_ok=True)
 
         # Create a link in the directory that points to the source blob
-        link_name = os.path.join(output_path, output_filename)
-        os.symlink(input_model_path, link_name)
+        # Note: symlinks may not work with remote storage, but this is for local filesystem
+        # For remote storage, we'd need to copy the file instead
+        link_name = storage.join(output_path, output_filename)
+        # For now, we'll create the symlink using os.symlink since it's a local filesystem operation
+        # If the storage backend is remote, this will need special handling
+        try:
+            local_link_path = link_name if not link_name.startswith(('s3://', 'gs://', 'http://', 'https://')) else None
+            if local_link_path:
+                os.symlink(input_model_path, local_link_path)
+        except Exception as e:
+            # If symlink fails, we could copy the file instead
+            print(f"Warning: Could not create symlink, copying file instead: {e}")
+            with storage.open(link_name, "wb") as out_f:
+                with open(input_model_path, "rb") as in_f:
+                    out_f.write(in_f.read())
 
         # Create an index.json file so this can be read by the system (SDK format)
         model_description = {
@@ -202,8 +216,8 @@ class OllamaModel(basemodel.BaseModel):
                 "huggingface_repo": "",
             },
         }
-        model_info_file = os.path.join(output_path, "index.json")
-        with open(model_info_file, "w") as f:
+        model_info_file = storage.join(output_path, "index.json")
+        with storage.open(model_info_file, "w") as f:
             json.dump(model_description, f)
 
 
