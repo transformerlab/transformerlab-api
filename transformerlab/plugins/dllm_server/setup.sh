@@ -5,3 +5,4 @@ cd dllm
 uv pip install -e .
 uv pip install "transformers>4.57.0"
 
+

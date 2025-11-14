@@ -338,7 +338,7 @@ def train_model():
             adaptor_output_dir = getattr(tlab_trainer.params, "adaptor_output_dir", None)
             if adaptor_output_dir:
                 trainer.save_model(output_dir=adaptor_output_dir)
-                trainer.processing_class.save_pretrained(output_dir=adaptor_output_dir)
+                trainer.processing_class.save_pretrained(adaptor_output_dir)
         else:
             if "/" in model_id:
                 model_id_short = model_id.split("/")[-1]
@@ -351,7 +351,7 @@ def train_model():
 
             trainer.save_model(output_dir=fused_model_location)
             if hasattr(trainer, "processing_class") and trainer.processing_class:
-                trainer.processing_class.save_pretrained(output_dir=fused_model_location)
+                trainer.processing_class.save_pretrained(fused_model_location)
             model_config = getattr(trainer.model, "config", None)
             if model_config and getattr(model_config, "architectures", None):
                 model_architecture = model_config.architectures[0]
