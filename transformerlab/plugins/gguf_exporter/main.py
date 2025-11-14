@@ -13,6 +13,8 @@ except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
+from lab import storage
+
 
 tlab_exporter.add_argument("--output_model_id", type=str, help="Filename for the GGUF model.")
 tlab_exporter.add_argument(
@@ -28,7 +30,7 @@ def gguf_export():
     output_dir = tlab_exporter.params.get("output_dir")
 
     # Create output file
-    os.makedirs(output_dir, exist_ok=True)
+    storage.makedirs(output_dir, exist_ok=True)
 
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
     python_executable = get_python_executable(plugin_dir)

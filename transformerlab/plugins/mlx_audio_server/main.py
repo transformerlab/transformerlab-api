@@ -2,7 +2,6 @@
 A model worker using Apple MLX Audio
 """
 
-import os
 import sys
 import argparse
 import asyncio
@@ -16,12 +15,14 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 from mlx_audio.tts.generate import generate_audio
 from mlx_audio.stt.generate import generate
 from datetime import datetime
 
-from lab.dirs import get_experiments_dir, get_workspace_dir
+from lab.dirs import get_experiments_dir
 from werkzeug.utils import secure_filename
 
 worker_id = str(uuid.uuid4())[:8]
@@ -91,15 +92,15 @@ class MLXAudioWorker(BaseModelWorker):
             
             experiment_dir = get_experiments_dir()
             audio_dir_name = secure_filename(params.get("audio_dir", "audio"))
-            audio_dir = os.path.join(experiment_dir, audio_dir_name)
-            os.makedirs(name=audio_dir, exist_ok=True)
+            audio_dir = storage.join(experiment_dir, audio_dir_name)
+            storage.makedirs(name=audio_dir, exist_ok=True)
 
             try:
                 kwargs = {
                     "text": text,
                     "model_path": model,
                     "speed": speed,
-                    "file_prefix": os.path.join(audio_dir, file_prefix),
+                    "file_prefix": storage.join(audio_dir, file_prefix),
                     "sample_rate": sample_rate,
                     "join_audio": True,
                     "verbose": True,
@@ -128,8 +129,8 @@ class MLXAudioWorker(BaseModelWorker):
                     "date": datetime.now().isoformat(),  # Store the real date and time
                 }
 
-                metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-                with open(metadata_file, "w") as f:
+                metadata_file = storage.join(audio_dir, f"{file_prefix}.json")
+                with storage.open(metadata_file, "w") as f:
                     json.dump(metadata, f)
 
                 logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
@@ -150,8 +151,8 @@ class MLXAudioWorker(BaseModelWorker):
             model = params.get("model", None)
             format = params.get("format", "txt")
             output_path_name = secure_filename(params.get("output_path", "transcriptions"))
-            transcriptions_dir = os.path.join(get_workspace_dir(), output_path_name)
-            os.makedirs(name=transcriptions_dir, exist_ok=True)
+            transcriptions_dir = storage.join(get_workspace_dir(), output_path_name)
+            storage.makedirs(name=transcriptions_dir, exist_ok=True)
 
             # Generate a UUID for this file name:
             file_prefix = str(uuid.uuid4())
@@ -161,7 +162,7 @@ class MLXAudioWorker(BaseModelWorker):
                     audio_path=audio_path,
                     model_path=model,
                     format=format,
-                    output_path=os.path.join(transcriptions_dir, file_prefix),
+                    output_path=storage.join(transcriptions_dir, file_prefix),
                     verbose=True,  # Set to False to disable print messages
                 )
 
@@ -175,7 +176,7 @@ class MLXAudioWorker(BaseModelWorker):
                     "text_format": format,
                     "date": datetime.now().isoformat(),  # Store the real date and time
                 }
-                metadata_file = os.path.join(transcriptions_dir, f"{file_prefix}.json")
+                metadata_file = storage.join(transcriptions_dir, f"{file_prefix}.json")
                 with open(metadata_file, "w") as f:
                     json.dump(metadata, f)
 

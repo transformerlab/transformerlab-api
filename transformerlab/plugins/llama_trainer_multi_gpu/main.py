@@ -7,7 +7,9 @@ from functools import partial
 
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, get_python_executable, format_template
+from transformerlab.plugin import get_python_executable, format_template
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 # Add custom arguments
@@ -203,7 +205,7 @@ def train_model():
 
     args = SFTConfig(
         output_dir=output_dir,
-        logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
+        logging_dir=storage.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
         num_train_epochs=int(tlab_trainer.params.num_train_epochs),
         per_device_train_batch_size=int(tlab_trainer.params.batch_size),
         gradient_accumulation_steps=2,
@@ -290,7 +292,7 @@ def train_model():
                 model_id = model_id.split("/")[-1]
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
             fused_model_name = f"{model_id}_{adaptor_name}"
-            fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+            fused_model_location = storage.join(get_workspace_dir(), "models", fused_model_name)
             peft_model = PeftModel.from_pretrained(model, tlab_trainer.params.adaptor_output_dir)
             merged_model = peft_model.merge_and_unload()
             merged_model.save_pretrained(fused_model_location)

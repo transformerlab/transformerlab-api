@@ -7,7 +7,8 @@ import torch
 import asyncio
 import threading
 import gc
-from transformerlab.plugin import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
+from lab import storage
 from diffusers import (
     StableDiffusionUpscalePipeline,
     StableDiffusionLatentUpscalePipeline,
@@ -393,13 +394,14 @@ def get_pipeline(
         # Load LoRA adaptor if provided - same code for local and HF Hub!
         if adaptor and adaptor.strip():
             try:
-                adaptor_dir = os.path.join(
-                    WORKSPACE_DIR,
+                workspace_dir = get_workspace_dir()
+                adaptor_dir = storage.join(
+                    workspace_dir,
                     "adaptors",
                     secure_filename(model),
                 )
-                adaptor_path = os.path.join(adaptor_dir, secure_filename(adaptor))
-                if os.path.exists(adaptor_path):
+                adaptor_path = storage.join(adaptor_dir, secure_filename(adaptor))
+                if storage.exists(adaptor_path):
                     pipe.load_lora_weights(adaptor_path)
                     # if not isinstance(pipe, StableDiffusionXLPipeline):
                     #     pipe.load_lora_weights(adaptor_path)
@@ -532,23 +534,22 @@ def get_python_executable():
 
 def get_diffusion_dir(experiment_name: str = None):
     """Get the diffusion directory path"""
+    workspace_dir = get_workspace_dir()
     if experiment_name is not None:
-        # New experiment-specific path
-        return os.path.join(WORKSPACE_DIR, "experiments", experiment_name, "diffusion")
+        return storage.join(workspace_dir, "experiments", experiment_name, "diffusion")
     else:
-        # Legacy global path for backward compatibility
-        return os.path.join(WORKSPACE_DIR, "diffusion")
+        return storage.join(workspace_dir, "diffusion")
 
 
 def get_images_dir(experiment_name: str = None):
     """Get the images directory path"""
-    return os.path.join(get_diffusion_dir(experiment_name), "images")
+    return storage.join(get_diffusion_dir(experiment_name), "images")
 
 
 def get_history_file_path(experiment_name: str = None):
     """Get the history file path"""
     # Create a history file in the diffusion directory if it doesn't exist
-    return os.path.join(get_diffusion_dir(experiment_name), HISTORY_FILE)
+    return storage.join(get_diffusion_dir(experiment_name), HISTORY_FILE)
 
 
 def ensure_directories(experiment_name: str = None):
@@ -557,11 +558,10 @@ def ensure_directories(experiment_name: str = None):
     images_dir = get_images_dir(experiment_name)
     history_file_path = get_history_file_path(experiment_name)
 
-    os.makedirs(diffusion_dir, exist_ok=True)
-    os.makedirs(images_dir, exist_ok=True)
-    if not os.path.exists(history_file_path):
-        with open(history_file_path, "a"):
-            # Create the history file if it doesn't exist
+    storage.makedirs(diffusion_dir, exist_ok=True)
+    storage.makedirs(images_dir, exist_ok=True)
+    if not storage.exists(history_file_path):
+        with storage.open(history_file_path, "a"):
             pass
 
 
@@ -572,9 +572,9 @@ def save_to_history(item: ImageHistoryItem, experiment_name: str = None):
 
     # Load existing history
     history = []
-    if os.path.exists(history_file):
+    if storage.exists(history_file):
         try:
-            with open(history_file, "r") as f:
+            with storage.open(history_file, "r") as f:
                 history = json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
             history = []
@@ -583,7 +583,7 @@ def save_to_history(item: ImageHistoryItem, experiment_name: str = None):
     history.insert(0, item.model_dump())
 
     # Save updated history
-    with open(history_file, "w") as f:
+    with storage.open(history_file, "w") as f:
         json.dump(history, f, indent=2)
 
 
@@ -657,8 +657,8 @@ async def run_multi_gpu_generation(
 
     # Save config to temporary file
     ensure_directories(experiment_name)
-    config_path = os.path.join(get_diffusion_dir(experiment_name), secure_filename(f"config_{generation_id}.json"))
-    with open(config_path, "w") as f:
+    config_path = storage.join(get_diffusion_dir(experiment_name), secure_filename(f"config_{generation_id}.json"))
+    with storage.open(config_path, "w") as f:
         json.dump(config, f, indent=2)
 
     # Get worker script path
@@ -723,9 +723,9 @@ async def run_multi_gpu_generation(
             if return_code == -9 or "CUDA out of memory" in combined_output or "OutOfMemoryError" in combined_output:
                 # Try to load any partial result to get OOM details
                 result_path = os.path.join(images_folder, "result.json")
-                if os.path.exists(result_path):
+                if storage.exists(result_path):
                     try:
-                        with open(result_path, "r") as f:
+                        with storage.open(result_path, "r") as f:
                             worker_result = json.load(f)
                         if worker_result.get("error_type") == "OOM":
                             oom_suggestions = worker_result.get("suggestions", [])
@@ -743,10 +743,10 @@ async def run_multi_gpu_generation(
 
         # Load result from worker
         result_path = os.path.join(images_folder, "result.json")
-        if not os.path.exists(result_path):
+        if not storage.exists(result_path):
             raise RuntimeError("Worker did not produce result file")
 
-        with open(result_path, "r") as f:
+        with storage.open(result_path, "r") as f:
             worker_result = json.load(f)
 
         if not worker_result.get("success", False):
@@ -762,7 +762,8 @@ async def run_multi_gpu_generation(
 
         # Clean up config file
         try:
-            os.remove(config_path)
+            if storage.exists(config_path):
+                storage.rm(config_path)
         except Exception:
             pass
 
@@ -779,7 +780,8 @@ async def run_multi_gpu_generation(
     except Exception as e:
         # Clean up config file on error
         try:
-            os.remove(config_path)
+            if storage.exists(config_path):
+                storage.rm(config_path)
         except Exception:
             pass
         raise e
@@ -845,7 +847,7 @@ async def diffusion_generate_job():
         images_folder = os.path.normpath(os.path.join(get_images_dir(experiment_name), generation_id))
         if not images_folder.startswith(get_images_dir(experiment_name)):
             raise HTTPException(status_code=400, detail="Invalid path for images_folder")
-        os.makedirs(images_folder, exist_ok=True)
+        storage.makedirs(images_folder, exist_ok=True)
 
         # Determine pipeline type based on flags and provided images
         controlnet_id = request.is_controlnet or "off"
@@ -892,9 +894,7 @@ async def diffusion_generate_job():
 
                         # Save preprocessed image
                         preprocessed_image_filename = f"preprocessed_{uuid_suffix}.png"
-                        preprocessed_image_path = os.path.join(
-                            get_images_dir(experiment_name), preprocessed_image_filename
-                        )
+                        preprocessed_image_path = os.path.join(get_images_dir(experiment_name), preprocessed_image_filename)
                         input_image_obj.save(preprocessed_image_path, format="PNG")
                         print(f"Preprocessed image saved: {preprocessed_image_path}")
                     except Exception as e:
@@ -1245,7 +1245,7 @@ async def diffusion_generate_job():
         }
 
         output_path = os.path.join(images_folder, "tmp_json.json")
-        with open(output_path, "w") as f:
+        with storage.open(output_path, "w") as f:
             json.dump(output_data, f, indent=2)
 
         tlab_diffusion.progress_update(100)

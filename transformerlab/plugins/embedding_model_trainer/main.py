@@ -13,7 +13,9 @@ from sentence_transformers.util import cos_sim
 
 # Import the trainer SDK
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, generate_model_json
+from transformerlab.plugin import generate_model_json
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 # --- Utility Functions ---
@@ -142,8 +144,9 @@ def train_embedding_model():
     final_model_name = f"{template_name}_{job_id}"
 
     # Define output directory
-    output_dir = os.path.join(WORKSPACE_DIR, "models", final_model_name)
-    os.makedirs(output_dir, exist_ok=True)
+    workspace_dir = get_workspace_dir()
+    output_dir = storage.join(workspace_dir, "models", final_model_name)
+    storage.makedirs(output_dir, exist_ok=True)
 
     # Extract training parameters from config
     # config = tlab_trainer.params._config
@@ -241,7 +244,7 @@ def train_embedding_model():
     # Configure training arguments
     training_args = SentenceTransformerTrainingArguments(
         output_dir=output_dir,
-        logging_dir=os.path.join(output_dir, f"job_{job_id}_embedding_model_plugin"),
+        logging_dir=storage.join(output_dir, f"job_{job_id}_embedding_model_plugin"),
         num_train_epochs=num_train_epochs,
         per_device_train_batch_size=batch_size,
         fp16=fp16,

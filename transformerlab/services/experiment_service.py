@@ -1,21 +1,38 @@
-import os
 import json
 
 from lab import Experiment
 from lab import dirs as lab_dirs
+from lab import storage
 
 
 def experiment_get_all():
     experiments = []
     experiments_dir = lab_dirs.get_experiments_dir()
-    if os.path.exists(experiments_dir):
-        exp_dirs = sorted(os.listdir(experiments_dir))
-        for exp_dir in exp_dirs:
-            exp_path = os.path.join(experiments_dir, exp_dir)
-            if os.path.isdir(exp_path):
-                exp_dict = experiment_get(exp_dir)
-                if exp_dict:
-                    experiments.append(exp_dict)
+    if storage.exists(experiments_dir):
+        try:
+            exp_dirs = storage.ls(experiments_dir, detail=False)
+            # Sort the directories
+            exp_dirs = sorted(exp_dirs)
+            for exp_path in exp_dirs:
+                # Skip if this is the experiments directory itself (shouldn't happen but safety check)
+                if exp_path.rstrip("/") == experiments_dir.rstrip("/"):
+                    continue
+                if storage.isdir(exp_path):
+                    # Check if this directory is actually a valid experiment by checking for index.json
+                    index_file = storage.join(exp_path, "index.json")
+                    if not storage.exists(index_file):
+                        # Skip directories that don't have index.json (not valid experiments)
+                        continue
+                    # Extract the directory name from the path
+                    exp_dir = exp_path.rstrip("/").split("/")[-1]
+                    # Skip if the extracted name is the experiments directory itself (shouldn't happen but safety check)
+                    if exp_dir == "experiments":
+                        continue
+                    exp_dict = experiment_get(exp_dir)
+                    if exp_dict:
+                        experiments.append(exp_dict)
+        except Exception:
+            pass
     return experiments
 
 

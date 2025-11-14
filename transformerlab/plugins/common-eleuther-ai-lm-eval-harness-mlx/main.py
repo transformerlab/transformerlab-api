@@ -6,6 +6,7 @@ import traceback
 import pandas as pd
 import json
 import torch
+from lab import storage
 
 from transformerlab.sdk.v1.evals import tlab_evals
 from transformerlab.plugin import get_python_executable
@@ -15,11 +16,20 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
     """This function is necessary to fetch all the .jsonl files that EleutherAI LM Evaluation Harness generates so we can make a metrics_df out of the results for each test case"""
     try:
         matching_files = []
-        for root, dirs, files in os.walk(output_file_path):
-            for file in files:
-                if file.startswith(prefix) and file.endswith(suffix):
-                    matching_files.append(os.path.join(root, file))
-        return matching_files
+        # Use storage.walk to support fsspec and local uniformly
+        try:
+            for root, _dirs, files in storage.walk(output_file_path):
+                for file in files:
+                    if file.startswith(prefix) and file.endswith(suffix):
+                        matching_files.append(storage.join(root, file))
+            return matching_files
+        except Exception:
+            # Fallback to local os.walk if storage.walk fails
+            for root, _dirs, files in os.walk(output_file_path):
+                for file in files:
+                    if file.startswith(prefix) and file.endswith(suffix):
+                        matching_files.append(os.path.join(root, file))
+            return matching_files
     except Exception as e:
         print(f"An error occurred while getting the output file name: {e}")
         return []

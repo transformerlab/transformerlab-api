@@ -22,7 +22,8 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from transformerlab.plugin import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 worker_id = str(uuid.uuid4())[:8]
@@ -116,9 +117,21 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         else:
             logger.info("No reference audio provided, performing standard TTS")
 
-        real_path = os.path.realpath(audio_dir)
+        workspace_dir = get_workspace_dir()
         # Make sure the path is still inside the workspace directory
-        if not real_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
+        # For both local and fsspec paths, check if audio_dir starts with workspace_dir
+        is_safe = audio_dir.startswith(workspace_dir)
+        if not is_safe:
+            # Fallback to os.path.realpath for local path validation (handles symlinks, etc.)
+            try:
+                real_path = os.path.realpath(audio_dir)
+                real_workspace = os.path.realpath(workspace_dir)
+                is_safe = real_path.startswith(real_workspace + os.sep)
+            except (OSError, ValueError):
+                # If realpath fails (e.g., for remote fsspec paths), path is unsafe
+                is_safe = False
+        
+        if not is_safe:
             return {
                 "status": "error",
                 "message": f"Unsafe audio directory path: {audio_dir}.",
@@ -142,8 +155,8 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             audio = self.audio_model.decode(audio_values)
             if speed != 1.0:
                 audio = librosa.effects.time_stretch(audio, rate=speed)
-            output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
-            os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
+            output_path = storage.join(audio_dir, f"{file_prefix}.{audio_format}")
+            storage.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
             sf.write(output_path, audio, sample_rate)
 
             metadata = {
@@ -159,8 +172,8 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
                 "top_p": top_p,
                 "date": datetime.now().isoformat(),
             }
-            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-            with open(metadata_file, "w") as f:
+            metadata_file = storage.join(audio_dir, f"{file_prefix}.json")
+            with storage.open(metadata_file, "w") as f:
                 json.dump(metadata, f)
 
             logger.info(f"Audio successfully generated: {output_path}")
@@ -169,13 +182,24 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             # This ensures reference files don't accumulate after use
             if uploaded_audio_path:
                 try:
-                    real_uploaded_path = os.path.realpath(uploaded_audio_path)
-                    if real_uploaded_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
-                        if os.path.exists(real_uploaded_path):
-                            os.remove(real_uploaded_path)
+                    # Check if path is within workspace
+                    if uploaded_audio_path.startswith(workspace_dir):
+                        if storage.exists(uploaded_audio_path):
+                            storage.rm(uploaded_audio_path)
                             logger.info("Cleaned up reference audio file.")
-                except OSError:
-                    logger.warning("Failed to cleanup reference audio file")
+                    else:
+                        # Fallback to os.path.realpath for local path validation
+                        try:
+                            real_uploaded_path = os.path.realpath(uploaded_audio_path)
+                            real_workspace = os.path.realpath(workspace_dir)
+                            if real_uploaded_path.startswith(real_workspace + os.sep):
+                                if os.path.exists(real_uploaded_path):
+                                    os.remove(real_uploaded_path)
+                                    logger.info("Cleaned up reference audio file.")
+                        except (OSError, ValueError):
+                            logger.warning("Failed to cleanup reference audio file")
+                except Exception as e:
+                    logger.warning(f"Failed to cleanup reference audio file: {e}")
 
             return {
                 "status": "success",

@@ -252,8 +252,8 @@ def test_get_image_by_id_index_out_of_range(client):
     with (
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
         patch("transformerlab.routers.experiment.diffusion.get_images_dir", return_value="/fake/images"),
-        patch("os.path.exists", return_value=True),
-        patch("os.path.isdir", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.isdir", return_value=True),
     ):
         # Create mock image with folder-format
         mock_image = MagicMock()
@@ -272,9 +272,9 @@ def test_get_image_info_by_id_success(client):
     """Test getting image metadata by ID"""
     with (
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
-        patch("os.path.exists", return_value=True),
-        patch("os.path.isdir", return_value=True),
-        patch("os.listdir", return_value=["0.png", "1.png", "2.png"]),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.isdir", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.ls", return_value=["0.png", "1.png", "2.png"]),
     ):
         # Create mock image
         mock_image = MagicMock()
@@ -295,9 +295,9 @@ def test_get_image_count_success(client):
     """Test getting image count for an image set"""
     with (
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
-        patch("os.path.exists", return_value=True),
-        patch("os.path.isdir", return_value=True),
-        patch("os.listdir", return_value=["0.png", "1.png"]),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.isdir", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.ls", return_value=["0.png", "1.png"]),
     ):
         # Create mock image
         mock_image = MagicMock()
@@ -317,8 +317,8 @@ def test_delete_image_from_history_not_found(client):
     """Test deleting a non-existent image from history"""
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data='[{"id": "other-id", "image_path": "/fake/path.png"}]')),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data='[{"id": "other-id", "image_path": "/fake/path.png"}]')),
     ):
         resp = client.delete("/experiment/test-exp-name/diffusion/history/non-existent-id")
         assert resp.status_code == 500
@@ -331,12 +331,12 @@ def test_create_dataset_from_history_success(client):
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
         patch("transformerlab.routers.experiment.diffusion.Dataset.get") as mock_dataset_get,
         patch("transformerlab.routers.experiment.diffusion.create_local_dataset") as mock_create_dataset,
-        patch("os.makedirs"),
-        patch("os.path.exists", return_value=True),
-        patch("os.path.isdir", return_value=True),
-        patch("os.listdir", return_value=["0.png", "1.png"]),
-        patch("shutil.copy2"),
-        patch("builtins.open", mock_open()),
+        patch("transformerlab.routers.experiment.diffusion.storage.makedirs"),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.isdir", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.ls", return_value=["/fake/path/folder/0.png", "/fake/path/folder/1.png"]),
+        patch("transformerlab.routers.experiment.diffusion.storage.copy_file"),
+        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open()),
     ):
         # Mock Dataset.get to raise FileNotFoundError for non-existent dataset (new behavior)
         mock_dataset_get.side_effect = FileNotFoundError("Directory for Dataset with id 'test-dataset' not found")
@@ -610,9 +610,9 @@ def test_load_history_success():
     """Test loading history with valid data"""
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
         patch(
-            "builtins.open",
+            "transformerlab.routers.experiment.diffusion.storage.open",
             mock_open(
                 read_data='[{"id": "test-id", "model": "test-model", "prompt": "test prompt", "adaptor": "", "adaptor_scale": 1.0, "num_inference_steps": 20, "guidance_scale": 7.5, "seed": 42, "image_path": "/fake/path.png", "timestamp": "2023-01-01T00:00:00", "upscaled": false, "upscale_factor": 1, "negative_prompt": "", "eta": 0.0, "clip_skip": 0, "guidance_rescale": 0.0, "height": 512, "width": 512, "generation_time": 5.0, "num_images": 1, "input_image_path": "", "strength": 0.8, "is_img2img": false, "mask_image_path": "", "is_inpainting": false}]'
             ),
@@ -665,8 +665,8 @@ def test_load_history_with_pagination():
 
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data=json.dumps(history_data))),
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
@@ -683,7 +683,7 @@ def test_load_history_no_file():
     """Test loading history when history file doesn't exist"""
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=False),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=False),
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
@@ -697,8 +697,8 @@ def test_load_history_invalid_json():
     """Test loading history with corrupted JSON file"""
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data="invalid json")),
+        patch("lab.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data="invalid json")),
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
@@ -769,8 +769,8 @@ def test_find_image_by_id_success():
 
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data=json.dumps(history_data))),
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
@@ -816,8 +816,8 @@ def test_find_image_by_id_not_found(client):
 
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data=json.dumps(history_data))),
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
@@ -830,7 +830,7 @@ def test_find_image_by_id_no_file():
     """Test finding an image by ID when history file doesn't exist"""
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=False),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=False),
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
@@ -843,8 +843,8 @@ def test_find_image_by_id_invalid_json():
     """Test finding an image by ID with corrupted JSON file"""
     with (
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data="invalid json")),
+        patch("lab.storage.exists", return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data="invalid json")),
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 

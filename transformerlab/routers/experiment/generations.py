@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
+from lab import storage
 from transformerlab.services.job_service import job_get
 from transformerlab.shared import shared, dirs
 from lab import dirs as lab_dirs
@@ -197,7 +198,7 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
     # Create the input file for the script:
     from lab.dirs import get_temp_dir
 
-    input_file = os.path.join(get_temp_dir(), "plugin_input_" + str(plugin_name) + ".json")
+    input_file = storage.join(get_temp_dir(), "plugin_input_" + str(plugin_name) + ".json")
 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
@@ -220,7 +221,7 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
     job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
-    with open(input_file, "w") as outfile:
+    with storage.open(input_file, "w") as outfile:
         json.dump(input_contents, outfile, indent=4)
 
     # For now, even though we have the file above, we are also going to pass all params
@@ -272,13 +273,13 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
 
     print(f">GENERATION Output file: {job_output_file}")
 
-    with open(job_output_file, "w") as f:
+    with storage.open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
         await process.communicate()
 
-    with open(output_file, "w") as f:
+    with storage.open(output_file, "w") as f:
         # Copy all contents from job_output_file to output_file
-        with open(job_output_file, "r") as job_output:
+        with storage.open(job_output_file, "r") as job_output:
             for line in job_output:
                 f.write(line)
 
@@ -291,7 +292,7 @@ async def get_output(experimentId: str, generation_name: str):
     generation_name = urllib.parse.unquote(generation_name)
 
     generation_output_file = await lab_dirs.generation_output_file(experimentId, generation_name)
-    if not os.path.exists(generation_output_file):
+    if not storage.exists(generation_output_file):
         return {"message": "Output file does not exist"}
 
     print(f"Returning output file: {generation_output_file}.")

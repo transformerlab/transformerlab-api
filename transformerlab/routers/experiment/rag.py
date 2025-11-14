@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from transformerlab.shared import dirs
 from lab import Experiment
+from lab import storage
 
 from werkzeug.utils import secure_filename
 
@@ -27,12 +28,12 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
 
     exp_obj = Experiment(experimentId)
     experiment_dir = exp_obj.get_dir()
-    documents_dir = os.path.join(experiment_dir, "documents")
-    documents_dir = os.path.join(documents_dir, rag_folder)
-    documents_dir = os.path.abspath(documents_dir)
-    if not documents_dir.startswith(os.path.abspath(experiment_dir)):
+    documents_dir = storage.join(experiment_dir, "documents")
+    documents_dir = storage.join(documents_dir, rag_folder)
+    # Basic traversal protection for posix paths
+    if not documents_dir.startswith(experiment_dir.rstrip("/") + "/") and documents_dir != experiment_dir:
         return "Error: Invalid RAG folder path"
-    if not os.path.exists(documents_dir):
+    if not storage.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
     experiment_details = experiment_get(id=experimentId)
     experiment_config = (
@@ -131,9 +132,9 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
 
     exp_obj = Experiment(experimentId)
     experiment_dir = exp_obj.get_dir()
-    documents_dir = os.path.join(experiment_dir, "documents")
-    documents_dir = os.path.join(documents_dir, secure_filename(rag_folder))
-    if not os.path.exists(documents_dir):
+    documents_dir = storage.join(experiment_dir, "documents")
+    documents_dir = storage.join(documents_dir, secure_filename(rag_folder))
+    if not storage.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory."
 
     experiment_details = experiment_get(id=experimentId)
