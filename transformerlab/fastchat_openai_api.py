@@ -607,8 +607,8 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
 
     exp_obj = Experiment.get(request.experiment_id)
     experiment_dir = exp_obj.get_dir()
-    transcription_dir = os.path.join(experiment_dir, "transcriptions")
-    os.makedirs(transcription_dir, exist_ok=True)
+    transcription_dir = storage.join(experiment_dir, "transcriptions")
+    storage.makedirs(transcription_dir, exist_ok=True)
 
     gen_params = {
         "model": request.model,
