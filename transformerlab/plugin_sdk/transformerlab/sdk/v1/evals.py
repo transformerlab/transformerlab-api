@@ -277,6 +277,7 @@ class EvalsTLabPlugin(TLabPlugin):
         # Add evaluation data to the existing provenance file in the model directory
         # Try to find the model directory using environment variables
         from lab.dirs import get_workspace_dir
+
         workspace_dir = get_workspace_dir()
 
         models_dir = storage.join(workspace_dir, "models")

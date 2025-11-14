@@ -284,7 +284,11 @@ class TLabPlugin:
                     lower = name.lower()
                     if not (lower.endswith(".json") or lower.endswith(".jsonl") or lower.endswith(".csv")):
                         continue
-                    full_path = storage.join(dataset_target, name) if storage.exists(dataset_target) else os.path.join(dataset_target, name)
+                    full_path = (
+                        storage.join(dataset_target, name)
+                        if storage.exists(dataset_target)
+                        else os.path.join(dataset_target, name)
+                    )
                     if storage.exists(dataset_target):
                         if storage.isfile(full_path):
                             filtered_files.append(full_path)

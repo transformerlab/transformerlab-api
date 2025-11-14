@@ -150,7 +150,7 @@ class LocalModelStore(modelstore.ModelStore):
             model_filename = model.get("json_data", {}).get("model_filename", "")
             is_huggingface = model.get("json_data", {}).get("source", "") == "huggingface"
             has_model_filename = model_filename != ""
-            
+
             # Determine the potential model directory path
             # This applies to both HuggingFace models stored locally and local models
             model_id = model.get("model_id", "")
@@ -159,7 +159,7 @@ class LocalModelStore(modelstore.ModelStore):
             if not storage.exists(potential_path):
                 # Remove the Starting TransformerLab/ prefix to handle the save_transformerlab_model function
                 potential_path = storage.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
-            
+
             # Check if model should be considered local:
             # 1. If it has a model_filename set (and is not a HuggingFace model, OR is a HuggingFace model stored locally), OR
             # 2. If the directory exists and has files other than index.json
@@ -186,7 +186,7 @@ class LocalModelStore(modelstore.ModelStore):
                 # treat them as stored locally (e.g., downloaded GGUF files)
                 if storage.exists(potential_path):
                     is_local_model = True
-            
+
             if is_local_model:
                 # tells the app this model was loaded from workspace directory
                 model["stored_in_filesystem"] = True
@@ -205,23 +205,33 @@ class LocalModelStore(modelstore.ModelStore):
                         if storage.isdir(model_path):
                             # List all files in the directory ending with .gguf
                             files = storage.ls(model_path, detail=False)
-                            gguf_files = [posixpath.basename(f.rstrip("/")) for f in files if posixpath.basename(f.rstrip("/")).endswith(".gguf")]
+                            gguf_files = [
+                                posixpath.basename(f.rstrip("/"))
+                                for f in files
+                                if posixpath.basename(f.rstrip("/")).endswith(".gguf")
+                            ]
                             if gguf_files:
                                 model_path = storage.join(model_path, gguf_files[0])
                     else:
                         # Search for files ending with .gguf in the directory
                         files = storage.ls(model["local_path"], detail=False)
-                        gguf_files = [posixpath.basename(f.rstrip("/")) for f in files if posixpath.basename(f.rstrip("/")).endswith(".gguf")]
+                        gguf_files = [
+                            posixpath.basename(f.rstrip("/"))
+                            for f in files
+                            if posixpath.basename(f.rstrip("/")).endswith(".gguf")
+                        ]
                         if gguf_files:
                             gguf_file = gguf_files[0]
                             model_path = storage.join(base_path, gguf_file)
                             if storage.isdir(model_path):
                                 files = storage.ls(model_path, detail=False)
-                                gguf_files = [posixpath.basename(f.rstrip("/")) for f in files if posixpath.basename(f.rstrip("/")).endswith(".gguf")]
+                                gguf_files = [
+                                    posixpath.basename(f.rstrip("/"))
+                                    for f in files
+                                    if posixpath.basename(f.rstrip("/")).endswith(".gguf")
+                                ]
                                 if gguf_files:
                                     model_path = storage.join(model_path, gguf_files[0])
-                                
-                                
 
                     model["local_path"] = model_path
                 elif model_filename:
@@ -341,9 +351,7 @@ class LocalModelStore(modelstore.ModelStore):
                 source_path = model_dict.get("json_data", {}).get("source_id_or_path", "")
                 if model_dict.get("json_data", {}).get("source", "") == "local" and storage.exists(source_path):
                     # Check if the model has a _tlab_provenance.json file
-                    provenance_file = storage.join(
-                        source_path, "_tlab_provenance.json"
-                    )
+                    provenance_file = storage.join(source_path, "_tlab_provenance.json")
                     if storage.exists(provenance_file):
                         # Load the provenance file
                         with storage.open(provenance_file, "r") as f:

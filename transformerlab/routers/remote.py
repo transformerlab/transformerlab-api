@@ -30,7 +30,6 @@ def validate_gpu_orchestrator_env_vars():
 
     return gpu_orchestrator_url, gpu_orchestrator_port
 
-    
 
 @router.post("/create-job")
 async def create_remote_job(
@@ -54,22 +53,21 @@ async def create_remote_job(
     """
     # Get user information from the authentication identity
     user_info_payload = auth_service.get_user_info(identity)
-    
+
     # Extract user info for storage (name/email for display)
     user_info = {}
     if user_info_payload.get("first_name") or user_info_payload.get("last_name"):
-        user_info["name"] = " ".join([
-            user_info_payload.get("first_name", ""),
-            user_info_payload.get("last_name", "")
-        ]).strip()
+        user_info["name"] = " ".join(
+            [user_info_payload.get("first_name", ""), user_info_payload.get("last_name", "")]
+        ).strip()
     if user_info_payload.get("email"):
         user_info["email"] = user_info_payload["email"]
-    
+
     # First, create a REMOTE job
     job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
     if subtype:
         job_data["subtype"] = subtype
-    
+
     # Add user_info to job_data if we have any user information
     if user_info:
         job_data["user_info"] = user_info
@@ -195,7 +193,7 @@ async def launch_remote(
         "command": command,
         "task_name": task_name,
     }
-    
+
     if subtype:
         data["subtype"] = subtype
 
@@ -228,17 +226,16 @@ async def launch_remote(
     if not job_id:
         # Get user information from the authentication identity
         user_info_payload = auth_service.get_user_info(identity)
-        
+
         # Extract user info for storage (name/email for display)
         user_info = {}
         if user_info_payload.get("first_name") or user_info_payload.get("last_name"):
-            user_info["name"] = " ".join([
-                user_info_payload.get("first_name", ""),
-                user_info_payload.get("last_name", "")
-            ]).strip()
+            user_info["name"] = " ".join(
+                [user_info_payload.get("first_name", ""), user_info_payload.get("last_name", "")]
+            ).strip()
         if user_info_payload.get("email"):
             user_info["email"] = user_info_payload["email"]
-                
+
         # Add user_info to job_data if we have any user information
         if user_info:
             data["user_info"] = user_info
@@ -251,12 +248,14 @@ async def launch_remote(
             # Store all data in the job (this ensures default fields stay in the job)
             for key, value in data.items():
                 job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
-                
-            if not use_existing_cluster:
-              # Format cluster_name as <user_value>-job-<job_id> and persist it
-              formatted_cluster_name = f"{cluster_name}-job-{job_id}"
 
-            job_service.job_update_job_data_insert_key_value(job_id, "cluster_name", formatted_cluster_name, experimentId)
+            if not use_existing_cluster:
+                # Format cluster_name as <user_value>-job-<job_id> and persist it
+                formatted_cluster_name = f"{cluster_name}-job-{job_id}"
+
+            job_service.job_update_job_data_insert_key_value(
+                job_id, "cluster_name", formatted_cluster_name, experimentId
+            )
         except Exception as e:
             print(f"Failed to create job: {str(e)}")
             return {"status": "error", "message": "Failed to create job"}
@@ -279,11 +278,12 @@ async def launch_remote(
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
     request_data["job_name"] = task_name if task_name else cluster_name
 
-
     # Determine which endpoint to use based on use_existing_cluster flag
     if use_existing_cluster:
         # Submit job to existing cluster
-        gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{formatted_cluster_name}/submit"
+        gpu_orchestrator_url = (
+            f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{formatted_cluster_name}/submit"
+        )
 
     else:
         # Launch new instance
@@ -320,8 +320,12 @@ async def launch_remote(
                         job_id, "cluster_name", response_data["cluster_name"], experimentId
                     )
 
-                success_message = "Job submitted to existing cluster successfully" if use_existing_cluster else "Remote instance launched successfully"
-                
+                success_message = (
+                    "Job submitted to existing cluster successfully"
+                    if use_existing_cluster
+                    else "Remote instance launched successfully"
+                )
+
                 return {
                     "status": "success",
                     "data": response_data,
@@ -743,12 +747,7 @@ async def get_instances_status(request: Request):
             if incoming_auth:
                 outbound_headers["AUTHORIZATION"] = incoming_auth
 
-            response = await client.get(
-                instances_url,
-                headers=outbound_headers,
-                cookies=request.cookies,
-                timeout=30.0
-            )
+            response = await client.get(instances_url, headers=outbound_headers, cookies=request.cookies, timeout=30.0)
 
             if response.status_code == 200:
                 data = response.json()
@@ -757,7 +756,7 @@ async def get_instances_status(request: Request):
                     for cluster in data["clusters"]:
                         if "status" in cluster and isinstance(cluster["status"], str):
                             cluster["status"] = cluster["status"].replace("ClusterStatus.", "")
-                
+
                 return {
                     "status": "success",
                     "data": data,

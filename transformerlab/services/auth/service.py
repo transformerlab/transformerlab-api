@@ -47,7 +47,7 @@ class AuthService:
             is_multitenant = os.getenv("TFL_MULTITENANT") == "true"
             has_auth_api_key = os.getenv("AUTH_API_KEY") is not None
             has_auth_client_id = os.getenv("AUTH_CLIENT_ID") is not None
-            
+
             if is_multitenant and has_auth_api_key and has_auth_client_id:
                 self._provider = WorkOSProvider()
             else:
@@ -201,7 +201,9 @@ class AuthService:
 
     def _load_session_identity(self, request: Request) -> AuthenticatedIdentity:
         if self._provider is None:
-            raise HTTPException(status_code=401, detail="Session authentication not available. Use API key authentication.")
+            raise HTTPException(
+                status_code=401, detail="Session authentication not available. Use API key authentication."
+            )
         sealed_session = request.cookies.get(self._session_cookie_name)
         if not sealed_session:
             raise HTTPException(status_code=401, detail="Not authenticated")

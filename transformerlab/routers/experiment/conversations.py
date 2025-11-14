@@ -131,7 +131,7 @@ async def list_audio(experimentId: str):
 async def download_audio(experimentId: str, filename: str, audioFolder: str = "audio"):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    
+
     # Use the provided audioFolder parameter, defaulting to "audio"
     audioFolder = secure_filename(audioFolder)
     audio_dir = storage.join(experiment_dir, audioFolder)
@@ -197,6 +197,7 @@ async def delete_audio(experimentId: str, id: str):
 
     return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
 
+
 @router.get("/list_transcription")
 async def list_transcription(experimentId: str):
     # Get experiment object and directory
@@ -249,6 +250,7 @@ async def list_transcription(experimentId: str):
     transcription_files_metadata.sort(key=lambda x: x["file_date"], reverse=True)
     return transcription_files_metadata
 
+
 @router.get("/download_transcription")
 async def download_transcription(experimentId: str, filename: str):
     exp_obj = Experiment.get(experimentId)
@@ -259,6 +261,7 @@ async def download_transcription(experimentId: str, filename: str):
     if not storage.exists(file_path):
         return {"message": f"Text file {filename} does not exist in experiment {experimentId}"}
     return FileResponse(path=file_path, filename=filename, media_type="text/plain")
+
 
 @router.delete("/delete_transcription")
 async def delete_transcription(experimentId: str, id: str):
