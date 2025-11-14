@@ -1,5 +1,5 @@
 {
-  "name": "Diffusion LM Trainer",
+  "name": "Diffusion LLM Trainer",
   "uniqueId": "dllm_trainer_multi_gpu",
   "description": "A training plugin using dllm library for SFT training with support for bert, dream, and llada training methods",
   "plugin-format": "python",

@@ -1,5 +1,5 @@
 {
-  "name": "dLLM Server",
+  "name": "Diffusion LLM Server",
   "uniqueId": "dllm_server",
   "description": "Inference server for diffusion language models (dLLM) - supports LLaDA, Dream, and other diffusion-based text generation models",
   "plugin-format": "python",
@@ -31,13 +31,6 @@
       "title": "Block Length",
       "minimum": 1,
       "maximum": 256
-    },
-    "temperature": {
-      "type": "number",
-      "default": 0.0,
-      "title": "Temperature",
-      "minimum": 0.0,
-      "maximum": 2.0
     },
     "remasking": {
       "type": "string",
