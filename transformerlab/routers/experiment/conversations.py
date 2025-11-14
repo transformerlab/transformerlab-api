@@ -202,23 +202,50 @@ async def list_transcription(experimentId: str):
     # Get experiment object and directory
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    transcription_dir = os.path.join(experiment_dir, "transcriptions")
-    os.makedirs(transcription_dir, exist_ok=True)
+    transcription_dir = storage.join(experiment_dir, "transcriptions")
+    storage.makedirs(transcription_dir, exist_ok=True)
 
     # List all .json files in the transcription directory
     transcription_files_metadata = []
-    for filename in os.listdir(transcription_dir):
-        if filename.endswith(".json"):
-            file_path = os.path.join(transcription_dir, filename)
-            with open(file_path, "r") as f:
-                try:
-                    data = json.load(f)
-                    # Add the file modification time for sorting
-                    data["id"] = filename[:-5]  # Remove .json from the filename
-                    data["file_date"] = os.path.getmtime(file_path)
-                    transcription_files_metadata.append(data)
-                except Exception:
-                    continue
+    try:
+        entries = storage.ls(transcription_dir, detail=True)
+        for entry in entries:
+            # Handle both dict (detail=True) and string (detail=False) formats
+            if isinstance(entry, dict):
+                file_path = entry.get("name") or entry.get("path") or ""
+                filename = file_path.rstrip("/").split("/")[-1] if "/" in file_path else file_path
+                file_type = entry.get("type", "file")
+                if file_type == "file" and filename.endswith(".json"):
+                    # Use the full path from entry if available, otherwise construct it
+                    if not file_path or file_path == filename:
+                        file_path = storage.join(transcription_dir, filename)
+                    with storage.open(file_path, "r") as f:
+                        try:
+                            data = json.load(f)
+                            # Add the file modification time for sorting
+                            data["id"] = filename[:-5]  # Remove .json from the filename
+                            # Extract mtime from file metadata, fallback to 0 if not available
+                            mtime = entry.get("mtime")
+                            data["file_date"] = mtime if mtime is not None else 0
+                            transcription_files_metadata.append(data)
+                        except Exception:
+                            continue
+            else:
+                # Fallback for string format
+                filename = entry.rstrip("/").split("/")[-1] if "/" in entry else entry
+                if filename.endswith(".json"):
+                    file_path = storage.join(transcription_dir, filename)
+                    with storage.open(file_path, "r") as f:
+                        try:
+                            data = json.load(f)
+                            data["id"] = filename[:-5]  # Remove .json from the filename
+                            # fsspec doesn't always provide mtime, use 0 as fallback
+                            data["file_date"] = 0
+                            transcription_files_metadata.append(data)
+                        except Exception:
+                            continue
+    except Exception:
+        pass
     transcription_files_metadata.sort(key=lambda x: x["file_date"], reverse=True)
     return transcription_files_metadata
 
@@ -226,10 +253,10 @@ async def list_transcription(experimentId: str):
 async def download_transcription(experimentId: str, filename: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    text_dir = os.path.join(experiment_dir, "transcriptions")
+    text_dir = storage.join(experiment_dir, "transcriptions")
     filename = secure_filename(filename)
-    file_path = os.path.join(text_dir, filename)
-    if not os.path.exists(file_path):
+    file_path = storage.join(text_dir, filename)
+    if not storage.exists(file_path):
         return {"message": f"Text file {filename} does not exist in experiment {experimentId}"}
     return FileResponse(path=file_path, filename=filename, media_type="text/plain")
 
@@ -237,10 +264,10 @@ async def download_transcription(experimentId: str, filename: str):
 async def delete_transcription(experimentId: str, id: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    text_dir = os.path.join(experiment_dir, "transcriptions")
+    text_dir = storage.join(experiment_dir, "transcriptions")
     id = secure_filename(id)
-    text_path = os.path.join(text_dir, id + ".json")
-    if not os.path.exists(text_path):
+    text_path = storage.join(text_dir, id + ".json")
+    if not storage.exists(text_path):
         return {"message": f"Text file {id} does not exist in experiment {experimentId}"}
-    os.remove(text_path)
+    storage.rm(text_path)
     return {"message": f"Text file {id} deleted from experiment {experimentId}"}
