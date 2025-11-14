@@ -5,10 +5,14 @@
   "plugin-format": "python",
   "type": "trainer",
   "train_type": "pretraining",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "git": "https://github.com/huggingface/nanotron",
   "url": "https://github.com/huggingface/nanotron",
-  "files": ["main.py", "setup.sh", "config.py"],
+  "files": [
+    "main.py",
+    "setup.sh",
+    "config.py"
+  ],
   "supported_hardware_architectures": [],
   "setup-script": "setup.sh",
   "parameters": {
@@ -16,7 +20,9 @@
       "title": "Training Device",
       "type": "string",
       "required": true,
-      "enum": ["cuda"],
+      "enum": [
+        "cuda"
+      ],
       "default": "cuda"
     },
     "gpu_ids": {
@@ -32,7 +38,17 @@
     "model_size": {
       "title": "Model Size",
       "type": "string",
-      "enum": ["160M", "410M", "1B", "3B", "7B", "13B", "30B", "70B", "Custom"]
+      "enum": [
+        "160M",
+        "410M",
+        "1B",
+        "3B",
+        "7B",
+        "13B",
+        "30B",
+        "70B",
+        "Custom"
+      ]
     },
     "checkpoint_interval": {
       "title": "Checkpoint Interval (steps)",
@@ -40,7 +56,6 @@
       "default": 1000,
       "minimum": 100
     },
-
     "dataset_split": {
       "title": "Dataset Split",
       "type": "string",
@@ -92,7 +107,6 @@
       "default": 64,
       "minimum": 16
     },
-
     "micro_batch_size": {
       "title": "Micro Batch Size",
       "type": "integer",
@@ -109,9 +123,9 @@
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 5e-4,
-      "minimum": 1e-6,
-      "maximum": 1e-2
+      "default": 0.0005,
+      "minimum": 1e-06,
+      "maximum": 0.01
     },
     "warmup_steps": {
       "title": "Warmup Steps",
@@ -157,7 +171,11 @@
     "mixed_precision": {
       "title": "Mixed Precision Type",
       "type": "string",
-      "enum": ["bfloat16", "float32", "float64"],
+      "enum": [
+        "bfloat16",
+        "float32",
+        "float64"
+      ],
       "default": "bfloat16"
     }
   },

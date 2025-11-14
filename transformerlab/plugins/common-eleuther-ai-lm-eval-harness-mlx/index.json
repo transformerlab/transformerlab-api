@@ -5,11 +5,16 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "model",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "git": "https://github.com/chimezie/lm-evaluation-harness-mlx",
   "url": "https://github.com/chimezie/lm-evaluation-harness-mlx",
-  "supported_hardware_architectures": ["mlx"],
-  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": [
+    "mlx"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
@@ -294,7 +299,9 @@
     },
     "limit": {
       "title": "Fraction of Samples to use for evaluation",
-      "type": ["number"],
+      "type": [
+        "number"
+      ],
       "minimum": 0.0,
       "default": 1.0,
       "maximum": 1.0,
