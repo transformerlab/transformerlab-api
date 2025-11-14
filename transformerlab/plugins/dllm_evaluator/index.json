@@ -108,14 +108,14 @@
     "steps": {
       "title": "Diffusion Steps",
       "type": "integer",
-      "default": 1024,
+      "default": 128,
       "minimum": 1,
       "maximum": 2048
     },
     "max_new_tokens": {
       "title": "Max New Tokens",
       "type": "integer",
-      "default": 1024,
+      "default": 128,
       "minimum": 1,
       "maximum": 4096
     },
@@ -136,7 +136,7 @@
     "temperature": {
       "title": "Temperature (Dream only)",
       "type": "number",
-      "default": 0.2,
+      "default": 0.0,
       "minimum": 0.0,
       "maximum": 2.0
     },
@@ -150,7 +150,7 @@
     "mc_num": {
       "title": "Monte Carlo Samples (for loglikelihood)",
       "type": "integer",
-      "default": 128,
+      "default": 1,
       "minimum": 1,
       "maximum": 512
     },
@@ -169,8 +169,7 @@
   },
   "parameters_ui": {
     "model_type": {
-      "ui:help": "Select the diffusion LLM model type: 'bert' for BERT-based models, 'dream' for Dream models, 'llada' for LLaDA models",
-      "ui:widget": "AutoCompleteWidget"
+      "ui:help": "Select the diffusion LLM model type: 'bert' for BERT-based models, 'dream' for Dream models, 'llada' for LLaDA models"
     },
     "tasks": {
       "ui:help": "Select the task you want to run from the EleutherAI Harness",

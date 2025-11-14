@@ -44,7 +44,6 @@ def run_evaluation():
 
     # Validate model_type
     model_type = tlab_evals.params.model_type.lower()
-    model_type = eval(model_type)
     if isinstance(model_type, list):
         model_type = model_type[0]
     if model_type not in ["bert", "dream", "llada"]:
