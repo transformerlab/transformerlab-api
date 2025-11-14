@@ -4,7 +4,7 @@
   "description": "SFT training using Huggingface autotrain",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
@@ -17,7 +17,11 @@
     "Phi3ForCausalLM"
   ],
   "supported_hardware_architectures": [],
-  "files": ["main.py", "info.md", "setup.sh"],
+  "files": [
+    "main.py",
+    "info.md",
+    "setup.sh"
+  ],
   "setup-script": "setup.sh",
   "parameters": {
     "batch_size": {
@@ -29,8 +33,8 @@
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 2e-4,
-      "minimum": 1e-6
+      "default": 0.0002,
+      "minimum": 1e-06
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",
