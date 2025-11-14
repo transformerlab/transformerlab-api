@@ -14,6 +14,9 @@ from lab import storage
 async def list_models():
     try:
         ollama_model_library = ollama_models_library_dir()
+    except FileNotFoundError:
+        print("Skipping Ollama models: manifests directory not found")
+        return []
     except Exception as e:
         print("Failed to locate Ollama models library:")
         print(str(e))

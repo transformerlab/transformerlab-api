@@ -808,9 +808,7 @@ async def import_task_from_local_gallery(
                                 remote_info = resp.json()
                                 # Extract uploaded_dir path from response
                                 uploaded_dir = (
-                                    remote_info.get("uploaded_files", {})
-                                    .get("dir_files", {})
-                                    .get("uploaded_dir")
+                                    remote_info.get("uploaded_files", {}).get("dir_files", {}).get("uploaded_dir")
                                 )
                                 if uploaded_dir:
                                     try:

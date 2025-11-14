@@ -128,10 +128,13 @@ async def list_audio(experimentId: str):
 
 
 @router.get(path="/download_audio")
-async def download_audio(experimentId: str, filename: str):
+async def download_audio(experimentId: str, filename: str, audioFolder: str = "audio"):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
-    audio_dir = storage.join(experiment_dir, "audio")
+    
+    # Use the provided audioFolder parameter, defaulting to "audio"
+    audioFolder = secure_filename(audioFolder)
+    audio_dir = storage.join(experiment_dir, audioFolder)
 
     # now download the audio file
     filename = secure_filename(filename)
@@ -193,3 +196,51 @@ async def delete_audio(experimentId: str, id: str):
         storage.rm(audio_path)
 
     return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
+
+@router.get("/list_transcription")
+async def list_transcription(experimentId: str):
+    # Get experiment object and directory
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
+    transcription_dir = os.path.join(experiment_dir, "transcriptions")
+    os.makedirs(transcription_dir, exist_ok=True)
+
+    # List all .json files in the transcription directory
+    transcription_files_metadata = []
+    for filename in os.listdir(transcription_dir):
+        if filename.endswith(".json"):
+            file_path = os.path.join(transcription_dir, filename)
+            with open(file_path, "r") as f:
+                try:
+                    data = json.load(f)
+                    # Add the file modification time for sorting
+                    data["id"] = filename[:-5]  # Remove .json from the filename
+                    data["file_date"] = os.path.getmtime(file_path)
+                    transcription_files_metadata.append(data)
+                except Exception:
+                    continue
+    transcription_files_metadata.sort(key=lambda x: x["file_date"], reverse=True)
+    return transcription_files_metadata
+
+@router.get("/download_transcription")
+async def download_transcription(experimentId: str, filename: str):
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
+    text_dir = os.path.join(experiment_dir, "transcriptions")
+    filename = secure_filename(filename)
+    file_path = os.path.join(text_dir, filename)
+    if not os.path.exists(file_path):
+        return {"message": f"Text file {filename} does not exist in experiment {experimentId}"}
+    return FileResponse(path=file_path, filename=filename, media_type="text/plain")
+
+@router.delete("/delete_transcription")
+async def delete_transcription(experimentId: str, id: str):
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
+    text_dir = os.path.join(experiment_dir, "transcriptions")
+    id = secure_filename(id)
+    text_path = os.path.join(text_dir, id + ".json")
+    if not os.path.exists(text_path):
+        return {"message": f"Text file {id} does not exist in experiment {experimentId}"}
+    os.remove(text_path)
+    return {"message": f"Text file {id} deleted from experiment {experimentId}"}
