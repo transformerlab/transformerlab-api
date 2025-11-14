@@ -5,7 +5,6 @@ from typing import Optional
 from fastapi import Request
 
 from transformerlab.routers.auth.provider.auth_provider import AuthUser
-from transformerlab.shared.s3_mount import setup_user_s3_mount
 
 
 class UserService:
@@ -21,7 +20,8 @@ class UserService:
             # Prefer organization id from user, fallback to cookie
             organization_id = getattr(user, "organization_id", None)
             print(f"Organization ID: {organization_id}")
-            success = setup_user_s3_mount(str(user.id), organization_id)
+            # success = setup_user_s3_mount(str(user.id), organization_id)
+            success = False
             if success:
                 print(f"S3 mount setup completed for user {user.id}")
             else:

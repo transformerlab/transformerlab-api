@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import json
+from lab import storage
 
 import pandas as pd
 import torch
@@ -16,11 +17,19 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
     generates so we can make a metrics_df out of the results for each test case"""
     try:
         matching_files = []
-        for root, dirs, files in os.walk(output_file_path):
-            for file in files:
-                if file.startswith(prefix) and file.endswith(suffix):
-                    matching_files.append(os.path.join(root, file))
-        return matching_files
+        # Prefer storage.walk (fsspec-compatible), with local fallback
+        try:
+            for root, _dirs, files in storage.walk(output_file_path):
+                for file in files:
+                    if file.startswith(prefix) and file.endswith(suffix):
+                        matching_files.append(storage.join(root, file))
+            return matching_files
+        except Exception:
+            for root, _dirs, files in os.walk(output_file_path):
+                for file in files:
+                    if file.startswith(prefix) and file.endswith(suffix):
+                        matching_files.append(os.path.join(root, file))
+            return matching_files
     except Exception as e:
         print(f"An error occurred while getting the output file name: {e}")
         return []
@@ -80,7 +89,7 @@ def run_evaluation():
         if tlab_evals.params.model_adapter and tlab_evals.params.model_adapter.strip() != "":
             from transformerlab.plugin import WORKSPACE_DIR
 
-            adapter_path = os.path.join(
+            adapter_path = storage.join(
                 WORKSPACE_DIR,
                 "adaptors",
                 secure_filename(tlab_evals.params.model_name),
@@ -107,7 +116,7 @@ def run_evaluation():
         if tlab_evals.params.model_adapter and tlab_evals.params.model_adapter.strip() != "":
             from transformerlab.plugin import WORKSPACE_DIR
 
-            adapter_path = os.path.join(
+            adapter_path = storage.join(
                 WORKSPACE_DIR,
                 "adaptors",
                 secure_filename(tlab_evals.params.model_name),

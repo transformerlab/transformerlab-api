@@ -15,7 +15,9 @@ import yaml
 import re
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+from transformerlab.plugin import get_python_executable
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 # Get environment variables
@@ -23,9 +25,10 @@ plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
 
 # Directory for storing temporary working files
-data_directory = f"{WORKSPACE_DIR}/temp/llama_factory_reward/data"
-if not os.path.exists(data_directory):
-    os.makedirs(data_directory)
+workspace_dir = get_workspace_dir()
+data_directory = storage.join(workspace_dir, "temp", "llama_factory_reward", "data")
+if not storage.exists(data_directory):
+    storage.makedirs(data_directory)
 
 
 def create_data_directory_in_llama_factory_format():
@@ -42,7 +45,7 @@ def create_data_directory_in_llama_factory_format():
         }
     }
 
-    with open(f"{data_directory}/dataset_info.json", "w") as f:
+    with storage.open(storage.join(data_directory, "dataset_info.json"), "w") as f:
         json.dump(dataset_info, f, indent=2)
 
 
@@ -64,7 +67,7 @@ def run_reward_modeling():
         dataset = datasets["train"]
 
         # Output dataset to a json file
-        with open(f"{data_directory}/train.json", "w") as f:
+        with storage.open(storage.join(data_directory, "train.json"), "w") as f:
             all_data = []
             for row in dataset:
                 all_data.append(row)
@@ -74,15 +77,15 @@ def run_reward_modeling():
         raise
 
     # Generate config YAML file for LLaMA-Factory
-    yaml_config_path = f"{data_directory}/llama3_lora_reward.yaml"
+    yaml_config_path = storage.join(data_directory, "llama3_lora_reward.yaml")
 
     today = time.strftime("%Y%m%d-%H%M%S")
-    output_dir = os.path.join(config["output_dir"], today)
+    output_dir = storage.join(config["output_dir"], today)
 
     # Copy template file and modify it
     os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_reward.yaml {yaml_config_path}")
 
-    with open(yaml_config_path, "r") as file:
+    with storage.open(yaml_config_path, "r") as file:
         yml = yaml.safe_load(file)
 
     create_data_directory_in_llama_factory_format()
@@ -103,7 +106,7 @@ def run_reward_modeling():
     yml["resize_vocab"] = True
     print("--------")
 
-    with open(yaml_config_path, "w") as file:
+    with storage.open(yaml_config_path, "w") as file:
         yaml.dump(yml, file)
         print("New configuration:")
         print(yml)
@@ -170,17 +173,17 @@ def run_reward_modeling():
         model_name_simple = model_name_simple.split("/")[-1]
 
     fused_model_name = f"{model_name_simple}_{adaptor_name}"
-    fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+    fused_model_location = storage.join(workspace_dir, "models", fused_model_name)
 
     # Make directory for the fused model
-    if not os.path.exists(fused_model_location):
-        os.makedirs(fused_model_location)
+    if not storage.exists(fused_model_location):
+        storage.makedirs(fused_model_location)
 
     # Create config for model fusion
-    yaml_config_path = f"{data_directory}/merge_llama3_lora_sft.yaml"
+    yaml_config_path = storage.join(data_directory, "merge_llama3_lora_sft.yaml")
     os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
 
-    with open(yaml_config_path, "r") as file:
+    with storage.open(yaml_config_path, "r") as file:
         yml = yaml.safe_load(file)
 
     yml["model_name_or_path"] = config["model_name"]
@@ -188,7 +191,7 @@ def run_reward_modeling():
     yml["export_dir"] = fused_model_location
     yml["resize_vocab"] = True
 
-    with open(yaml_config_path, "w") as file:
+    with storage.open(yaml_config_path, "w") as file:
         yaml.dump(yml, file)
         print("New configuration:")
         print(yml)

@@ -5,6 +5,8 @@ import subprocess
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 # Add custom arguments
 tlab_trainer.add_argument(
@@ -131,7 +133,13 @@ def train_model():
     adam_beta1 = float(tlab_trainer.params.adam_beta1)
     adam_beta2 = float(tlab_trainer.params.adam_beta2)
     adam_epsilon = float(tlab_trainer.params.adam_epsilon)
-    output_dir = tlab_trainer.params.output_dir
+    workspace_dir = get_workspace_dir()
+    # Use storage for workspace paths if relative; allow absolute passthrough
+    output_dir = (
+        tlab_trainer.params.output_dir
+        if os.path.isabs(str(tlab_trainer.params.output_dir))
+        else storage.join(workspace_dir, str(tlab_trainer.params.output_dir))
+    )
 
     # Get the template strings
     question_formatting_template = tlab_trainer.params.get("input_template", "")
@@ -230,7 +238,7 @@ def train_model():
     # GRPO training configuration
     args = GRPOConfig(
         output_dir=output_dir,
-        logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
+        logging_dir=storage.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
         num_train_epochs=num_epochs,
         weight_decay=weight_decay,
         per_device_train_batch_size=batch_size,

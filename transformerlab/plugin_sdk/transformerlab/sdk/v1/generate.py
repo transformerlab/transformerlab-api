@@ -1,9 +1,9 @@
 import json
-import os
 import time
 import requests
 from pathlib import Path
 from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+from lab import storage
 
 
 class GenTLabPlugin(TLabPlugin):
@@ -61,19 +61,19 @@ class GenTLabPlugin(TLabPlugin):
         else:
             output_dir = self.get_output_file_path(dir_only=True)
 
-        os.makedirs(output_dir, exist_ok=True)
+        storage.makedirs(output_dir, exist_ok=True)
 
         if is_image:
             lines = True
-            output_file = os.path.join(output_dir, "metadata.jsonl")
+            output_file = storage.join(output_dir, "metadata.jsonl")
             if dataset_id is None:
                 dataset_id = f"{self.params.run_name}_{self.params.job_id}".lower()
         else:
             lines = False
             if suffix is not None:
-                output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_{suffix}.json")
+                output_file = storage.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_{suffix}.json")
             else:
-                output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
+                output_file = storage.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
 
             if dataset_id is None:
                 # Makes /Users/xx/yy.json to yy
@@ -93,16 +93,17 @@ class GenTLabPlugin(TLabPlugin):
 
             # Save metadata
             if dataset_id is None:
-                metadata_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
+                metadata_file = storage.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
             else:
-                metadata_file = os.path.join(output_dir, f"{dataset_id}_metadata.json")
-            with open(metadata_file, "w") as f:
+                metadata_file = storage.join(output_dir, f"{dataset_id}_metadata.json")
+            with storage.open(metadata_file, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, indent=2)
 
-        df.to_json(output_file, orient="records", lines=lines)
+        with storage.open(output_file, "w", encoding="utf-8") as f:
+            df.to_json(f, orient="records", lines=lines)
         print(f"Generated data saved to {output_file}")
 
-        # Upload to TransformerLab as a dataset
+        # Upload to Transformer Lab as a dataset
         try:
             self.upload_to_transformerlab(output_file, dataset_id)
             if dataset_id:
@@ -138,7 +139,7 @@ class GenTLabPlugin(TLabPlugin):
                 raise RuntimeError(f"Error creating a new dataset: {response.json()}")
 
             # Upload the file
-            with open(output_file_path, "rb") as json_file:
+            with storage.open(output_file_path, "rb") as json_file:
                 files = {"files": json_file}
                 response = requests.post(api_url + "data/fileupload", params=params, files=files)
 
@@ -167,25 +168,26 @@ class GenTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
-        from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
+        from lab.dirs import get_workspace_dir
+        workspace_dir = get_workspace_dir()
 
-        experiment_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name)
-        dataset_dir = os.path.join(experiment_dir, "datasets")
+        experiment_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name)
+        dataset_dir = storage.join(experiment_dir, "datasets")
 
         # Create a specific directory for this generation job
         if dataset_id is None:
-            gen_dir = os.path.join(dataset_dir, f"{self.params.run_name}_{self.params.job_id}")
+            gen_dir = storage.join(dataset_dir, f"{self.params.run_name}_{self.params.job_id}")
         else:
-            gen_dir = os.path.join(dataset_dir, dataset_id)
-        os.makedirs(gen_dir, exist_ok=True)
+            gen_dir = storage.join(dataset_dir, dataset_id)
+        storage.makedirs(gen_dir, exist_ok=True)
 
         if dir_only:
             return gen_dir
 
         if suffix:
-            return os.path.join(gen_dir, f"{self.params.run_name}_{suffix}")
+            return storage.join(gen_dir, f"{self.params.run_name}_{suffix}")
         else:
-            return os.path.join(gen_dir, f"{self.params.run_name}.json")
+            return storage.join(gen_dir, f"{self.params.run_name}.json")
 
     def generate_expected_outputs(self, input_values, task=None, scenario=None, input_format=None, output_format=None):
         """Generate expected outputs for given inputs using loaded model

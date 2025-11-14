@@ -7,6 +7,8 @@ try:
 except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
+from lab import storage
+
 
 tlab_exporter.add_argument(
     "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model."
@@ -25,7 +27,7 @@ def llamafile_export():
     argsfile = os.path.join(plugin_dir, ".args")
 
     # Create output file
-    os.makedirs(output_dir, exist_ok=True)
+    storage.makedirs(output_dir, exist_ok=True)
 
     print("Starting Llamafile conversion...")
     tlab_exporter.progress_update(15)
@@ -73,8 +75,11 @@ def llamafile_export():
     tlab_exporter.add_job_data("status", "Moving Llamafile to output directory")
     print(f"Moving {outfile_name} to output directory {output_dir}...")
 
-    final_llamafile_path = os.path.join(output_dir, outfile_name)
-    shutil.move(temp_llamafile, final_llamafile_path)
+    final_llamafile_path = storage.join(output_dir, outfile_name)
+    # Copy to final location using storage, then remove temp file
+    with open(temp_llamafile, "rb") as src, storage.open(final_llamafile_path, "wb") as dst:
+        dst.write(src.read())
+    os.remove(temp_llamafile)
 
     tlab_exporter.progress_update(100)
     tlab_exporter.add_job_data("status", "Llamafile creation complete")

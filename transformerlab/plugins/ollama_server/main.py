@@ -18,7 +18,8 @@ import sys
 import ollama
 import time
 import requests
-
+import posixpath
+from lab import storage
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -29,6 +30,7 @@ try:
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
@@ -38,7 +40,8 @@ args, unknown = parser.parse_known_args()
 # But GGUF is always stored as a local path because
 # we are using a specific GGUF file
 # TODO: Make sure the path exists before continuing
-if os.path.exists(args.model_path):
+# Check both storage and os for compatibility (model_path might be workspace or local)
+if storage.exists(args.model_path) or os.path.exists(args.model_path):
     model_path = args.model_path
 else:
     raise FileNotFoundError(
@@ -112,7 +115,9 @@ else:
 
 # STEP 1: Make an Ollama Modelfile that points to the GGUF you want to run
 # Split model_path into the directory and filename
-model_dir, model_filename = os.path.split(model_path)
+# Use posixpath for consistent path handling with storage paths
+model_dir = posixpath.dirname(model_path)
+model_filename = posixpath.basename(model_path)
 
 # This is the name that the model will be known by in ollama
 # We will use the same name as in Transformer Lab but with .gguf on the end.
@@ -129,8 +134,8 @@ else:
     ollama_model_name = model_filename
 
 # Output a modelfile
-modelfile = os.path.join(model_dir, "Modelfile")
-with open(modelfile, "w") as file:
+modelfile = storage.join(model_dir, "Modelfile")
+with storage.open(modelfile, "w") as file:
     file.write(f"FROM {model_path}\n")
 
 # STEP 2: Create a link to our GGUF file in the Ollama cache
@@ -139,7 +144,7 @@ with open(modelfile, "w") as file:
 # 2a. Figure out the SHA filename ollama expects.
 # Copied this from ollama SDK
 sha256sum = sha256()
-with open(model_path, "rb") as r:
+with storage.open(model_path, "rb") as r:
     while True:
         chunk = r.read(32 * 1024)
         if not chunk:
