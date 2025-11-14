@@ -50,6 +50,7 @@ from transformerlab.routers import (
     batched_prompts,
     recipes,
     remote,
+    auth2,
 )
 import torch
 
@@ -81,15 +82,7 @@ from lab.dirs import set_organization_id as lab_set_org_id
 
 from dotenv import load_dotenv
 
-from transformerlab.models.users import (
-    fastapi_users,
-    auth_backend,
-    current_active_user,
-    UserRead,
-    UserCreate,
-    UserUpdate,
-)
-from transformerlab.routers.test_users import router as users_router
+
 from transformerlab.shared.models.user_model import create_db_and_tables, User
 
 load_dotenv()
@@ -241,25 +234,7 @@ app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(remote.router)
 app.include_router(fastchat_openai_api.router)
-
-# Include Auth and Registration Routers
-app.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix="/auth/jwt",
-    tags=["auth"],
-)
-app.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
-    tags=["auth"],
-)
-# Include User Management Router (allows authenticated users to view/update their profile)
-app.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix="/users",
-    tags=["users"],
-)
-app.include_router(users_router)
+app.include_router(auth2.router)
 
 # Authentication and session management routes
 if os.getenv("TFL_MULTITENANT") == "true":

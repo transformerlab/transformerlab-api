@@ -1,12 +1,14 @@
 # users.py
 import uuid
-from typing import Optional, AsyncGenerator
+from typing import Optional
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users.db import SQLAlchemyUserDatabase
 from transformerlab.shared.models.user_model import User, get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
+from jose import jwt as _jose_jwt
+from datetime import datetime, timedelta
 
 
 # --- Pydantic Schemas for API interactions ---
@@ -25,6 +27,8 @@ class UserUpdate(schemas.BaseUserUpdate):
 
 # --- User Manager (Handles registration, password reset, etc.) ---
 SECRET = "YOUR_STRONG_SECRET"  # !! CHANGE THIS IN PRODUCTION !!
+REFRESH_SECRET = "YOUR_REFRESH_TOKEN_SECRET"  # !! USE A DIFFERENT SECRET !!
+REFRESH_LIFETIME = 60 * 60 * 24 * 7  # 7 days
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
@@ -68,3 +72,67 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](
 # --- Dependency for Protected Routes ---
 # This is what you'll use in your route decorators
 current_active_user = fastapi_users.current_user(active=True)
+
+
+def get_refresh_strategy() -> JWTStrategy:
+    return JWTStrategy(secret=REFRESH_SECRET, lifetime_seconds=REFRESH_LIFETIME)
+
+
+# --- Small helper to create access + refresh tokens for manual flows (e.g. refresh endpoint) ---
+
+
+class _JWTAuthenticationHelper:
+    """Minimal helper that mirrors a login response (access + refresh token).
+
+    We keep this small and explicit so callers (like the `refresh` endpoint in
+    `routers/auth.py`) can create new access tokens when given a valid
+    refresh token.
+    """
+
+    def __init__(
+        self,
+        access_secret: str,
+        refresh_secret: str,
+        access_lifetime: int = 3600,
+        refresh_lifetime: int = REFRESH_LIFETIME,
+    ):
+        self.access_secret = access_secret
+        self.refresh_secret = refresh_secret
+        self.access_lifetime = access_lifetime
+        self.refresh_lifetime = refresh_lifetime
+
+    def _create_token(self, user, secret: str, lifetime_seconds: int) -> str:
+        now = datetime.utcnow()
+        exp = now + timedelta(seconds=lifetime_seconds)
+        payload = {
+            "sub": str(user.id),
+            "email": getattr(user, "email", None),
+            "exp": int(exp.timestamp()),
+        }
+        return _jose_jwt.encode(payload, secret, algorithm="HS256")
+
+    def get_login_response(self, user) -> dict:
+        """Return a dict similar to what FastAPI-Users returns on login.
+
+        Keys:
+        - access_token: short-lived JWT
+        - refresh_token: long-lived JWT (can be validated with refresh strategy)
+        - token_type: 'bearer'
+        - expires_in: seconds until access token expiry
+        """
+        access = self._create_token(user, self.access_secret, self.access_lifetime)
+        refresh = self._create_token(user, self.refresh_secret, self.refresh_lifetime)
+        return {
+            "access_token": access,
+            "refresh_token": refresh,
+            "token_type": "bearer",
+            "expires_in": self.access_lifetime,
+        }
+
+
+# Module-level helpers for imports elsewhere
+jwt_authentication = _JWTAuthenticationHelper(
+    SECRET, REFRESH_SECRET, access_lifetime=3600, refresh_lifetime=REFRESH_LIFETIME
+)
+access_strategy = get_jwt_strategy()
+refresh_strategy = get_refresh_strategy()
