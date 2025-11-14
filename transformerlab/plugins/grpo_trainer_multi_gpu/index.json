@@ -4,7 +4,7 @@
   "description": "A GPRO trainer based using a Multi GPU setup trained using TRL and Accelerate",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "model_architectures": [
     "LlamaForCausalLM",
     "Qwen2ForCausalLM",
@@ -13,8 +13,13 @@
   ],
   "git": "",
   "url": "",
-  "files": ["main.py", "setup.sh"],
-  "supported_hardware_architectures": ["cuda"],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cuda"
+  ],
   "setup-script": "setup.sh",
   "training_template_format": "alpaca",
   "parameters": {
@@ -22,7 +27,11 @@
       "title": "Training Device",
       "type": "string",
       "required": true,
-      "enum": ["cuda", "cpu", "tpu"],
+      "enum": [
+        "cuda",
+        "cpu",
+        "tpu"
+      ],
       "default": "cuda"
     },
     "gpu_ids": {
@@ -71,14 +80,19 @@
     "learning_rate_schedule": {
       "title": "Learning Rate Schedule",
       "type": "string",
-      "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
+      "enum": [
+        "constant",
+        "linear",
+        "cosine",
+        "constant_with_warmup"
+      ],
       "default": "constant"
     },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 5e-5,
-      "minimum": 1e-6
+      "default": 5e-05,
+      "minimum": 1e-06
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",
@@ -124,7 +138,7 @@
       "type": "number",
       "minimum": 0.0,
       "maximum": 1.0,
-      "default": 0.00000001
+      "default": 1e-08
     },
     "adaptor_name": {
       "title": "Adaptor Name",

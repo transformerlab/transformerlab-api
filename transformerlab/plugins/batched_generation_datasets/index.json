@@ -4,11 +4,18 @@
   "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "git": "",
   "url": "",
-  "files": ["main.py", "setup.sh"],
-  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
   "_dataset": true,
   "_dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
   "setup-script": "setup.sh",
