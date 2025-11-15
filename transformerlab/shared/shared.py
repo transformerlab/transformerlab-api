@@ -13,6 +13,7 @@ from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 from collections import deque
+from lab import Job  # add this import
 
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_update_status_sync, job_update_status
@@ -20,7 +21,7 @@ import transformerlab.services.job_service as job_service
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import get_global_log_path
-from lab import dirs as lab_dirs, Job, Experiment
+from lab import dirs as lab_dirs
 from lab import storage
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import dirs
@@ -272,7 +273,8 @@ async def async_run_python_daemon_and_update_status(
             f.write(str(pid))
 
         # keep a tail of recent lines so we can show them on failure:
-        recent_lines = deque(maxlen=10)
+        recent_lines = deque(maxlen=50)
+        last_update_time = 0.0
 
         line = await process.stdout.readline()
         error_msg = None
@@ -280,6 +282,20 @@ async def async_run_python_daemon_and_update_status(
             decoded = line.decode()
             recent_lines.append(decoded.strip())
 
+            try:
+                now = time.time()
+                if now - last_update_time >= 1.0:
+                    try:
+                        job = Job.get(job_id)
+                        job_data = job.get_job_data() or {}
+                        job_data["tail"] = list(recent_lines)
+                        job.set_job_data(job_data)
+                    except Exception:
+                        # Best-effort only; don't fail the loop
+                        pass
+                    last_update_time = now
+            except Exception:
+                pass
             # If we hit the begin_string then the daemon is started and we can return!
             if begin_string in decoded:
                 if set_process_id_function is not None:

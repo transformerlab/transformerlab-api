@@ -484,6 +484,18 @@ async def server_worker_health(request: Request):
     return result
 
 
+@app.get("/server/job_logs", tags=["serverinfo"])
+async def server_job_logs(job_id: str):
+    try:
+        job = job_get(job_id)
+        print(job)
+        job_data = job.get("job_data", {})
+        tail = job_data.get("tail", [])
+        return {"status": "success", "job_id": job_id, "logs": tail}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.get("/healthz")
 async def healthz():
     """
