@@ -9,6 +9,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from tqdm.auto import tqdm
 
 from transformerlab.sdk.v1.generate import tlab_gen
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -31,36 +33,37 @@ def get_docs_list(docs: str) -> List[dict]:
     Supports text files, PDFs, and other document formats
     """
     docs_list = docs.split(",")
-    from transformerlab.plugin import WORKSPACE_DIR
+    workspace_dir = get_workspace_dir()
 
-    documents_dir = os.path.join(WORKSPACE_DIR, "experiments", tlab_gen.params.experiment_name, "documents")
+    documents_dir = storage.join(workspace_dir, "experiments", tlab_gen.params.experiment_name, "documents")
     # Use the markdown files if they exist
-    if os.path.exists(os.path.join(documents_dir, ".tlab_markitdown")):
-        documents_dir = os.path.join(documents_dir, ".tlab_markitdown")
+    markitdown_dir = storage.join(documents_dir, ".tlab_markitdown")
+    if storage.exists(markitdown_dir):
+        documents_dir = markitdown_dir
 
     result_docs = []
 
     for doc in docs_list:
-        doc_path = os.path.join(documents_dir, doc)
+        doc_path = storage.join(documents_dir, doc)
 
-        if os.path.isdir(doc_path):
+        if storage.isdir(doc_path):
             print(f"Directory found: {doc_path}. Fetching all files in the directory...")
-            for file in os.listdir(doc_path):
-                file_full_path = os.path.join(doc_path, file)
-                if not os.path.isdir(file_full_path):
+            for file in storage.ls(doc_path):
+                file_full_path = storage.join(doc_path, file)
+                if storage.isfile(file_full_path):
                     try:
                         # Process based on file extension
                         if file_full_path.lower().endswith(".pdf"):
                             content = extract_text_from_pdf(file_full_path)
                             result_docs.append({"text": content, "source": file})
                         else:
-                            with open(file_full_path, "r", encoding="utf-8") as f:
+                            with storage.open(file_full_path, "r", encoding="utf-8") as f:
                                 content = f.read()
                                 result_docs.append({"text": content, "source": file})
                     except Exception as e:
                         print(f"Error reading file {file_full_path}: {e}")
         else:
-            full_path = os.path.join(documents_dir, doc)
+            full_path = storage.join(documents_dir, doc)
             # Replace ending extension with .md if .tlab_markitdown is in the full_path somewhere
             if ".tlab_markitdown" in full_path:
                 base, ext = os.path.splitext(full_path)
@@ -70,7 +73,7 @@ def get_docs_list(docs: str) -> List[dict]:
                     content = extract_text_from_pdf(full_path)
                     result_docs.append({"text": content, "source": doc})
                 else:
-                    with open(full_path, "r", encoding="utf-8") as f:
+                    with storage.open(full_path, "r", encoding="utf-8") as f:
                         content = f.read()
                         result_docs.append({"text": content, "source": doc})
             except Exception as e:

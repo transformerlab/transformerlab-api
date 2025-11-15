@@ -19,6 +19,7 @@ except ModuleNotFoundError:
     import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
 from lab import Job
+from lab import storage
 
 
 class DotDict(dict):
@@ -259,12 +260,19 @@ class TLabPlugin:
             # Get the dataset path/ID
             dataset_target = get_dataset_path(self.params.dataset_name)
 
-            # If this is a local directory, prepare data_files excluding index.json and hidden files
-            is_local_dir = isinstance(dataset_target, str) and os.path.isdir(dataset_target)
+            # If this is a directory, prepare data_files excluding index.json and hidden files
+            is_dir = isinstance(dataset_target, str) and (
+                storage.isdir(dataset_target) if storage.exists(dataset_target) else os.path.isdir(dataset_target)
+            )
             data_files_map = None
-            if is_local_dir:
+            if is_dir:
                 try:
-                    entries = os.listdir(dataset_target)
+                    if storage.exists(dataset_target):
+                        entries_full = storage.ls(dataset_target)
+                        # normalize to basenames
+                        entries = [e.rstrip("/").split("/")[-1] for e in entries_full]
+                    else:
+                        entries = os.listdir(dataset_target)
                 except Exception:
                     entries = []
 
@@ -276,9 +284,17 @@ class TLabPlugin:
                     lower = name.lower()
                     if not (lower.endswith(".json") or lower.endswith(".jsonl") or lower.endswith(".csv")):
                         continue
-                    full_path = os.path.join(dataset_target, name)
-                    if os.path.isfile(full_path):
-                        filtered_files.append(full_path)
+                    full_path = (
+                        storage.join(dataset_target, name)
+                        if storage.exists(dataset_target)
+                        else os.path.join(dataset_target, name)
+                    )
+                    if storage.exists(dataset_target):
+                        if storage.isfile(full_path):
+                            filtered_files.append(full_path)
+                    else:
+                        if os.path.isfile(full_path):
+                            filtered_files.append(full_path)
 
                 if len(filtered_files) > 0:
                     data_files_map = {"train": filtered_files}
@@ -331,7 +347,7 @@ class TLabPlugin:
             # Load each dataset split
             datasets = {}
             for dataset_type in dataset_splits:
-                if is_local_dir and data_files_map:
+                if is_dir and data_files_map:
                     datasets[dataset_type] = load_dataset(
                         dataset_target,
                         data_files=data_files_map,

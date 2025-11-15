@@ -23,7 +23,9 @@ from trl import SFTConfig, SFTTrainer  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
 
-from transformerlab.plugin import WORKSPACE_DIR, format_template  # noqa: E402
+from transformerlab.plugin import format_template  # noqa: E402
+from lab.dirs import get_workspace_dir  # noqa: E402
+from lab import storage  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
 
@@ -200,7 +202,7 @@ def train_model():
         # Setup training configuration
         training_args = SFTConfig(
             output_dir=output_dir,
-            logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
+            logging_dir=storage.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
             num_train_epochs=num_train_epochs,
             per_device_train_batch_size=batch_size,
             gradient_accumulation_steps=2,
@@ -229,7 +231,7 @@ def train_model():
         # Setup training configuration for AMD
         training_args = SFTConfig(
             output_dir=output_dir,
-            logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
+            logging_dir=storage.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
             num_train_epochs=num_train_epochs,
             per_device_train_batch_size=batch_size,
             gradient_accumulation_steps=2,
@@ -336,7 +338,7 @@ def train_model():
                 model_id = model_id.split("/")[-1]
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
             fused_model_name = f"{model_id}_{adaptor_name}"
-            fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+            fused_model_location = storage.join(get_workspace_dir(), "models", fused_model_name)
             peft_model = PeftModel.from_pretrained(model, tlab_trainer.params.adaptor_output_dir)
             merged_model = peft_model.merge_and_unload()
             merged_model.save_pretrained(fused_model_location)

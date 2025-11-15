@@ -7,10 +7,9 @@ from werkzeug.utils import secure_filename
 import json
 import uuid
 from typing import List
-import shutil
 from transformerlab.services.dataset_service import create_local_dataset
 from transformerlab.models import model_helper
-from lab import Dataset
+from lab import Dataset, storage
 from lab.dirs import get_workspace_dir
 from transformerlab.shared.shared import slugify
 from transformerlab.services.job_service import job_create
@@ -283,21 +282,21 @@ def get_diffusion_dir(experiment_name: str = None, workspace_dir: str | None = N
 
     if experiment_name is not None:
         # New experiment-specific path
-        return os.path.join(base, "experiments", secure_filename(experiment_name), "diffusion")
+        return storage.join(base, "experiments", secure_filename(experiment_name), "diffusion")
     else:
         # Legacy global path for backward compatibility
-        return os.path.join(base, "diffusion")
+        return storage.join(base, "diffusion")
 
 
 def get_images_dir(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the images directory path"""
-    return os.path.join(get_diffusion_dir(experiment_name, workspace_dir), "images")
+    return storage.join(get_diffusion_dir(experiment_name, workspace_dir), "images")
 
 
 def get_history_file_path(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the history file path"""
     # Create a history file in the diffusion directory if it doesn't exist
-    return os.path.join(get_diffusion_dir(experiment_name, workspace_dir), HISTORY_FILE)
+    return storage.join(get_diffusion_dir(experiment_name, workspace_dir), HISTORY_FILE)
 
 
 def ensure_directories(experiment_name: str = None, workspace_dir: str | None = None):
@@ -306,10 +305,10 @@ def ensure_directories(experiment_name: str = None, workspace_dir: str | None = 
     images_dir = get_images_dir(experiment_name, workspace_dir)
     history_file_path = get_history_file_path(experiment_name, workspace_dir)
 
-    os.makedirs(diffusion_dir, exist_ok=True)
-    os.makedirs(images_dir, exist_ok=True)
-    if not os.path.exists(history_file_path):
-        with open(history_file_path, "a"):
+    storage.makedirs(diffusion_dir, exist_ok=True)
+    storage.makedirs(images_dir, exist_ok=True)
+    if not storage.exists(history_file_path):
+        with storage.open(history_file_path, "a"):
             # Create the history file if it doesn't exist
             pass
 
@@ -324,8 +323,8 @@ def load_history(
     if experiment_name is not None:
         try:
             new_history_file = get_history_file_path(experiment_name, workspace_dir)
-            if os.path.exists(new_history_file):
-                with open(new_history_file, "r") as f:
+            if storage.exists(new_history_file):
+                with storage.open(new_history_file, "r") as f:
                     new_history_data = json.load(f)
                     all_images.extend(new_history_data)
         except (json.JSONDecodeError, FileNotFoundError):
@@ -334,8 +333,8 @@ def load_history(
     # Load from legacy global path for backward compatibility
     try:
         legacy_history_file = get_history_file_path(None, workspace_dir)  # No experiment → legacy path
-        if os.path.exists(legacy_history_file):
-            with open(legacy_history_file, "r") as f:
+        if storage.exists(legacy_history_file):
+            with storage.open(legacy_history_file, "r") as f:
                 legacy_history_data = json.load(f)
                 all_images.extend(legacy_history_data)
     except (json.JSONDecodeError, FileNotFoundError):
@@ -371,8 +370,8 @@ def find_image_by_id(
     if experiment_name is not None:
         try:
             new_history_file = get_history_file_path(experiment_name, workspace_dir)
-            if os.path.exists(new_history_file):
-                with open(new_history_file, "r") as f:
+            if storage.exists(new_history_file):
+                with storage.open(new_history_file, "r") as f:
                     history = json.load(f)
                     for item in history:
                         if item.get("id") == image_id:
@@ -383,8 +382,8 @@ def find_image_by_id(
     # Search in legacy global path for backward compatibility
     try:
         legacy_history_file = get_history_file_path(None, workspace_dir)  # No experiment → legacy path
-        if os.path.exists(legacy_history_file):
-            with open(legacy_history_file, "r") as f:
+        if storage.exists(legacy_history_file):
+            with storage.open(legacy_history_file, "r") as f:
                 history = json.load(f)
                 for item in history:
                     if item.get("id") == image_id:
@@ -427,13 +426,10 @@ async def generate_image(experimentId: str, request: DiffusionRequest, http_requ
             job_id = job_create(type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId)
 
             # Get experiment name for experiment-specific paths
-            images_folder = os.path.join(get_images_dir(experimentId), generation_id)
-            images_folder = os.path.normpath(images_folder)  # Normalize path
+            images_folder = storage.join(get_images_dir(experimentId), generation_id)
             if not images_folder.startswith(get_images_dir(experimentId)):  # Validate containment
                 raise HTTPException(status_code=400, detail="Invalid generation_id: Path traversal detected.")
-            tmp_json_path = os.path.join(images_folder, "tmp_json.json")
-            # Normalize and validate the path
-            tmp_json_path = os.path.normpath(tmp_json_path)
+            tmp_json_path = storage.join(images_folder, "tmp_json.json")
 
             return {
                 "job_id": job_id,
@@ -582,22 +578,22 @@ async def get_image_by_id(
     if step:
         # If step is requested, we need to check if intermediate images were saved
         images_dir = get_images_dir(experimentId, workspace_dir)
-        image_dir_based_on_id = os.path.normpath(os.path.join(images_dir, image_id))
+        image_dir_based_on_id = storage.join(images_dir, image_id)
 
         # Ensure the constructed path is within the intended base directory
         if not image_dir_based_on_id.startswith(images_dir):
             raise HTTPException(status_code=400, detail="Invalid image ID or path traversal attempt detected")
 
         # Check if the image path is a directory (new format)
-        if not os.path.isdir(image_dir_based_on_id):
+        if not storage.isdir(image_dir_based_on_id):
             raise HTTPException(status_code=404, detail=f"Image path is not a directory for image ID {image_id}")
 
         # Construct the path for the step image
-        step_image_path = os.path.normpath(os.path.join(image_dir_based_on_id, "step.png"))
+        step_image_path = storage.join(image_dir_based_on_id, "step.png")
         if not step_image_path.startswith(images_dir):
             raise HTTPException(status_code=400, detail="Invalid path traversal attempt detected")
 
-        if not os.path.exists(step_image_path):
+        if not storage.exists(step_image_path):
             raise HTTPException(status_code=404, detail=f"Step image file not found at {step_image_path}")
 
         return FileResponse(step_image_path)
@@ -614,7 +610,7 @@ async def get_image_by_id(
         if not image_item.mask_image_path or not image_item.mask_image_path.strip():
             raise HTTPException(status_code=404, detail=f"No mask image found for image ID {image_id}")
         image_path = image_item.mask_image_path
-        if not os.path.exists(image_path):
+        if not storage.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Mask image file not found at {image_path}")
     elif input_image:
         # Return the input image if requested and available
@@ -622,18 +618,18 @@ async def get_image_by_id(
             raise HTTPException(status_code=404, detail=f"No input image found for image ID {image_id}")
 
         image_path = image_item.input_image_path
-        if not os.path.exists(image_path):
+        if not storage.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Input image file not found at {image_path}")
     elif preprocessed:
         if not image_item.processed_image or not image_item.processed_image.strip():
             raise HTTPException(status_code=404, detail=f"No preprocessed image found for image ID {image_id}")
         image_path = image_item.processed_image
-        if not os.path.exists(image_path):
+        if not storage.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Preprocessed image file not found at {image_path}")
     else:
         # Return the generated output image (default behavior)
         # Check if image_path is a folder (new format) or a file (old format)
-        if os.path.isdir(image_item.image_path):
+        if storage.isdir(image_item.image_path):
             # New format: folder with numbered images
             if index < 0 or index >= (image_item.num_images if hasattr(image_item, "num_images") else 1):
                 raise HTTPException(
@@ -641,34 +637,16 @@ async def get_image_by_id(
                     detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}",
                 )
 
-            # image_path = os.path.join(image_item.image_path, f"{index}.png")
-            # image_path = os.path.normpath(os.path.join(image_item.image_path, f"{index}.png"))
             # Sanitize the filename and construct the path
             sanitized_filename = secure_filename(f"{index}.png")
-            image_path = os.path.normpath(os.path.join(image_item.image_path, sanitized_filename))
-            expected_directory = os.path.abspath(image_item.image_path)
-            # Ensure the normalized path is within the expected directory
-            if (
-                not image_path.startswith(expected_directory)
-                or not os.path.commonpath([expected_directory, image_path]) == expected_directory
-            ):
-                raise HTTPException(status_code=400, detail="Invalid image path")
+            image_path = storage.join(image_item.image_path, sanitized_filename)
         else:
             # Old format: single image file
             if index != 0:
                 raise HTTPException(status_code=404, detail="Only index 0 available for this image set")
-            image_path = os.path.normpath(image_item.image_path)
+            image_path = image_item.image_path
 
-            # # Ensure the normalized path is within the expected directory
-            # if not image_path.startswith(os.path.abspath(image_item.image_path)):
-            expected_directory = os.path.abspath(image_item.image_path)
-            if (
-                not image_path.startswith(expected_directory)
-                or not os.path.commonpath([expected_directory, image_path]) == expected_directory
-            ):
-                raise HTTPException(status_code=400, detail="Invalid image path")
-
-        if not os.path.exists(image_path):
+        if not storage.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Image file not found at {image_path}")
 
     return FileResponse(image_path)
@@ -693,16 +671,15 @@ async def get_image_info_by_id(image_id: str, experimentId: str, http_request: R
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
     # Check if image folder/file exists
-    if not os.path.exists(image_item.image_path):
+    if not storage.exists(image_item.image_path):
         raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
 
     # Determine number of images available
     num_images = 1  # Default for old format
-    if os.path.isdir(image_item.image_path):
+    if storage.isdir(image_item.image_path):
         # Count PNG files in the directory
-        png_files = [
-            f for f in os.listdir(image_item.image_path) if f.endswith(".png") and f.replace(".png", "").isdigit()
-        ]
+        entries = storage.ls(image_item.image_path, detail=False)
+        png_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
         num_images = len(png_files)
 
     # Update the metadata to include actual number of images
@@ -731,16 +708,15 @@ async def get_image_count(image_id: str, experimentId: str, http_request: Reques
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
     # Check if image folder/file exists
-    if not os.path.exists(image_item.image_path):
+    if not storage.exists(image_item.image_path):
         raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
 
     # Determine number of images available
     num_images = 1  # Default for old format
-    if os.path.isdir(image_item.image_path):
+    if storage.isdir(image_item.image_path):
         # Count PNG files in the directory
-        png_files = [
-            f for f in os.listdir(image_item.image_path) if f.endswith(".png") and f.replace(".png", "").isdigit()
-        ]
+        entries = storage.ls(image_item.image_path, detail=False)
+        png_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
         num_images = len(png_files)
 
     return JSONResponse(content={"id": image_id, "num_images": num_images})
@@ -768,7 +744,7 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
     # Check if image folder/file exists
-    if not os.path.exists(image_item.image_path):
+    if not storage.exists(image_item.image_path):
         raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
 
     # Create a temporary zip file
@@ -777,16 +753,26 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
 
     try:
         with zipfile.ZipFile(temp_zip.name, "w", zipfile.ZIP_DEFLATED) as zipf:
-            if os.path.isdir(image_item.image_path):
+            if storage.isdir(image_item.image_path):
                 # New format: add all PNG files from the directory
-                for filename in os.listdir(image_item.image_path):
+                entries = storage.ls(image_item.image_path, detail=False)
+                for entry in entries:
+                    filename = entry.rstrip("/").split("/")[-1]
                     if filename.endswith(".png") and filename.replace(".png", "").isdigit():
-                        file_path = os.path.join(image_item.image_path, filename)
-                        zipf.write(file_path, filename)
+                        file_path = entry  # Use the full path from storage.ls
+                        # Download to temp if remote, then add to zip
+                        with storage.open(file_path, "rb") as remote_file:
+                            content = remote_file.read()
+                            zipf.writestr(filename, content)
             else:
                 # Old format: add the single file
-                filename = os.path.basename(image_item.image_path)
-                zipf.write(image_item.image_path, filename)
+                file_path = image_item.image_path
+                # Extract just the filename for the zip
+                filename = file_path.rstrip("/").split("/")[-1]
+                # Download to temp if remote, then add to zip
+                with storage.open(file_path, "rb") as remote_file:
+                    content = remote_file.read()
+                    zipf.writestr(filename, content)
 
         return FileResponse(
             temp_zip.name,
@@ -814,12 +800,12 @@ async def delete_image_from_history(experimentId: str, image_id: str, http_reque
     workspace_dir = get_workspace_dir()
     history_file = get_history_file_path(experimentId, workspace_dir)
 
-    if not os.path.exists(history_file):
+    if not storage.exists(history_file):
         raise HTTPException(status_code=404, detail="No history found")
 
     try:
         # Load current history
-        with open(history_file, "r") as f:
+        with storage.open(history_file, "r") as f:
             history = json.load(f)
 
         # Find and remove the item
@@ -836,23 +822,23 @@ async def delete_image_from_history(experimentId: str, image_id: str, http_reque
 
         # Remove image files/folder
         image_path = item_to_remove["image_path"]
-        if os.path.exists(image_path):
-            if os.path.isdir(image_path):
+        if storage.exists(image_path):
+            if storage.isdir(image_path):
                 # New format: remove entire folder
-                shutil.rmtree(image_path)
+                storage.rm_tree(image_path)
             else:
                 # Old format: remove single file
-                os.remove(image_path)
+                storage.rm(image_path)
 
         # Remove input image if it exists
-        if item_to_remove.get("input_image_path") and os.path.exists(item_to_remove["input_image_path"]):
-            os.remove(item_to_remove["input_image_path"])
+        if item_to_remove.get("input_image_path") and storage.exists(item_to_remove["input_image_path"]):
+            storage.rm(item_to_remove["input_image_path"])
         # Remove processed image if it exists
-        if item_to_remove.get("processed_image") and os.path.exists(item_to_remove["processed_image"]):
-            os.remove(item_to_remove["processed_image"])
+        if item_to_remove.get("processed_image") and storage.exists(item_to_remove["processed_image"]):
+            storage.rm(item_to_remove["processed_image"])
 
         # Save updated history
-        with open(history_file, "w") as f:
+        with storage.open(history_file, "w") as f:
             json.dump(updated_history, f, indent=2)
 
         return JSONResponse(
@@ -875,43 +861,45 @@ async def clear_history(experimentId: str, http_request: Request = None):
 
         # Load current history to get image paths
         deleted_count = 0
-        if os.path.exists(history_file):
-            with open(history_file, "r") as f:
+        if storage.exists(history_file):
+            with storage.open(history_file, "r") as f:
                 history = json.load(f)
 
             # Remove all image files/folders
             for item in history:
                 image_path = item["image_path"]
-                if os.path.exists(image_path):
-                    if os.path.isdir(image_path):
+                if storage.exists(image_path):
+                    if storage.isdir(image_path):
                         # New format: remove folder and count files inside
-                        file_count = len([f for f in os.listdir(image_path) if f.endswith(".png")])
-                        shutil.rmtree(image_path)
+                        entries = storage.ls(image_path, detail=False)
+                        file_count = len([f for f in entries if f.endswith(".png")])
+                        storage.rm_tree(image_path)
                         deleted_count += file_count
                     else:
                         # Old format: remove single file
-                        os.remove(image_path)
+                        storage.rm(image_path)
                         deleted_count += 1
 
                 # Remove input image if it exists
-                if item.get("input_image_path") and os.path.exists(item["input_image_path"]):
-                    os.remove(item["input_image_path"])
+                if item.get("input_image_path") and storage.exists(item["input_image_path"]):
+                    storage.rm(item["input_image_path"])
                 # Remove processed image if it exists
-                if item.get("processed_image") and os.path.exists(item["processed_image"]):
-                    os.remove(item["processed_image"])
+                if item.get("processed_image") and storage.exists(item["processed_image"]):
+                    storage.rm(item["processed_image"])
 
             # Clear history file
-            with open(history_file, "w") as f:
+            with storage.open(history_file, "w") as f:
                 json.dump([], f)
 
         # Remove any remaining files/folders in images directory
-        if os.path.exists(images_dir):
-            for item_name in os.listdir(images_dir):
-                item_path = os.path.join(images_dir, item_name)
-                if os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
+        if storage.exists(images_dir):
+            for entry in storage.ls(images_dir, detail=False):
+                item_name = entry.rstrip("/").split("/")[-1]
+                item_path = storage.join(images_dir, item_name)
+                if storage.isdir(item_path):
+                    storage.rm_tree(item_path)
                 elif item_name.endswith(".png"):
-                    os.remove(item_path)
+                    storage.rm(item_path)
 
         return JSONResponse(
             content={
@@ -965,11 +953,10 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
     # Calculate total image count (accounting for multi-image generations)
     total_image_count = 0
     for image_item in selected_images:
-        if os.path.isdir(image_item.image_path):
+        if storage.isdir(image_item.image_path):
             # Count images in folder
-            image_files = [
-                f for f in os.listdir(image_item.image_path) if f.endswith(".png") and f.replace(".png", "").isdigit()
-            ]
+            entries = storage.ls(image_item.image_path, detail=False)
+            image_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
             total_image_count += len(image_files)
         else:
             # Single image
@@ -990,8 +977,8 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
 
     # Create dataset directory
     dataset_dir = new_dataset.get_dir()
-    images_dir = os.path.join(dataset_dir, "train")
-    os.makedirs(images_dir, exist_ok=True)
+    images_dir = storage.join(dataset_dir, "train")
+    storage.makedirs(images_dir, exist_ok=True)
 
     # Prepare dataset metadata and copy images
     dataset_records = []
@@ -1000,10 +987,11 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
     for image_item in selected_images:
         try:
             # Check if this is a multi-image generation (folder) or single image
-            if os.path.isdir(image_item.image_path):
+            if storage.isdir(image_item.image_path):
                 # Multi-image generation - process each image in the folder
                 image_files = []
-                for filename in os.listdir(image_item.image_path):
+                for entry in storage.ls(image_item.image_path, detail=False):
+                    filename = entry.rstrip("/").split("/")[-1]
                     if filename.endswith(".png") and filename.replace(".png", "").isdigit():
                         image_files.append(filename)
 
@@ -1011,15 +999,15 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
                 image_files.sort(key=lambda x: int(x.replace(".png", "")))
 
                 for img_filename in image_files:
-                    src_image_path = os.path.join(image_item.image_path, img_filename)
+                    src_image_path = storage.join(image_item.image_path, img_filename)
 
                     # Generate new filename for the dataset
                     dataset_filename = f"image_{file_counter:04d}.png"
-                    dest_image_path = os.path.join(images_dir, dataset_filename)
+                    dest_image_path = storage.join(images_dir, dataset_filename)
 
                     # Copy image file
-                    if os.path.exists(src_image_path):
-                        shutil.copy2(src_image_path, dest_image_path)
+                    if storage.exists(src_image_path):
+                        storage.copy_file(src_image_path, dest_image_path)
                     else:
                         log_print(f"Warning: Image file not found at {src_image_path}")
                         continue
@@ -1062,11 +1050,11 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
             else:
                 # Single image generation (backward compatibility)
                 dataset_filename = f"image_{file_counter:04d}.png"
-                dest_image_path = os.path.join(images_dir, dataset_filename)
+                dest_image_path = storage.join(images_dir, dataset_filename)
 
                 # Copy image file
-                if os.path.exists(image_item.image_path):
-                    shutil.copy2(image_item.image_path, dest_image_path)
+                if storage.exists(image_item.image_path):
+                    storage.copy_file(image_item.image_path, dest_image_path)
                 else:
                     log_print(f"Warning: Image file not found at {image_item.image_path}")
                     continue
@@ -1115,9 +1103,9 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
     # Save dataset as JSONL file
     try:
         # Make train directory if it doesn't exist
-        os.makedirs(os.path.join(dataset_dir, "train"), exist_ok=True)
-        dataset_file = os.path.join(dataset_dir, "train", "metadata.jsonl")
-        with open(dataset_file, "w") as f:
+        storage.makedirs(images_dir, exist_ok=True)
+        dataset_file = storage.join(dataset_dir, "train", "metadata.jsonl")
+        with storage.open(dataset_file, "w") as f:
             for record in dataset_records:
                 f.write(json.dumps(record) + "\n")
     except Exception as e:
@@ -1172,8 +1160,8 @@ async def get_new_generation_id(experimentId: str, http_request: Request = None)
     generation_id = str(uuid.uuid4())
     workspace_dir = get_workspace_dir()
     ensure_directories(experimentId, workspace_dir)
-    images_folder = os.path.join(get_images_dir(experimentId, workspace_dir), generation_id)
-    os.makedirs(images_folder, exist_ok=True)
+    images_folder = storage.join(get_images_dir(experimentId, workspace_dir), generation_id)
+    storage.makedirs(images_folder, exist_ok=True)
     return {"generation_id": generation_id, "images_folder": images_folder}
 
 
@@ -1186,16 +1174,16 @@ async def get_file(experimentId: str, generation_id: str):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid generation ID format")
     root_dir = get_images_dir(experimentId)
-    file_path = os.path.normpath(os.path.join(root_dir, sanitized_id, "tmp_json.json"))
-    if not os.path.exists(file_path):
+    file_path = storage.join(root_dir, sanitized_id, "tmp_json.json")
+    if not storage.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Output JSON file not found at {file_path}")
     try:
         if not file_path.startswith(root_dir):
             raise HTTPException(status_code=400, detail="Invalid file path")
-        if not os.path.isfile(file_path):
+        if not storage.isfile(file_path):
             raise HTTPException(status_code=404, detail="File not found")
 
-        with open(file_path, "r") as f:
+        with storage.open(file_path, "r") as f:
             data = json.load(f)
 
         return JSONResponse(content=data)

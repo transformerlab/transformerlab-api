@@ -16,7 +16,9 @@ import yaml
 import re
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+from transformerlab.plugin import get_python_executable
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 ########################################
@@ -31,9 +33,9 @@ print("Plugin dir:", plugin_dir)
 @tlab_trainer.job_wrapper(progress_start=0, progress_end=100, wandb_project_name="LlamaFactory_DPO")
 def run_train():
     # Directory for storing temporary working files
-    data_directory = f"{WORKSPACE_DIR}/temp/llama_factory_reward/data"
-    if not os.path.exists(data_directory):
-        os.makedirs(data_directory)
+    workspace_dir = get_workspace_dir()
+    data_directory = storage.join(workspace_dir, "temp", "llama_factory_reward", "data")
+    storage.makedirs(data_directory, exist_ok=True)
 
     # Typecasting the required arguments to their datatype
     tlab_trainer.params.learning_rate = float(tlab_trainer.params.learning_rate)
@@ -67,13 +69,13 @@ def run_train():
             }
         }
 
-        with open(f"{data_directory}/dataset_info.json", "w") as f:
+        with storage.open(storage.join(data_directory, "dataset_info.json"), "w", encoding="utf-8") as f:
             json.dump(dataset_info, f, indent=2)
 
     # Process the dataset
     try:
         # output dataset to a json file, row by row
-        with open(f"{data_directory}/train.json", "w") as f:
+        with storage.open(storage.join(data_directory, "train.json"), "w", encoding="utf-8") as f:
             all_data = []
             for row in dataset:
                 all_data.append(row)
@@ -84,9 +86,9 @@ def run_train():
         raise e
 
     # Generate YAML config
-    yaml_config_path = f"{data_directory}/llama3_lora_dpo.yaml"
+    yaml_config_path = storage.join(data_directory, "llama3_lora_dpo.yaml")
     today = time.strftime("%Y%m%d-%H%M%S")
-    output_dir = os.path.join(tlab_trainer.params["output_dir"], f"job_{tlab_trainer.params['job_id']}_{today}")
+    output_dir = storage.join(tlab_trainer.params["output_dir"], f"job_{tlab_trainer.params['job_id']}_{today}")
 
     # First copy a template file to the data directory
     os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_dpo.yaml {yaml_config_path}")
@@ -192,7 +194,8 @@ def fuse_model():
     """Fuse the adapter with the base model"""
     print("Now fusing the adaptor with the model.")
 
-    data_directory = f"{WORKSPACE_DIR}/temp/llama_factory_reward/data"
+    workspace_dir = get_workspace_dir()
+    data_directory = storage.join(workspace_dir, "temp", "llama_factory_reward", "data")
     model_name = tlab_trainer.params.model_name
     adaptor_name = tlab_trainer.params.adaptor_name
     adaptor_output_dir = tlab_trainer.params.adaptor_output_dir
@@ -200,13 +203,13 @@ def fuse_model():
     if "/" in model_name:
         model_name = model_name.split("/")[-1]
     fused_model_name = f"{model_name}_{adaptor_name}"
-    fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+    fused_model_location = storage.join(workspace_dir, "models", fused_model_name)
 
     # Make the directory to save the fused model
-    if not os.path.exists(fused_model_location):
-        os.makedirs(fused_model_location)
+    if not storage.exists(fused_model_location):
+        storage.makedirs(fused_model_location, exist_ok=True)
 
-    yaml_config_path = f"{data_directory}/merge_llama3_lora_sft.yaml"
+    yaml_config_path = storage.join(data_directory, "merge_llama3_lora_sft.yaml")
     # Copy a template file to the data directory
     os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
 
@@ -260,7 +263,7 @@ def fuse_model():
                     "architecture": tlab_trainer.params.get("model_architecture", "llama"),
                     "huggingface_repo": "",
                 },
-                output_dir=os.path.join(WORKSPACE_DIR, "models"),
+                output_dir=storage.join(workspace_dir, "models"),
             )
 
             print("Finished fusing the adaptor with the model.")

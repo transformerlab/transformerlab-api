@@ -479,123 +479,6 @@ doctor() {
 
 }
 
-##############################
-## Optional: Install Mountpoint for Amazon S3 (Linux only)
-##############################
-
-install_s3_mounting() {
-  title "Install S3 Mounting Tools"
-
-  # Only proceed if TFL_MULTITENANT is exactly "true"
-  if [[ "${TFL_MULTITENANT:-}" != "true" ]]; then
-    echo "Skipping S3 mounting install because TFL_MULTITENANT is not 'true'."
-    return 0
-  fi
-
-  if [[ -n "${TLAB_ON_MACOS}" ]]; then
-    install_s3fs_macos
-  else
-    install_mountpoint_linux
-  fi
-}
-
-install_s3fs_macos() {
-  title "Install s3fs for macOS S3 Mounting"
-
-  if command -v s3fs >/dev/null 2>&1; then
-    ohai "✅ s3fs already installed (s3fs found)."
-    return 0
-  fi
-
-  # Check if Homebrew is installed
-  if ! command -v brew >/dev/null 2>&1; then
-    echo "Installing Homebrew first..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    
-    # Add Homebrew to PATH for Apple Silicon Macs
-    if [[ $(uname -m) == "arm64" ]]; then
-      echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-    fi
-  fi
-
-  echo "Installing macFUSE (required for s3fs)..."
-  brew install --cask macfuse
-  
-  echo "Installing s3fs using Homebrew..."
-  brew install gromgit/fuse/s3fs-mac
-
-  if command -v s3fs >/dev/null 2>&1; then
-    ohai "✅ s3fs installed successfully."
-  else
-    warn "s3fs installation may have failed; 's3fs' not found."
-    return 1
-  fi
-}
-
-install_mountpoint_linux() {
-  title "Install Mountpoint for Amazon S3 (Linux only)"
-
-  if command -v mount-s3 >/dev/null 2>&1; then
-    ohai "✅ Mountpoint for Amazon S3 already installed (mount-s3 found)."
-    return 0
-  fi
-
-  ARCH=$(uname -m)
-  if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
-    MP_ARCH="arm64"
-  else
-    MP_ARCH="x86_64"
-  fi
-
-  TMP_DIR=$(mktemp -d)
-  cleanup() { rm -rf "$TMP_DIR" 2>/dev/null || true; }
-  trap cleanup EXIT
-
-  if command -v apt-get >/dev/null 2>&1; then
-    echo "Detected apt-based system. Installing .deb package."
-    DEB_URL="https://s3.amazonaws.com/mountpoint-s3-release/latest/${MP_ARCH}/mount-s3.deb"
-    echo "Downloading: $DEB_URL"
-    wget -q "$DEB_URL" -O "$TMP_DIR/mount-s3.deb"
-    sudo apt-get install -y "$TMP_DIR/mount-s3.deb"
-  elif command -v yum >/dev/null 2>&1; then
-    echo "Detected yum-based system. Installing .rpm package."
-    RPM_URL="https://s3.amazonaws.com/mountpoint-s3-release/latest/${MP_ARCH}/mount-s3.rpm"
-    echo "Downloading: $RPM_URL"
-    wget -q "$RPM_URL" -O "$TMP_DIR/mount-s3.rpm"
-    sudo yum install -y "$TMP_DIR/mount-s3.rpm"
-  elif command -v dnf >/dev/null 2>&1; then
-    echo "Detected dnf-based system. Installing .rpm package."
-    RPM_URL="https://s3.amazonaws.com/mountpoint-s3-release/latest/${MP_ARCH}/mount-s3.rpm"
-    echo "Downloading: $RPM_URL"
-    wget -q "$RPM_URL" -O "$TMP_DIR/mount-s3.rpm"
-    sudo dnf install -y "$TMP_DIR/mount-s3.rpm"
-  else
-    warn "Unsupported Linux package manager for automatic Mountpoint install. Please install manually."
-    return 1
-  fi
-
-  if command -v mount-s3 >/dev/null 2>&1; then
-    ohai "✅ Mountpoint for Amazon S3 installed successfully."
-  else
-    warn "Mountpoint for Amazon S3 installation may have failed; 'mount-s3' not found."
-  fi
-}
-
-install_mounting() {
-  title "Step 5: Install Mounting (S3)"
-  echo "🌘 Step 5: START"
-
-  # This wrapper ensures we only run mounting installers when multitenant is truthy
-  if [[ "${TFL_MULTITENANT:-}" == "true" ]]; then
-    install_s3_mounting || true
-  else
-    echo "Skipping mounting installation because TFL_MULTITENANT is not 'true'."
-  fi
-
-  echo "🌕 Step 5: COMPLETE"
-}
-
 print_success_message() {
   title "Installation Complete"
   echo "------------------------------------------"
@@ -614,11 +497,8 @@ print_success_message() {
 }
 
 # Load .env configuration (prefer current dir, then fallback to app src dir)
-TFL_MULTITENANT=${TFL_MULTITENANT:-}
 load_env_from_file "${RUN_DIR}/.env"
-if [ -z "${TFL_MULTITENANT:-}" ]; then
-  load_env_from_file "${TLAB_CODE_DIR}/.env"
-fi
+load_env_from_file "${TLAB_CODE_DIR}/.env"
 
 # Check if there are positional arguments; if not, perform full install
 if [[ "$#" -eq 0 ]]; then
@@ -627,7 +507,6 @@ if [[ "$#" -eq 0 ]]; then
   install_conda
   create_conda_environment
   install_dependencies
-  install_mounting
   print_success_message
 else
   for arg in "$@"; do
@@ -644,9 +523,6 @@ else
       install_dependencies)
         install_dependencies
         ;;
-      install_mounting)
-        install_mounting
-        ;;
       doctor)
         doctor
         ;;
@@ -658,8 +534,7 @@ else
         ;;
       *)
         # Print allowed arguments
-        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_mounting] or leave blank to perform a full installation."
-        echo "To enable multitenant setup, set TFL_MULTITENANT=true in a local .env file."
+        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies] or leave blank to perform a full installation."
         abort "❌ Unknown argument: $arg"
         ;;
     esac

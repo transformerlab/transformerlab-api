@@ -7,6 +7,7 @@ from transformerlab.services import job_service
 from transformerlab.services.job_service import job_update_status
 from transformerlab.routers.auth.api_key_auth import get_user_or_api_key
 from transformerlab.services.auth import AuthenticatedIdentity, auth_service
+from lab import storage
 from lab.dirs import get_workspace_dir, get_job_checkpoints_dir
 
 
@@ -29,7 +30,6 @@ def validate_gpu_orchestrator_env_vars():
 
     return gpu_orchestrator_url, gpu_orchestrator_port
 
-    
 
 @router.post("/create-job")
 async def create_remote_job(
@@ -53,22 +53,21 @@ async def create_remote_job(
     """
     # Get user information from the authentication identity
     user_info_payload = auth_service.get_user_info(identity)
-    
+
     # Extract user info for storage (name/email for display)
     user_info = {}
     if user_info_payload.get("first_name") or user_info_payload.get("last_name"):
-        user_info["name"] = " ".join([
-            user_info_payload.get("first_name", ""),
-            user_info_payload.get("last_name", "")
-        ]).strip()
+        user_info["name"] = " ".join(
+            [user_info_payload.get("first_name", ""), user_info_payload.get("last_name", "")]
+        ).strip()
     if user_info_payload.get("email"):
         user_info["email"] = user_info_payload["email"]
-    
+
     # First, create a REMOTE job
     job_data = {"task_name": task_name, "command": command, "cluster_name": cluster_name}
     if subtype:
         job_data["subtype"] = subtype
-    
+
     # Add user_info to job_data if we have any user information
     if user_info:
         job_data["user_info"] = user_info
@@ -133,10 +132,14 @@ async def launch_remote(
     uploaded_dir_path: Optional[str] = Form(None),
     checkpoint: Optional[str] = Form(None),
     parent_job_id: Optional[str] = Form(None),
+    use_existing_cluster: Optional[bool] = Form(False),
 ):
     """
-    Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
-    If checkpoint and parent_job_id are provided, resume training from the specified checkpoint.
+    Launch a remote instance via Lattice orchestrator or submit job to existing cluster.
+    If use_existing_cluster is True, submits job to existing cluster via /jobs/{cluster_name}/submit.
+    If job_id is provided, use existing job, otherwise create new one.
+    checkpoint: Optional[str] = Form(None),
+    parent_job_id: Optional[str] = Form(None),
     """
     formatted_cluster_name = cluster_name
     # Handle resume from checkpoint logic
@@ -187,13 +190,15 @@ async def launch_remote(
 
     # Build a unified data structure with all parameters
     data = {
-        "cluster_name": cluster_name,
         "command": command,
         "task_name": task_name,
     }
-    
+
     if subtype:
         data["subtype"] = subtype
+
+    if not use_existing_cluster:
+        data["cluster_name"] = formatted_cluster_name
 
     # Add resume metadata if resuming from checkpoint
     if checkpoint and parent_job_id:
@@ -221,17 +226,16 @@ async def launch_remote(
     if not job_id:
         # Get user information from the authentication identity
         user_info_payload = auth_service.get_user_info(identity)
-        
+
         # Extract user info for storage (name/email for display)
         user_info = {}
         if user_info_payload.get("first_name") or user_info_payload.get("last_name"):
-            user_info["name"] = " ".join([
-                user_info_payload.get("first_name", ""),
-                user_info_payload.get("last_name", "")
-            ]).strip()
+            user_info["name"] = " ".join(
+                [user_info_payload.get("first_name", ""), user_info_payload.get("last_name", "")]
+            ).strip()
         if user_info_payload.get("email"):
             user_info["email"] = user_info_payload["email"]
-                
+
         # Add user_info to job_data if we have any user information
         if user_info:
             data["user_info"] = user_info
@@ -245,9 +249,13 @@ async def launch_remote(
             for key, value in data.items():
                 job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
 
-            # Format cluster_name as <user_value>-job-<job_id> and persist it
-            formatted_cluster_name = f"{cluster_name}-job-{job_id}"
-            job_service.job_update_job_data_insert_key_value(job_id, "cluster_name", formatted_cluster_name, experimentId)
+            if not use_existing_cluster:
+                # Format cluster_name as <user_value>-job-<job_id> and persist it
+                formatted_cluster_name = f"{cluster_name}-job-{job_id}"
+
+            job_service.job_update_job_data_insert_key_value(
+                job_id, "cluster_name", formatted_cluster_name, experimentId
+            )
         except Exception as e:
             print(f"Failed to create job: {str(e)}")
             return {"status": "error", "message": "Failed to create job"}
@@ -263,15 +271,24 @@ async def launch_remote(
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
 
-    # Prepare request data for orchestrator by copying the data and adding orchestrator-specific fields
+    # Prepare the request data for Lattice orchestrator
     request_data = data.copy()
     request_data["tlab_job_id"] = job_id
-    request_data["cluster_name"] = formatted_cluster_name
 
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
     request_data["job_name"] = task_name if task_name else cluster_name
 
-    gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
+    # Determine which endpoint to use based on use_existing_cluster flag
+    if use_existing_cluster:
+        # Submit job to existing cluster
+        gpu_orchestrator_url = (
+            f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{formatted_cluster_name}/submit"
+        )
+
+    else:
+        # Launch new instance
+        request_data["cluster_name"] = formatted_cluster_name
+        gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
 
     try:
         # Make the request to the Lattice orchestrator
@@ -303,11 +320,17 @@ async def launch_remote(
                         job_id, "cluster_name", response_data["cluster_name"], experimentId
                     )
 
+                success_message = (
+                    "Job submitted to existing cluster successfully"
+                    if use_existing_cluster
+                    else "Remote instance launched successfully"
+                )
+
                 return {
                     "status": "success",
                     "data": response_data,
                     "job_id": job_id,
-                    "message": f"Training resumed from checkpoint {checkpoint}" if checkpoint else "Remote instance launched successfully",
+                    "message": f"Training resumed from checkpoint {checkpoint}" if checkpoint else success_message,
                 }
             else:
                 return {
@@ -412,16 +435,16 @@ async def upload_directory(
     try:
         # Create local storage directory
         workspace_dir = get_workspace_dir()
-        local_uploads_dir = os.path.join(workspace_dir, "uploads")
-        os.makedirs(local_uploads_dir, exist_ok=True)
+        local_uploads_dir = storage.join(workspace_dir, "uploads")
+        storage.makedirs(local_uploads_dir, exist_ok=True)
 
         # Create unique directory for this upload
         import uuid
 
         upload_id = str(uuid.uuid4())
         base_upload_dir = f"upload_{upload_id}"
-        local_storage_dir = os.path.join(local_uploads_dir, base_upload_dir)
-        os.makedirs(local_storage_dir, exist_ok=True)
+        local_storage_dir = storage.join(local_uploads_dir, base_upload_dir)
+        storage.makedirs(local_storage_dir, exist_ok=True)
 
         # Store files locally
         for file in dir_files:
@@ -430,10 +453,15 @@ async def upload_directory(
             content = await file.read()
 
             # Create directory structure if filename contains path separators
-            file_path = os.path.join(local_storage_dir, file.filename)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            file_path = storage.join(local_storage_dir, file.filename)
+            # Get parent directory and create it if needed
+            file_dir = storage.join(*file_path.split("/")[:-1]) if "/" in file_path else local_storage_dir
+            storage.makedirs(file_dir, exist_ok=True)
 
-            with open(file_path, "wb") as f:
+            # For file uploads, we need to write to local filesystem for HTTP upload
+            # If storage is remote, we might need to handle this differently
+            # For now, write directly using storage.open which handles both local and remote
+            with storage.open(file_path, "wb") as f:
                 f.write(content)
 
         # Prepare the request data for Lattice orchestrator
@@ -692,3 +720,58 @@ async def check_remote_jobs_status(request: Request):
     except Exception as e:
         print(f"Error checking remote job status: {str(e)}")
         return {"status": "error", "message": "Error checking remote job status"}
+
+
+@router.get("/instances-status")
+async def get_instances_status(request: Request):
+    """
+    Get the status of all instances from the GPU orchestrator.
+    Forwards authentication and cookies to the orchestrator.
+    """
+    # Validate environment variables
+    result = validate_gpu_orchestrator_env_vars()
+    gpu_orchestrator_url, gpu_orchestrator_port = result
+    if isinstance(gpu_orchestrator_url, dict):
+        return gpu_orchestrator_url  # Error response
+    elif isinstance(gpu_orchestrator_port, dict):
+        return gpu_orchestrator_port  # Error response
+
+    # Build the instances status endpoint URL
+    instances_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/status"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Build headers: forward incoming Authorization header
+            outbound_headers = {"Content-Type": "application/json"}
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
+
+            response = await client.get(instances_url, headers=outbound_headers, cookies=request.cookies, timeout=30.0)
+
+            if response.status_code == 200:
+                data = response.json()
+                # Strip "ClusterStatus." prefix from status field
+                if "clusters" in data:
+                    for cluster in data["clusters"]:
+                        if "status" in cluster and isinstance(cluster["status"], str):
+                            cluster["status"] = cluster["status"].replace("ClusterStatus.", "")
+
+                return {
+                    "status": "success",
+                    "data": data,
+                    "message": "Instance status retrieved successfully",
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Orchestrator returned status {response.status_code}: {response.text}",
+                }
+
+    except httpx.TimeoutException:
+        return {"status": "error", "message": "Request to orchestrator timed out"}
+    except httpx.RequestError:
+        return {"status": "error", "message": "Request error occurred"}
+    except Exception as e:
+        print(f"Error getting instances status: {str(e)}")
+        return {"status": "error", "message": "Unexpected error occurred"}

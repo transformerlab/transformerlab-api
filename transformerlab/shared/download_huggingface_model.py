@@ -12,6 +12,7 @@ from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
 
 from lab import HOME_DIR, Job
+from lab import storage
 
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
@@ -143,7 +144,60 @@ def get_downloaded_size_from_cache(repo_id, file_metadata):
         return 0
 
 
-def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes):
+def get_downloaded_files_from_cache(repo_id, file_metadata):
+    """
+    Check HuggingFace cache directory to see which files exist.
+    Returns tuple of (downloaded_files_count, total_files_count, downloaded_bytes).
+    """
+    try:
+        cache_dir = get_cache_dir_for_repo(repo_id)
+
+        if not os.path.exists(cache_dir):
+            return (0, len(file_metadata), 0)
+
+        # Look in the snapshots directory for the latest commit
+        snapshots_dir = os.path.join(cache_dir, "snapshots")
+        if not os.path.exists(snapshots_dir):
+            return (0, len(file_metadata), 0)
+
+        # Get the most recent snapshot (highest timestamp or lexicographically last)
+        try:
+            commits = os.listdir(snapshots_dir)
+            if not commits:
+                return (0, len(file_metadata), 0)
+
+            # Use the lexicographically last commit (usually the latest)
+            latest_commit = sorted(commits)[-1]
+            snapshot_path = os.path.join(snapshots_dir, latest_commit)
+        except Exception:
+            return (0, len(file_metadata), 0)
+
+        downloaded_files = 0
+        downloaded_size = 0
+
+        # Check each expected file
+        for filename, expected_size in file_metadata.items():
+            file_path = os.path.join(snapshot_path, filename)
+
+            if os.path.exists(file_path):
+                try:
+                    actual_size = os.path.getsize(file_path)
+                    # Consider file downloaded if it exists and has some size
+                    if actual_size > 0:
+                        downloaded_files += 1
+                        # Use the smaller of expected and actual size to be conservative
+                        downloaded_size += min(actual_size, expected_size)
+                except Exception:
+                    pass
+
+        return (downloaded_files, len(file_metadata), downloaded_size)
+
+    except Exception as e:
+        print(f"Error checking cache: {e}")
+        return (0, len(file_metadata), 0)
+
+
+def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded=None, files_total=None):
     """Update progress in the database"""
     try:
         job = Job.get(job_id)
@@ -164,9 +218,20 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes):
             "total_bytes": total_bytes,
             "monitoring_type": "cache_based",
         }
+
+        # Add file tracking if provided
+        if files_downloaded is not None and files_total is not None:
+            job_data["files_downloaded"] = files_downloaded
+            job_data["files_total"] = files_total
+
         job.set_job_data(job_data)
 
-        print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)")
+        if files_downloaded is not None and files_total is not None:
+            print(
+                f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB) - Files: {files_downloaded}/{files_total}"
+            )
+        else:
+            print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)")
 
     except Exception as e:
         print(f"Failed to update database progress: {e}")
@@ -176,18 +241,20 @@ def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_meta
     """
     Monitor cache directory for download progress.
     Runs in a separate thread.
+    Tracks both file count and bytes for progress reporting.
     """
     global _cache_stop_monitoring
 
     while not _cache_stop_monitoring:
         try:
-            downloaded_bytes = get_downloaded_size_from_cache(repo_id, file_metadata)
+            # Get both file count and bytes downloaded
+            files_downloaded, files_total, downloaded_bytes = get_downloaded_files_from_cache(repo_id, file_metadata)
 
-            # Update job
-            update_job_progress(job_id, model_name, downloaded_bytes, total_bytes)
+            # Update job with both file count and bytes
+            update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded, files_total)
 
-            # Check if download is complete
-            if downloaded_bytes >= total_bytes * 0.99:  # 99% complete
+            # Check if download is complete (both files and bytes)
+            if files_downloaded >= files_total and downloaded_bytes >= total_bytes * 0.99:  # 99% complete
                 print("Download appears to be complete")
                 break
 
@@ -268,11 +335,11 @@ if mode == "adaptor":
     safe_peft = secure_filename(peft)
 
     # Always set target_dir to WORKSPACE_DIR/adaptors/local_model_id
-    target_dir = os.path.join(WORKSPACE_DIR, "adaptors", safe_model_id, safe_peft)
+    target_dir = storage.join(WORKSPACE_DIR, "adaptors", safe_model_id, safe_peft)
     if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
         raise ValueError("Invalid path after sanitization. Potential security risk.")
     print(f"DOWNLOADING TO: {target_dir}")
-    os.makedirs(target_dir, exist_ok=True)
+    storage.makedirs(target_dir, exist_ok=True)
 
     print(f"Downloading adaptor {peft} with job_id {job_id}")
 
@@ -377,6 +444,8 @@ def download_blocking(model_is_downloaded):
             "model": peft,
             "total_size_in_mb": total_size_of_model_in_mb,
             "total_size_of_model_in_mb": total_size_of_model_in_mb,
+            "files_downloaded": 0,
+            "files_total": 0,  # Will be updated when file metadata is fetched
         }
     else:
         job_data = {
@@ -384,6 +453,8 @@ def download_blocking(model_is_downloaded):
             "model": model,
             "total_size_in_mb": total_size_of_model_in_mb,
             "total_size_of_model_in_mb": total_size_of_model_in_mb,
+            "files_downloaded": 0,
+            "files_total": 0,  # Will be updated when file metadata is fetched
         }
 
     print(job_data)
@@ -414,6 +485,12 @@ def download_blocking(model_is_downloaded):
         try:
             # Get file metadata before starting download
             file_metadata, actual_total_size = get_repo_file_metadata(peft)
+
+            # Update job_data with files_total
+            job = Job.get(job_id)
+            job_data = job.get_job_data() or {}
+            job_data["files_total"] = len(file_metadata)
+            job.set_job_data(job_data)
 
             # Start progress monitoring thread
             progress_thread = Thread(
@@ -451,8 +528,8 @@ def download_blocking(model_is_downloaded):
             # at GGUF
             print("downloading model to workspace/models using filename mode")
             # Use the model ID (repo name) as the directory name, not the filename
-            location = f"{WORKSPACE_DIR}/models/{secure_filename(model)}/{model_filename}"
-            os.makedirs(location, exist_ok=True)
+            location = storage.join(WORKSPACE_DIR, "models", secure_filename(model))
+            storage.makedirs(location, exist_ok=True)
             # Get metadata for single file
             try:
                 fs = HfFileSystem()
@@ -462,6 +539,12 @@ def download_blocking(model_is_downloaded):
             except Exception:
                 file_metadata = {model_filename: total_size_of_model_in_mb * 1024 * 1024}
                 file_size = total_size_of_model_in_mb * 1024 * 1024
+
+            # Update job_data with files_total (1 file for single file downloads)
+            job = Job.get(job_id)
+            job_data = job.get_job_data() or {}
+            job_data["files_total"] = 1
+            job.set_job_data(job_data)
 
             # Start progress monitoring thread
             progress_thread = Thread(
@@ -508,6 +591,12 @@ def download_blocking(model_is_downloaded):
             try:
                 # Get file metadata before starting download
                 file_metadata, actual_total_size = get_repo_file_metadata(model, allow_patterns)
+
+                # Update job_data with files_total
+                job = Job.get(job_id)
+                job_data = job.get_job_data() or {}
+                job_data["files_total"] = len(file_metadata)
+                job.set_job_data(job_data)
 
                 # Start progress monitoring thread
                 progress_thread = Thread(

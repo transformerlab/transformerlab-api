@@ -8,7 +8,7 @@ from fastapi import APIRouter, Body, Request
 from fastapi.responses import FileResponse
 
 import transformerlab.services.experiment_service as experiment_service
-from lab import Dataset, Experiment
+from lab import Dataset, Experiment, storage
 from transformerlab.shared import shared
 from transformerlab.routers.experiment import (
     rag,
@@ -120,7 +120,7 @@ def experiment_save_file_contents(id: str, filename: str, file_contents: Annotat
     except ValueError:
         return {"message": "Invalid file path - path traversal detected"}
     # Save the file contents securely
-    with open(file_path, "w", encoding="utf-8") as f:
+    with storage.open(str(file_path), "w", encoding="utf-8") as f:
         f.write(file_contents)
 
     return {"message": f"{file_path} file contents saved"}
@@ -152,7 +152,7 @@ def experiment_get_file_contents(id: str, filename: str):
 
     # now get the file contents
     try:
-        with open(final_path, "r") as f:
+        with storage.open(final_path, "r") as f:
             file_contents = f.read()
     except FileNotFoundError:
         return ""
@@ -185,9 +185,9 @@ def export_experiment_to_recipe(id: str, request: Request):
     # Get the notes content from readme.md if it exists
     exp_obj = Experiment.get(id)
     experiment_dir = exp_obj.get_dir()
-    notes_path = os.path.join(experiment_dir, "readme.md")
+    notes_path = storage.join(experiment_dir, "readme.md")
     try:
-        with open(notes_path, "r") as f:
+        with storage.open(notes_path, "r") as f:
             export_data["notes"] = f.read()
     except FileNotFoundError:
         # If no notes file exists, leave it as empty string
@@ -272,8 +272,8 @@ def export_experiment_to_recipe(id: str, request: Request):
 
     # Write to file in the workspace directory (org-aware via request context)
     workspace_dir = get_workspace_dir()
-    output_file = os.path.join(workspace_dir, f"{data['name']}_export.json")
-    with open(output_file, "w") as f:
+    output_file = storage.join(workspace_dir, f"{data['name']}_export.json")
+    with storage.open(output_file, "w") as f:
         json.dump(export_data, f, indent=2)
 
     return FileResponse(output_file, filename=output_file)
