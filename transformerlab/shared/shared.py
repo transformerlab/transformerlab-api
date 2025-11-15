@@ -13,7 +13,6 @@ from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 from collections import deque
-from lab import Job  # add this import
 
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_update_status_sync, job_update_status
@@ -21,7 +20,7 @@ import transformerlab.services.job_service as job_service
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import get_global_log_path
-from lab import dirs as lab_dirs
+from lab import dirs as lab_dirs, Job, Experiment
 from lab import storage
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import dirs
