@@ -494,7 +494,7 @@ async def server_job_logs(job_id: str):
         job_data = job.get("job_data", {})
         tail = job_data.get("tail", [])
         return {"status": "success", "job_id": job_id, "logs": tail}
-    except Exception as e:
+    except Exception:
         logging.error("Exception in /server/job_logs: %s", traceback.format_exc())
         return {"status": "error", "message": "An internal server error occurred. Please try again later."}
 
