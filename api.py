@@ -5,11 +5,11 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
+import logging
+import traceback
 
 import json
 import signal
-import logging
-import traceback
 import subprocess
 from contextlib import asynccontextmanager
 import sys
@@ -495,7 +495,6 @@ async def server_job_logs(job_id: str):
         tail = job_data.get("tail", [])
         return {"status": "success", "job_id": job_id, "logs": tail}
     except Exception as e:
-        import logging, traceback
         logging.error("Exception in /server/job_logs: %s", traceback.format_exc())
         return {"status": "error", "message": "An internal server error occurred. Please try again later."}
 
