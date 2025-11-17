@@ -5,6 +5,7 @@ datasets==3.6.0
 einops
 evaluate
 fastapi
+fastapi-users[sqlalchemy]
 packaging
 psutil
 python-dotenv
