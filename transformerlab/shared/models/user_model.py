@@ -30,7 +30,7 @@ class Team(Base):
 class UserTeam(Base):
     __tablename__ = "users_teams"
 
-    user_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    user_id = Column(String, ForeignKey("user.id"), primary_key=True)
     team_id = Column(String, ForeignKey("teams.id"), primary_key=True)
 
 
