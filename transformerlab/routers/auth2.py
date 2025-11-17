@@ -41,15 +41,15 @@ router.include_router(
 
 async def get_user_and_team(
     user: User = Depends(current_active_user),
-    x_team: str | None = Header(None, alias="X-Team"),
+    x_team: str | None = Header(None, alias="X-Team-Id"),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Dependency to validate user authentication and team membership.
-    Extracts X-Team header and verifies user belongs to that team.
+    Extracts X-Team-Id header and verifies user belongs to that team.
     """
     if not x_team:
-        raise HTTPException(status_code=400, detail="X-Team header missing")
+        raise HTTPException(status_code=400, detail="X-Team-Id header missing")
 
     # Verify user is associated with the provided team id
     stmt = select(UserTeam).where(
