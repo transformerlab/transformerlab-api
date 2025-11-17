@@ -5,7 +5,7 @@ from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users.db import SQLAlchemyUserDatabase
-from transformerlab.shared.models.user_model import User, get_async_session
+from transformerlab.shared.models.user_model import User, get_async_session, create_default_team, UserTeam
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt as _jose_jwt
 from datetime import datetime, timedelta
@@ -38,6 +38,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     # Optional: Define custom logic after registration
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         print(f"User {user.id} has registered.")
+        # Add to default team
+        async with self.user_db.session as session:
+            team = await create_default_team(session)
+            user_team = UserTeam(user_id=str(user.id), team_id=team.id)
+            session.add(user_team)
+            await session.commit()
 
     async def on_after_forgot_password(self, user: User, token: str, request: Request | None = None):
         print(f"User {user.id} has forgot their password. Reset token: {token}")
