@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from transformerlab.shared.models.user_model import User
+from transformerlab.shared.models.user_model import User, Team, UserTeam
 from transformerlab.models.users import (
     fastapi_users,
     auth_backend,
@@ -11,6 +11,8 @@ from transformerlab.models.users import (
     get_refresh_strategy,
     jwt_authentication,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from jose import jwt, JWTError
 
@@ -89,13 +91,8 @@ async def refresh_access_token(
 
 
 @router.get("/users/me/teams")
-async def get_user_teams(user: User = Depends(current_active_user)):
-    # Placeholder implementation
-    # In a real application, fetch teams from the database
-    return {
-        "user_id": user.id,
-        "teams": [
-            {"id": "550e8400-e29b-41d4-a716-446655440000", "name": "Transformer Lab"},
-            {"id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8", "name": "Team 2"},
-        ],
-    }
+async def get_user_teams(user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)):
+    stmt = select(Team).join(UserTeam).where(UserTeam.user_id == str(user.id))
+    result = await session.execute(stmt)
+    teams = result.scalars().all()
+    return {"user_id": str(user.id), "teams": [{"id": team.id, "name": team.name} for team in teams]}
