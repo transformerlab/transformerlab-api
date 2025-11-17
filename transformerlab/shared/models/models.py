@@ -1,5 +1,5 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, ForeignKey, Enum
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import uuid
 import enum
