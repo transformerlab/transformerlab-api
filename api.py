@@ -51,6 +51,7 @@ from transformerlab.routers import (
     recipes,
     remote,
     auth2,
+    teams,
 )
 import torch
 
@@ -234,6 +235,7 @@ app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(remote.router)
 app.include_router(fastchat_openai_api.router)
+app.include_router(teams.router)
 app.include_router(auth2.router)
 
 # Authentication and session management routes
