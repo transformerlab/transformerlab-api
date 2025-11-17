@@ -1,37 +1,18 @@
 # database.py
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import sessionmaker
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import Column, String, ForeignKey, select
-import uuid
+from sqlalchemy import select
 
 # Replace with your actual database URL (e.g., PostgreSQL, SQLite)
 from transformerlab.db.constants import DATABASE_URL
-
-Base: DeclarativeMeta = declarative_base()
+from .models import Base, Team
 
 
 # 1. Define your User Model (inherits from a FastAPI Users base class)
 class User(SQLAlchemyBaseUserTableUUID, Base):
     pass  # You can add custom fields here later, like 'first_name: str'
-
-
-# 2. Define Team Model
-class Team(Base):
-    __tablename__ = "teams"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String, nullable=False)
-
-
-# 3. Define User-Team Association Model
-class UserTeam(Base):
-    __tablename__ = "users_teams"
-
-    user_id = Column(String, ForeignKey("user.id"), primary_key=True)
-    team_id = Column(String, ForeignKey("teams.id"), primary_key=True)
 
 
 # 2. Setup the Async Engine and Session

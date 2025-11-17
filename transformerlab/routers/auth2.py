@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from transformerlab.shared.models.user_model import User, Team, UserTeam, get_async_session, create_default_team
+from transformerlab.shared.models.user_model import User, get_async_session, create_default_team
+from transformerlab.shared.models.models import Team, UserTeam
 from transformerlab.models.users import (
     fastapi_users,
     auth_backend,

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformerlab.shared.models.user_model import User, Team, UserTeam, get_async_session
+from transformerlab.shared.models.user_model import User, get_async_session
+from transformerlab.shared.models.models import Team, UserTeam
 from transformerlab.models.users import current_active_user
 from pydantic import BaseModel
 from sqlalchemy import select, delete, update

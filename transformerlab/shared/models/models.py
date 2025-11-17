@@ -1,6 +1,7 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+import uuid
 
 
 class Base(DeclarativeBase):
@@ -82,3 +83,20 @@ class WorkflowRun(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+class Team(Base):
+    """Team model."""
+
+    __tablename__ = "teams"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class UserTeam(Base):
+    """User-Team association model."""
+
+    __tablename__ = "users_teams"
+
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("user.id"), primary_key=True)
+    team_id: Mapped[str] = mapped_column(String, ForeignKey("teams.id"), primary_key=True)

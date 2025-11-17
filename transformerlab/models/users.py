@@ -5,7 +5,8 @@ from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users.db import SQLAlchemyUserDatabase
-from transformerlab.shared.models.user_model import User, get_async_session, create_default_team, UserTeam
+from transformerlab.shared.models.user_model import User, get_async_session, create_default_team
+from transformerlab.shared.models.models import UserTeam
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt as _jose_jwt
 from datetime import datetime, timedelta
