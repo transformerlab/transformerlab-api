@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from transformerlab.shared.models.user_model import User, get_async_session, create_default_team
 from transformerlab.shared.models.models import Team, UserTeam
 from transformerlab.models.users import (
@@ -39,9 +39,37 @@ router.include_router(
 )
 
 
+async def get_user_and_team(
+    user: User = Depends(current_active_user),
+    x_team: str | None = Header(None, alias="X-Team"),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Dependency to validate user authentication and team membership.
+    Extracts X-Team header and verifies user belongs to that team.
+    """
+    if not x_team:
+        raise HTTPException(status_code=400, detail="X-Team header missing")
+
+    # Verify user is associated with the provided team id
+    stmt = select(UserTeam).where(
+        UserTeam.user_id == str(user.id),
+        UserTeam.team_id == x_team,
+    )
+    result = await session.execute(stmt)
+    user_team = result.scalar_one_or_none()
+
+    if user_team is None:
+        raise HTTPException(status_code=403, detail="User is not a member of the specified team")
+
+    return {"user": user, "team_id": x_team}
+
+
 @router.get("/test-users/authenticated-route")
-async def authenticated_route(user: User = Depends(current_active_user)):
-    return {"message": f"Hello, {user.email}! You are authenticated."}
+async def authenticated_route(user_and_team=Depends(get_user_and_team)):
+    user = user_and_team["user"]
+    team_id = user_and_team["team_id"]
+    return {"message": f"Hello, {user.email}! You are authenticated and acting as part of team {team_id}."}
 
 
 # To test this, register a new user via /auth/register
