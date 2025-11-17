@@ -1,7 +1,8 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, ForeignKey
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index, ForeignKey, Enum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import uuid
+import enum
 
 
 class Base(DeclarativeBase):
@@ -93,6 +94,12 @@ class Team(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
 
 
+class TeamRole(str, enum.Enum):
+    """Enum for user roles within a team."""
+    OWNER = "owner"
+    MEMBER = "member"
+
+
 class UserTeam(Base):
     """User-Team association model."""
 
@@ -100,3 +107,4 @@ class UserTeam(Base):
 
     user_id: Mapped[str] = mapped_column(String, ForeignKey("user.id"), primary_key=True)
     team_id: Mapped[str] = mapped_column(String, ForeignKey("teams.id"), primary_key=True)
+    role: Mapped[str] = mapped_column(String, nullable=False, default=TeamRole.MEMBER.value)
