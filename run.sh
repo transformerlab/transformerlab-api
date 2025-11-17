@@ -179,14 +179,6 @@ EOF
         echo "⚠️ AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY not set, skipping AWS setup"
     fi
     
-    # # Mount S3 bucket using AWS credentials from ~/.aws
-    # if [ -n "$BUCKET_NAME" ]; then
-    #     echo "☁️ Mounting S3 bucket '$BUCKET_NAME' to remote workspace"
-    #     mount-s3 --profile transformerlab-s3 "$BUCKET_NAME" "$REMOTE_WORKSPACE_DIR"
-    # else
-    #     echo "⚠️ BUCKET_NAME not set in environment variables, skipping S3 mount"
-    #     echo "💡 Please set BUCKET_NAME in your .env file"
-    # fi
 fi
 
 echo "▶️ Starting the API server:"

@@ -12,6 +12,7 @@ from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
 
 from lab import HOME_DIR, Job
+from lab import storage
 
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
@@ -217,16 +218,18 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files
             "total_bytes": total_bytes,
             "monitoring_type": "cache_based",
         }
-        
+
         # Add file tracking if provided
         if files_downloaded is not None and files_total is not None:
             job_data["files_downloaded"] = files_downloaded
             job_data["files_total"] = files_total
-        
+
         job.set_job_data(job_data)
 
         if files_downloaded is not None and files_total is not None:
-            print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB) - Files: {files_downloaded}/{files_total}")
+            print(
+                f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB) - Files: {files_downloaded}/{files_total}"
+            )
         else:
             print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)")
 
@@ -332,11 +335,11 @@ if mode == "adaptor":
     safe_peft = secure_filename(peft)
 
     # Always set target_dir to WORKSPACE_DIR/adaptors/local_model_id
-    target_dir = os.path.join(WORKSPACE_DIR, "adaptors", safe_model_id, safe_peft)
+    target_dir = storage.join(WORKSPACE_DIR, "adaptors", safe_model_id, safe_peft)
     if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
         raise ValueError("Invalid path after sanitization. Potential security risk.")
     print(f"DOWNLOADING TO: {target_dir}")
-    os.makedirs(target_dir, exist_ok=True)
+    storage.makedirs(target_dir, exist_ok=True)
 
     print(f"Downloading adaptor {peft} with job_id {job_id}")
 
@@ -525,8 +528,8 @@ def download_blocking(model_is_downloaded):
             # at GGUF
             print("downloading model to workspace/models using filename mode")
             # Use the model ID (repo name) as the directory name, not the filename
-            location = f"{WORKSPACE_DIR}/models/{secure_filename(model)}/{model_filename}"
-            os.makedirs(location, exist_ok=True)
+            location = storage.join(WORKSPACE_DIR, "models", secure_filename(model))
+            storage.makedirs(location, exist_ok=True)
             # Get metadata for single file
             try:
                 fs = HfFileSystem()

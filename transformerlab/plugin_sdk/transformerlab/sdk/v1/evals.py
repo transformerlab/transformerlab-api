@@ -4,6 +4,7 @@ import time
 
 from transformerlab.plugin import test_wandb_login
 from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+from lab import storage
 
 
 class EvalsTLabPlugin(TLabPlugin):
@@ -56,21 +57,23 @@ class EvalsTLabPlugin(TLabPlugin):
         from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
 
         # Create tensorboard directory structure
-        tensorboard_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name, "tensorboards")
-        os.makedirs(tensorboard_dir, exist_ok=True)
+        tensorboard_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name, "tensorboards")
+        storage.makedirs(tensorboard_dir, exist_ok=True)
 
         # Find directory based on eval name
         combined_dir = None
-        for dir_name in os.listdir(tensorboard_dir):
+        for entry in storage.ls(tensorboard_dir):
+            dir_name = entry.rstrip("/").split("/")[-1]
             if self.params.run_name == dir_name or self.params.run_name == dir_name.lower():
-                combined_dir = os.path.join(tensorboard_dir, dir_name)
-                break
+                if storage.isdir(entry):
+                    combined_dir = storage.join(tensorboard_dir, dir_name)
+                    break
 
         if combined_dir is None:
-            combined_dir = os.path.join(tensorboard_dir, self.params.run_name)
+            combined_dir = storage.join(tensorboard_dir, self.params.run_name)
 
-        output_dir = os.path.join(combined_dir, f"evaljob_{self.params.job_id}_{today}")
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir = storage.join(combined_dir, f"evaljob_{self.params.job_id}_{today}")
+        storage.makedirs(output_dir, exist_ok=True)
 
         # Store the writer and output directory as instance variables
         self.params["tensorboard_output_dir"] = output_dir
@@ -147,10 +150,10 @@ class EvalsTLabPlugin(TLabPlugin):
 
         from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
 
-        experiment_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name)
-        eval_dir = os.path.join(experiment_dir, "evals", self.params.eval_name, self.params.job_id)
+        experiment_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name)
+        eval_dir = storage.join(experiment_dir, "evals", self.params.eval_name, self.params.job_id)
 
-        os.makedirs(eval_dir, exist_ok=True)
+        storage.makedirs(eval_dir, exist_ok=True)
 
         if dir_only:
             return eval_dir
@@ -160,15 +163,15 @@ class EvalsTLabPlugin(TLabPlugin):
             plotting_suffix = suffix if suffix else "plotting"
             if not plotting_suffix.endswith(".json"):
                 plotting_suffix += ".json"
-            return os.path.join(eval_dir, f"plot_data_{self.params.job_id}_{plotting_suffix}")
+            return storage.join(eval_dir, f"plot_data_{self.params.job_id}_{plotting_suffix}")
         else:
             # For regular outputs
             if suffix:
                 if not any(suffix.endswith(ext) for ext in (".csv", ".json", ".txt")):
                     suffix += ".csv"
-                return os.path.join(eval_dir, f"output_{self.params.job_id}_{suffix}")
+                return storage.join(eval_dir, f"output_{self.params.job_id}_{suffix}")
             else:
-                return os.path.join(eval_dir, f"output_{self.params.job_id}.csv")
+                return storage.join(eval_dir, f"output_{self.params.job_id}.csv")
 
     def save_evaluation_results(self, metrics_df):
         """Save evaluation results and generate plotting data
@@ -192,7 +195,8 @@ class EvalsTLabPlugin(TLabPlugin):
 
         # Save full DataFrame to CSV
         output_path = self.get_output_file_path()
-        metrics_df.to_csv(output_path, index=False)
+        with storage.open(output_path, "w", encoding="utf-8") as f:
+            metrics_df.to_csv(f, index=False)
         print(f"Saved detailed evaluation results to {output_path}")
 
         # Create and save plotting data
@@ -205,7 +209,8 @@ class EvalsTLabPlugin(TLabPlugin):
         plotting_data["metric_name"] = plotting_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
 
         # Save as JSON
-        plotting_data.to_json(plot_data_path, orient="records", lines=False)
+        with storage.open(plot_data_path, "w", encoding="utf-8") as f:
+            plotting_data.to_json(f, orient="records", lines=False)
         print(f"Saved plotting data to {plot_data_path}")
 
         self.job.update_job_data_field("additional_output_path", output_path)
@@ -271,35 +276,38 @@ class EvalsTLabPlugin(TLabPlugin):
 
         # Add evaluation data to the existing provenance file in the model directory
         # Try to find the model directory using environment variables
-        from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
+        from lab.dirs import get_workspace_dir
 
-        models_dir = os.path.join(workspace_dir, "models")
+        workspace_dir = get_workspace_dir()
+
+        models_dir = storage.join(workspace_dir, "models")
 
         # Look for the model directory - since we have the actual model path, we can be more precise
         model_dir = None
-        for entry in os.listdir(models_dir):
-            if os.path.isdir(os.path.join(models_dir, entry)):
+        for entry in storage.ls(models_dir):
+            entry_name = entry.rstrip("/").split("/")[-1]
+            if storage.isdir(entry):
                 # Exact match first, then check for suffixes
-                if entry == model_name:
-                    model_dir = os.path.join(models_dir, entry)
+                if entry_name == model_name:
+                    model_dir = storage.join(models_dir, entry_name)
                     break
-                elif entry.endswith(f"_{model_name}"):
-                    model_dir = os.path.join(models_dir, entry)
+                elif entry_name.endswith(f"_{model_name}"):
+                    model_dir = storage.join(models_dir, entry_name)
                     break
 
-        if not model_dir or not os.path.exists(model_dir):
+        if not model_dir or not storage.exists(model_dir):
             print(
                 "Unable to add evaluation details to model provenance file, since that is only supported for fine-tuned (locally trained) models."
             )
             return
 
-        provenance_path = os.path.join(model_dir, "_tlab_provenance.json")
+        provenance_path = storage.join(model_dir, "_tlab_provenance.json")
 
         # Load existing provenance data
         existing_provenance = {}
-        if os.path.exists(provenance_path):
+        if storage.exists(provenance_path):
             try:
-                with open(provenance_path, "r") as f:
+                with storage.open(provenance_path, "r", encoding="utf-8") as f:
                     existing_provenance = json.load(f)
             except Exception as e:
                 print(f"Error loading existing provenance: {e}")
@@ -313,7 +321,7 @@ class EvalsTLabPlugin(TLabPlugin):
         existing_provenance["evaluations"].append(evaluation_data)
 
         # Write updated provenance file
-        with open(provenance_path, "w") as f:
+        with storage.open(provenance_path, "w", encoding="utf-8") as f:
             json.dump(existing_provenance, f, indent=2)
 
         print(f"Evaluation data added to provenance file: {provenance_path}")

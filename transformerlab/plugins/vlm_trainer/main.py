@@ -1,7 +1,8 @@
 from transformerlab.sdk.v1.train import tlab_trainer
 import os
 import torch
-from lab.dirs import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -197,7 +198,8 @@ def train_vlm():
                 model_id_short = model_id
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
             fused_model_name = f"{model_id_short}_{adaptor_name}"
-            fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+            workspace_dir = get_workspace_dir()
+            fused_model_location = storage.join(workspace_dir, "models", fused_model_name)
             peft_model = PeftModel.from_pretrained(model, args.adaptor_output_dir)
             merged_model = peft_model.merge_and_unload()
             merged_model.save_pretrained(fused_model_location)

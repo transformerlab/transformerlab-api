@@ -1,8 +1,8 @@
 import hashlib
 import json
-import os
 import time
 import traceback
+import posixpath
 
 try:
     from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
@@ -11,6 +11,7 @@ try:
 except ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+from lab import storage
 
 
 class DotDict(dict):
@@ -149,7 +150,7 @@ class TrainerTLabPlugin(TLabPlugin):
             import json
 
             # Load configuration from file
-            with open(self.params.input_file) as json_file:
+            with storage.open(self.params.input_file, "r", encoding="utf-8") as json_file:
                 input_config = json.load(json_file)
 
             if "config" in input_config:
@@ -186,17 +187,20 @@ class TrainerTLabPlugin(TLabPlugin):
             self.params.template_name = "default"
         # Add tensorboard_output_dir
         if output_dir is None:
-            self.params.tensorboard_output_dir = os.path.join(
+            self.params.tensorboard_output_dir = storage.join(
                 self.params.output_dir, f"job_{self.params.job_id}_{self.params.template_name}"
             )
             self.add_job_data("tensorboard_output_dir", self.params.output_dir)
             print("Writing tensorboard logs to:", self.params.output_dir)
         else:
-            self.params.tensorboard_output_dir = os.path.join(
+            self.params.tensorboard_output_dir = storage.join(
                 output_dir, f"job_{self.params.job_id}_{self.params.template_name}"
             )
             self.add_job_data("tensorboard_output_dir", output_dir)
             print("Writing tensorboard logs to:", output_dir)
+
+        # Ensure directory exists
+        storage.makedirs(self.params.tensorboard_output_dir, exist_ok=True)
 
         self.writer = SummaryWriter(self.params.tensorboard_output_dir)
 
@@ -350,10 +354,10 @@ class TrainerTLabPlugin(TLabPlugin):
         try:
             # Ensure output_dir exists
             output_dir = self.params.get("output_dir", "")
-            if output_dir and os.path.exists(output_dir):
+            if output_dir and storage.exists(output_dir):
                 # Save metrics to a JSON file
-                metrics_path = os.path.join(output_dir, "metrics.json")
-                with open(metrics_path, "w") as f:
+                metrics_path = storage.join(output_dir, "metrics.json")
+                with storage.open(metrics_path, "w", encoding="utf-8") as f:
                     json.dump(self._metrics, f, indent=2)
             else:
                 print(f"Output directory not found or not specified: {output_dir}")
@@ -390,29 +394,35 @@ class TrainerTLabPlugin(TLabPlugin):
             json_data["pipeline_tag"] = pipeline_tag
 
         if output_dir is None:
-            fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+            fused_model_location = storage.join(WORKSPACE_DIR, "models", fused_model_name)
         else:
-            fused_model_location = os.path.join(output_dir, fused_model_name)
+            fused_model_location = storage.join(output_dir, fused_model_name)
 
         # Determine model_filename based on architecture
         # Most models are directory-based, only GGUF models are file-based
         # Default to directory-based (use "." to indicate the directory itself)
         model_filename = "."
-        
+
         # GGUF architecture indicates a file-based model
         # The actual filename will be set by the export process, so we don't set it here
         # For now, if it's GGUF and the file exists, use the filename
         if "GGUF" in model_architecture.upper() or model_architecture.upper() == "GGUF":
-            if os.path.exists(fused_model_location):
-                if os.path.isfile(fused_model_location):
+            if storage.exists(fused_model_location):
+                if storage.isfile(fused_model_location):
                     # File-based model - use the filename
-                    model_filename = os.path.basename(fused_model_location)
+                    model_filename = posixpath.basename(fused_model_location)
                 # If it's a directory for GGUF, keep "." (directory-based)
                 # This shouldn't normally happen for GGUF, but handle it gracefully
             # If GGUF file doesn't exist yet, the export process will set the filename
 
         if generate_json:
-            generate_model_json(fused_model_name, model_architecture, model_filename=model_filename, json_data=json_data, output_directory=output_dir)
+            generate_model_json(
+                fused_model_name,
+                model_architecture,
+                model_filename=model_filename,
+                json_data=json_data,
+                output_directory=output_dir,
+            )
 
         # Create the hash files for the model
         md5_objects = self.create_md5_checksum_model_files(fused_model_location)
@@ -429,22 +439,31 @@ class TrainerTLabPlugin(TLabPlugin):
     def create_md5_checksum_model_files(self, fused_model_location):
         def compute_md5(file_path):
             md5 = hashlib.md5()
-            with open(file_path, "rb") as f:
-                while chunk := f.read(8192):
+            with storage.open(file_path, "rb") as f:
+                while True:
+                    chunk = f.read(8192)
+                    if not chunk:
+                        break
                     md5.update(chunk)
             return md5.hexdigest()
 
         md5_objects = []
 
-        if not os.path.isdir(fused_model_location):
+        if not storage.isdir(fused_model_location):
             print("Fused model location is not a directory, skipping md5 within provenance")
             return md5_objects
 
-        for root, _, files in os.walk(fused_model_location):
-            for file in files:
-                file_path = os.path.join(root, file)
-                md5_hash = compute_md5(file_path)
-                md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
+        # Walk directory using storage
+        stack = [fused_model_location]
+        while stack:
+            current_dir = stack.pop()
+            for entry in storage.ls(current_dir):
+                if storage.isdir(entry):
+                    stack.append(entry)
+                else:
+                    file_path = entry
+                    md5_hash = compute_md5(file_path)
+                    md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
 
         return md5_objects
 
@@ -469,8 +488,8 @@ class TrainerTLabPlugin(TLabPlugin):
         }
 
         # Write provenance to file
-        provenance_path = os.path.join(model_location, "_tlab_provenance.json")
-        with open(provenance_path, "w") as f:
+        provenance_path = storage.join(model_location, "_tlab_provenance.json")
+        with storage.open(provenance_path, "w", encoding="utf-8") as f:
             json.dump(provenance_data, f, indent=2)
 
         return provenance_path

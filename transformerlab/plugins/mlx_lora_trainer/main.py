@@ -13,9 +13,11 @@ import os
 # Import tlab_trainer from the SDK
 # from transformerlab.tlab_decorators import tlab_trainer
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, prepare_dataset_files
+from transformerlab.plugin import prepare_dataset_files
 
 from transformerlab.plugin import get_python_executable
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
@@ -88,9 +90,10 @@ def train_mlx_lora():
             print(lora_config)
 
     # Directory for storing temporary working files
-    data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
-    if not os.path.exists(data_directory):
-        os.makedirs(data_directory)
+    workspace_dir = get_workspace_dir()
+    data_directory = storage.join(workspace_dir, "plugins", "mlx_lora_trainer", "data")
+    if not storage.exists(data_directory):
+        storage.makedirs(data_directory)
 
     prepare_dataset_files(
         data_directory=data_directory,
@@ -104,10 +107,11 @@ def train_mlx_lora():
     # Set output directory for the adaptor
     adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "")
     if adaptor_output_dir == "" or adaptor_output_dir is None:
-        adaptor_output_dir = os.path.join(WORKSPACE_DIR, "adaptors", tlab_trainer.params.model_name, adaptor_name)
+        workspace_dir = get_workspace_dir()
+        adaptor_output_dir = storage.join(workspace_dir, "adaptors", tlab_trainer.params.model_name, adaptor_name)
         print("Using default adaptor output directory:", adaptor_output_dir)
-    if not os.path.exists(adaptor_output_dir):
-        os.makedirs(adaptor_output_dir)
+    if not storage.exists(adaptor_output_dir):
+        storage.makedirs(adaptor_output_dir)
 
     # Get Python executable (from venv if available)
     python_executable = get_python_executable(plugin_dir)
@@ -210,11 +214,12 @@ def train_mlx_lora():
         if "/" in model_name:
             model_name = model_name.split("/")[-1]
         fused_model_name = f"{model_name}_{adaptor_name}"
-        fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+        workspace_dir = get_workspace_dir()
+        fused_model_location = storage.join(workspace_dir, "models", fused_model_name)
 
         # Make the directory to save the fused model
-        if not os.path.exists(fused_model_location):
-            os.makedirs(fused_model_location)
+        if not storage.exists(fused_model_location):
+            storage.makedirs(fused_model_location)
 
         fuse_popen_command = [
             python_executable,

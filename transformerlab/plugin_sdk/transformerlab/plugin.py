@@ -8,6 +8,7 @@ from jinja2 import Environment
 from transformers import AutoTokenizer
 
 from lab import HOME_DIR, Experiment
+from lab import storage
 from lab.dirs import get_workspace_dir
 from lab.dataset import Dataset as dataset_service
 
@@ -18,7 +19,7 @@ WORKSPACE_DIR = get_workspace_dir()
 if WORKSPACE_DIR is None:
     print("Plugin Harness Error: WORKSPACE_DIR not available. Quitting.")
     exit(1)
-TEMP_DIR = os.path.join(get_workspace_dir(), "temp")
+TEMP_DIR = storage.join(get_workspace_dir(), "temp")
 
 # Maintain a singleton database connection
 db = None
@@ -77,7 +78,7 @@ def get_dataset_path(dataset_id: str):
             return ds.get_dir()
         except Exception:
             # Fallback to previous behavior if needed
-            return os.path.join(get_workspace_dir(), "datasets", dataset_id)
+            return storage.join(get_workspace_dir(), "datasets", dataset_id)
 
     # Otherwise assume it is a HuggingFace dataset id
     return dataset_id
@@ -195,8 +196,8 @@ def generate_model_json(
 
     # Output the json to the file
     if not output_directory:
-        output_directory = os.path.join(get_workspace_dir(), "models", model_id)
-    with open(os.path.join(output_directory, "index.json"), "w") as outfile:
+        output_directory = storage.join(get_workspace_dir(), "models", model_id)
+    with storage.open(storage.join(output_directory, "index.json"), "w") as outfile:
         json.dump(model_description, outfile)
 
     return model_description
@@ -219,8 +220,8 @@ def prepare_dataset_files(
         dataset_split = datasets[split_name]
         print(f"Processing {split_name} dataset with {len(dataset_split)} examples.")
 
-        output_file = os.path.join(data_directory, f"{split_name}.jsonl")
-        with open(output_file, "w") as f:
+        output_file = storage.join(data_directory, f"{split_name}.jsonl")
+        with storage.open(output_file, "w") as f:
             for i in range(len(dataset_split)):
                 example = dataset_split[i]
                 try:
@@ -239,7 +240,7 @@ def prepare_dataset_files(
 
         # Print one example from the written jsonl file
         try:
-            with open(output_file, "r") as f:
+            with storage.open(output_file, "r") as f:
                 first_line = f.readline()
                 if first_line:
                     parsed = json.loads(first_line)

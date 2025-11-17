@@ -1,4 +1,3 @@
-import os
 import traceback
 import pandas as pd
 from typing import List
@@ -12,6 +11,8 @@ from datasets import Dataset
 import sys
 
 from transformerlab.sdk.v1.generate import tlab_gen
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 class CustomEmbeddingModel(DeepEvalBaseEmbeddingModel):
@@ -46,19 +47,18 @@ class CustomEmbeddingModel(DeepEvalBaseEmbeddingModel):
 def get_docs_list(docs: str, experiment_name: str) -> List[str]:
     """Get list of document paths from comma-separated string of doc names"""
     docs_list = docs.split(",")
-    documents_dir = os.path.join(
-        os.environ.get("_TFL_WORKSPACE_DIR", "./"), "experiments", experiment_name, "documents"
-    )
+    workspace_dir = get_workspace_dir()
+    documents_dir = storage.join(workspace_dir, "experiments", experiment_name, "documents")
 
     result_docs = []
     for doc in docs_list:
-        doc_path = os.path.join(documents_dir, doc)
-        if os.path.isdir(doc_path):
+        doc_path = storage.join(documents_dir, doc)
+        if storage.isdir(doc_path):
             print(f"Directory found: {doc_path}. Fetching all files in the directory...")
             # Get only first-level files from the directory
-            for file in os.listdir(doc_path):
-                file_path = os.path.join(doc_path, file)
-                if not os.path.isdir(file_path):
+            for file in storage.ls(doc_path):
+                file_path = storage.join(doc_path, file)
+                if storage.isfile(file_path):
                     result_docs.append(file_path)
         else:
             result_docs.append(doc_path)

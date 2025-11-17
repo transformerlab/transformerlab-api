@@ -8,8 +8,9 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import Settings
 from llama_index.core import SimpleDirectoryReader, StorageContext, load_index_from_storage
 from llama_index.core.postprocessor import SentenceTransformerRerank
-import os
 import time
+
+from lab import storage
 
 
 # Context manager to redirect all stdout to stderr to prevent interference with JSON output
@@ -26,9 +27,10 @@ class RedirectStdoutToStderr:
 def index_documents(documents_dir, persistency_dir, embedding_model="BAAI/bge-small-en-v1.5"):
     # Redirect stdout to stderr to prevent any output from this function
     with RedirectStdoutToStderr():
-        if os.path.exists(os.path.join(documents_dir, ".tlab_markitdown")):
+        markitdown_dir = storage.join(documents_dir, ".tlab_markitdown")
+        if storage.exists(markitdown_dir):
             sys.stderr.write("Markitdown detected, using that directory for indexing instead")
-            documents_dir = os.path.join(documents_dir, ".tlab_markitdown")
+            documents_dir = markitdown_dir
         reader = SimpleDirectoryReader(input_dir=documents_dir, exclude_hidden=False)
         documents = reader.load_data()
         sys.stderr.write(f"Loaded {len(documents)} docs")
@@ -73,9 +75,9 @@ def main():
         continue_after_index = False
 
         documents_dir = args.documents_dir
-        persistency_dir = os.path.join(documents_dir, "persist")
+        persistency_dir = storage.join(documents_dir, "persist")
 
-        if not os.path.exists(persistency_dir) and not args.index:
+        if not storage.exists(persistency_dir) and not args.index:
             sys.stderr.write("Documents have not been indexed. Indexing them first")
             args.index = True
             continue_after_index = True

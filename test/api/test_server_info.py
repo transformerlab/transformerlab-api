@@ -68,7 +68,7 @@ def test_healthz_local_mode(client, monkeypatch):
     # Ensure GPU orchestration env vars are not set
     monkeypatch.delenv("GPU_ORCHESTRATION_SERVER", raising=False)
     monkeypatch.delenv("GPU_ORCHESTRATION_SERVER_PORT", raising=False)
-    
+
     response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
@@ -83,7 +83,7 @@ def test_healthz_gpu_orchestration_mode(client, monkeypatch):
     # Set GPU orchestration env vars
     monkeypatch.setenv("GPU_ORCHESTRATION_SERVER", "http://orchestrator.example.com")
     monkeypatch.setenv("GPU_ORCHESTRATION_SERVER_PORT", "8080")
-    
+
     # The healthz endpoint reads env vars at request time, so monkeypatch should work
     response = client.get("/healthz")
     assert response.status_code == 200
@@ -99,7 +99,7 @@ def test_healthz_gpu_orchestration_mode_no_port(client, monkeypatch):
     # Set only GPU orchestration server URL
     monkeypatch.setenv("GPU_ORCHESTRATION_SERVER", "http://orchestrator.example.com")
     monkeypatch.delenv("GPU_ORCHESTRATION_SERVER_PORT", raising=False)
-    
+
     # The healthz endpoint reads env vars at request time, so monkeypatch should work
     response = client.get("/healthz")
     assert response.status_code == 200

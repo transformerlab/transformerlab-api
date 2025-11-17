@@ -1,5 +1,4 @@
 import json
-import os
 import time
 import asyncio
 import subprocess
@@ -10,6 +9,7 @@ from fastapi import APIRouter
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_create, job_get
 from lab import dirs as lab_dirs
+from lab import storage
 from transformerlab.shared import dirs, shared
 
 from transformerlab.services.job_service import job_update_status
@@ -93,7 +93,7 @@ async def run_exporter_script(
 
     from lab.dirs import get_models_dir
 
-    output_path = os.path.join(get_models_dir(), output_model_id)
+    output_path = storage.join(get_models_dir(), output_model_id)
 
     # Create a job in the DB with the details of this export (only if job_id not provided)
     if job_id is None:
@@ -142,7 +142,7 @@ async def run_exporter_script(
         job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         # Create the output file and run the process with output redirection
-        with open(job_output_file, "w") as f:
+        with storage.open(job_output_file, "w") as f:
             process = await asyncio.create_subprocess_exec(
                 *subprocess_command, stdout=f, stderr=subprocess.PIPE, cwd=script_directory
             )
@@ -167,7 +167,6 @@ async def run_exporter_script(
                 }
 
     except Exception as e:
-
         print(f"Failed to export model. Exception: {e}")
         job = job_get(job_id)
         experiment_id = job["experiment_id"]
@@ -193,8 +192,8 @@ async def run_exporter_script(
             "params": plugin_params,
         },
     }
-    model_description_file = open(os.path.join(output_path, "index.json"), "w")
-    json.dump(model_description, model_description_file)
-    model_description_file.close()
+    model_description_file_path = storage.join(output_path, "index.json")
+    with storage.open(model_description_file_path, "w") as model_description_file:
+        json.dump(model_description, model_description_file)
 
     return {"status": "success", "job_id": job_id}

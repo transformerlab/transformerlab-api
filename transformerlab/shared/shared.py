@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 import re
-import shutil
 import psutil
 import subprocess
 import sys
@@ -22,6 +21,7 @@ from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import get_global_log_path
 from lab import dirs as lab_dirs, Job, Experiment
+from lab import storage
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import dirs
 
@@ -46,7 +46,7 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
 
     def runInThread(onExit, popenArgs, popenKWArgs):
         if output_file is not None:
-            log = open(output_file, "a")
+            log = storage.open(output_file, "a")
             # get the current date and time as a string:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             print("Printing to file: " + output_file)
@@ -181,17 +181,17 @@ async def read_process_output(process, job_id, log_handle=None):
         print("Worker Process stopped by user")
     else:
         print(f"ERROR: Worker Process ended with exit code {returncode}.")
-    
+
     # Close the log handle if one was passed (from async_run_python_daemon_and_update_status)
     if log_handle:
         try:
             log_handle.close()
         except Exception:
             pass
-    
+
     # Wrap log write in try-except to handle errors gracefully during shutdown
     try:
-        with open(get_global_log_path(), "a") as log:
+        with storage.open(get_global_log_path(), "a") as log:
             log.write(f"Inference Server Terminated with {returncode}.\n")
             log.flush()
     except Exception:
@@ -200,9 +200,9 @@ async def read_process_output(process, job_id, log_handle=None):
     # so we should delete the pid file:
     from lab.dirs import get_temp_dir
 
-    pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
-    if os.path.exists(pid_file):
-        os.remove(pid_file)
+    pid_file = storage.join(get_temp_dir(), f"worker_job_{job_id}.pid")
+    if storage.exists(pid_file):
+        storage.rm(pid_file)
     # Clean up resources after process ends
     clear_vram_and_kill_sglang()
 
@@ -234,7 +234,7 @@ async def async_run_python_daemon_and_update_status(
     # so we'll use a different approach - store the handle and close it later
     log = None
     try:
-        log = open(get_global_log_path(), "a")
+        log = storage.open(get_global_log_path(), "a")
 
         # Check if plugin has a venv directory
         if plugin_location:
@@ -267,8 +267,8 @@ async def async_run_python_daemon_and_update_status(
         pid = process.pid
         from lab.dirs import get_temp_dir
 
-        pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
-        with open(pid_file, "w") as f:
+        pid_file = storage.join(get_temp_dir(), f"worker_job_{job_id}.pid")
+        with storage.open(pid_file, "w") as f:
             f.write(str(pid))
 
         # keep a tail of recent lines so we can show them on failure:
@@ -391,10 +391,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
         print("Running evaluation script")
 
-        evals_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
+        evals_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
-        if not os.path.exists(evals_output_file):
-            with open(evals_output_file, "w") as f:
+        if not storage.exists(evals_output_file):
+            with storage.open(evals_output_file, "w") as f:
                 f.write("")
         await run_evaluation_script(experiment_name, plugin_name, eval_name, job_id)
         # Check if stop button was clicked and update status accordingly
@@ -422,10 +422,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
         print("Running generation script")
 
-        gen_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
+        gen_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
-        if not os.path.exists(gen_output_file):
-            with open(gen_output_file, "w") as f:
+        if not storage.exists(gen_output_file):
+            with storage.open(gen_output_file, "w") as f:
                 f.write("")
 
         await run_generation_script(experiment_name, plugin_name, generation_name, job_id)
@@ -453,10 +453,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
         print("Running export script")
 
-        export_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
+        export_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
-        if not os.path.exists(export_output_file):
-            with open(export_output_file, "w") as f:
+        if not storage.exists(export_output_file):
+            with storage.open(export_output_file, "w") as f:
                 f.write("")
 
         # Run the export script using the existing run_exporter_script function
@@ -525,8 +525,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     import base64
 
                     decoded = base64.b64decode(config[base64_key])
-                    file_path = os.path.join(output_temp_file_dir, f"{file_arg}.png")
-                    with open(file_path, "wb") as f:
+                    file_path = storage.join(output_temp_file_dir, f"{file_arg}.png")
+                    with storage.open(file_path, "wb") as f:
                         f.write(decoded)
 
                     config[file_arg] = file_path
@@ -607,11 +607,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             python_bin = sys.executable
 
         subprocess_command = [python_bin, dirs.PLUGIN_HARNESS] + extra_args
-        output_path = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        output_path = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
+        storage.makedirs(storage.join(output_temp_file_dir), exist_ok=True)
         print(f"[DIFFUSION] Running command: {subprocess_command}")
         try:
-            with open(output_path, "w") as f:
+            with storage.open(output_path, "w") as f:
                 process = await asyncio.create_subprocess_exec(
                     *subprocess_command,
                     stdout=f,
@@ -669,8 +669,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         template_config["job_id"] = job_id
         # Resolve org-aware workspace dir if multitenant via job_data (org_id may be persisted by caller)
         workspace_dir = get_workspace_dir()
-        template_config["adaptor_output_dir"] = os.path.join(workspace_dir, "adaptors", model_name, adaptor_name)
-        template_config["output_dir"] = os.path.join(
+        template_config["adaptor_output_dir"] = storage.join(workspace_dir, "adaptors", model_name, adaptor_name)
+        template_config["output_dir"] = storage.join(
             experiment_dir,
             "tensorboards",
             template_config["template_name"],
@@ -682,9 +682,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if os.path.exists(venv_path) and os.path.isdir(venv_path):
             venv_python = os.path.join(venv_path, "bin", "python")
 
-        tempdir = os.path.join(workspace_dir, "temp")
-        if not os.path.exists(tempdir):
-            os.makedirs(tempdir)
+        tempdir = storage.join(workspace_dir, "temp")
+        if not storage.exists(tempdir):
+            storage.makedirs(tempdir, exist_ok=True)
         # Check if hyperparameter sweep is requested
         run_sweeps = template_config.get("run_sweeps", False)
         # if run_sweeps in ["on", "true", "yes"]:
@@ -717,8 +717,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             print(f"Sweep configuration: {json.dumps(sweep_config, indent=2)}")
 
             # Create sweep directory to store results
-            sweep_dir = os.path.join(template_config["output_dir"], f"sweep_{job_id}")
-            os.makedirs(sweep_dir, exist_ok=True)
+            sweep_dir = storage.join(template_config["output_dir"], f"sweep_{job_id}")
+            storage.makedirs(sweep_dir, exist_ok=True)
 
             # Generate all configurations
             from itertools import product
@@ -755,14 +755,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 print(f"Parameters: {json.dumps(config_params, indent=2)}")
 
                 # Create a unique run directory
-                run_dir = os.path.join(sweep_dir, f"run_{i + 1}")
-                os.makedirs(run_dir, exist_ok=True)
+                run_dir = storage.join(sweep_dir, f"run_{i + 1}")
+                storage.makedirs(run_dir, exist_ok=True)
 
                 # Create a unique adaptor directory for this run
-                run_adaptor_dir = os.path.join(
+                run_adaptor_dir = storage.join(
                     workspace_dir, "adaptors", secure_filename(model_name), f"{adaptor_name}_sweep_{i + 1}"
                 )
-                os.makedirs(run_adaptor_dir, exist_ok=True)
+                storage.makedirs(run_adaptor_dir, exist_ok=True)
 
                 # Create a copy of the template config for this run
                 run_config = template_config.copy()
@@ -776,9 +776,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 run_config["adaptor_output_dir"] = run_adaptor_dir
 
                 # Create input file for this run
-                run_input_file = os.path.join(tempdir, f"plugin_input_{job_id}_run_{i + 1}.json")
+                run_input_file = storage.join(tempdir, f"plugin_input_{job_id}_run_{i + 1}.json")
                 run_input_contents = {"experiment": experiment_details, "config": run_config}
-                with open(run_input_file, "w") as outfile:
+                with storage.open(run_input_file, "w") as outfile:
                     json.dump(run_input_contents, outfile, indent=4)
 
                 # Update job progress
@@ -789,9 +789,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 )
 
                 # Run the training job with this configuration
-                run_output_file = os.path.join(sweep_dir, f"output_sweep_{job_id}.txt")
+                run_output_file = storage.join(sweep_dir, f"output_sweep_{job_id}.txt")
                 job_service.job_update_job_data_insert_key_value(
-                    job_id, "sweep_output_file", os.path.join(sweep_dir, f"output_sweep_{job_id}.txt"), experiment_name
+                    job_id, "sweep_output_file", storage.join(sweep_dir, f"output_sweep_{job_id}.txt"), experiment_name
                 )
 
                 # Create command for this run
@@ -824,7 +824,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Replace synchronous subprocess.run with asyncio
                 async def run_process_async(cmd, output_file):
                     # Open file for writing
-                    with open(output_file, "a") as f:
+                    with storage.open(output_file, "a") as f:
                         # Create subprocess with piped stdout
                         process = await asyncio.create_subprocess_exec(
                             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
@@ -849,16 +849,16 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 await run_process_async(run_command, run_output_file)
 
                 # Delete the output adaptor directory if it exists
-                if os.path.exists(run_adaptor_dir) and os.path.isdir(run_adaptor_dir):
+                if storage.exists(run_adaptor_dir) and storage.isdir(run_adaptor_dir):
                     print(f"Deleting adaptor directory: {run_adaptor_dir}")
-                    shutil.rmtree(run_adaptor_dir, ignore_errors=True)
+                    storage.rm_tree(run_adaptor_dir)
 
                 # Check job data for training metrics
                 try:
                     # Get latest metrics from job_data (assuming plugin saved metrics there)
-                    metrics_path = os.path.join(run_dir, "metrics.json")
-                    if os.path.exists(metrics_path):
-                        with open(metrics_path, "r") as f:
+                    metrics_path = storage.join(run_dir, "metrics.json")
+                    if storage.exists(metrics_path):
+                        with storage.open(metrics_path, "r") as f:
                             run_metrics = json.load(f)
                     else:
                         # Fallback to a default metric value if no metrics found
@@ -908,8 +908,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 "lower_is_better": lower_is_better,
             }
 
-            sweep_results_file = os.path.join(sweep_dir, "sweep_results.json")
-            with open(sweep_results_file, "w") as f:
+            sweep_results_file = storage.join(sweep_dir, "sweep_results.json")
+            with storage.open(sweep_results_file, "w") as f:
                 json.dump(sweep_results, f, indent=2)
 
             job_service.job_update_job_data_insert_key_value(
@@ -934,9 +934,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     final_config[param_name] = param_value
 
                 # Create input file for final run
-                final_input_file = os.path.join(tempdir, f"plugin_input_{job_id}_final.json")
+                final_input_file = storage.join(tempdir, f"plugin_input_{job_id}_final.json")
                 final_input_contents = {"experiment": experiment_details, "config": final_config}
-                with open(final_input_file, "w") as outfile:
+                with storage.open(final_input_file, "w") as outfile:
                     json.dump(final_input_contents, outfile, indent=4)
 
                 # Create command for final training
@@ -972,10 +972,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         else:
             # Create a file in the temp directory to store the inputs:
-            tempdir = os.path.join(workspace_dir, "temp")
-            if not os.path.exists(tempdir):
-                os.makedirs(tempdir)
-            input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
+            tempdir = storage.join(workspace_dir, "temp")
+            if not storage.exists(tempdir):
+                storage.makedirs(tempdir, exist_ok=True)
+            input_file = storage.join(tempdir, f"plugin_input_{job_id}.json")
             # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
             # and should be done in the API itself
             if "config" in experiment_details:
@@ -989,7 +989,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                         experiment_details["config"]["inferenceParams"]
                     )
             input_contents = {"experiment": experiment_details, "config": template_config}
-            with open(input_file, "w") as outfile:
+            with storage.open(input_file, "w") as outfile:
                 json.dump(input_contents, outfile, indent=4)
 
             start_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1031,17 +1031,17 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     elif job_type == "pretraining":
         template_config = job_config["config"]
         template_config["job_id"] = job_id
-        template_config["output_dir"] = os.path.join(
+        template_config["output_dir"] = storage.join(
             experiment_dir,
             "tensorboards",
             template_config["template_name"],
         )
 
         # Create a file in the temp directory to store the inputs:
-        tempdir = os.path.join(workspace_dir, "temp")
-        if not os.path.exists(tempdir):
-            os.makedirs(tempdir)
-        input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
+        tempdir = storage.join(workspace_dir, "temp")
+        if not storage.exists(tempdir):
+            storage.makedirs(tempdir, exist_ok=True)
+        input_file = storage.join(tempdir, f"plugin_input_{job_id}.json")
         # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
         # and should be done in the API itself
         if "config" in experiment_details:
@@ -1051,7 +1051,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     experiment_details["config"]["inferenceParams"]
                 )
         input_contents = {"experiment": experiment_details, "config": template_config}
-        with open(input_file, "w") as outfile:
+        with storage.open(input_file, "w") as outfile:
             json.dump(input_contents, outfile, indent=4)
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1091,21 +1091,21 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     elif job_type == "embedding":
         template_config = job_config["config"]
         template_config["job_id"] = job_id
-        template_config["output_dir"] = os.path.join(
+        template_config["output_dir"] = storage.join(
             experiment_dir,
             "tensorboards",
             template_config["template_name"],
         )
 
-        if not os.path.exists(output_file):
-            with open(output_file, "w") as f:
+        if not storage.exists(output_file):
+            with storage.open(output_file, "w") as f:
                 f.write("")
 
         # Create a file in the temp directory to store the inputs:
-        tempdir = os.path.join(get_workspace_dir(), "temp")
-        if not os.path.exists(tempdir):
-            os.makedirs(tempdir)
-        input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
+        tempdir = storage.join(get_workspace_dir(), "temp")
+        if not storage.exists(tempdir):
+            storage.makedirs(tempdir, exist_ok=True)
+        input_file = storage.join(tempdir, f"plugin_input_{job_id}.json")
         # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
         # and should be done in the API itself
         if "config" in experiment_details:
@@ -1115,7 +1115,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     experiment_details["config"]["inferenceParams"]
                 )
         input_contents = {"experiment": experiment_details, "config": template_config}
-        with open(input_file, "w") as outfile:
+        with storage.open(input_file, "w") as outfile:
             json.dump(input_contents, outfile, indent=4)
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")

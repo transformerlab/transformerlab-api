@@ -5,6 +5,8 @@ from huggingface_hub import get_token, HfApi
 from datasets import load_from_disk
 from transformerlab.sdk.v1.generate import tlab_gen
 from transformerlab.plugin import get_python_executable
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 
 def generate_config():
@@ -18,12 +20,12 @@ def generate_config():
     print("Model loaded successfully")
     tlab_gen.progress_update(30)
 
-    from transformerlab.plugin import WORKSPACE_DIR
+    workspace_dir = get_workspace_dir()
 
-    tlab_gen.params.documents_dir = os.path.join(
-        WORKSPACE_DIR, "experiments", tlab_gen.params.experiment_name, "documents", docs
+    tlab_gen.params.documents_dir = storage.join(
+        workspace_dir, "experiments", tlab_gen.params.experiment_name, "documents", docs
     )
-    if not os.path.isdir(tlab_gen.params.documents_dir):
+    if not storage.isdir(tlab_gen.params.documents_dir):
         raise FileNotFoundError("Please provide a directory containing all your files instead of individual files")
 
     base_url = getattr(trlab_model, "base_url", None)
@@ -107,7 +109,7 @@ def get_huggingface_username(token):
 def save_generated_datasets(output_dir):
     dataset_types = ["chunked", "lighteval", "ingested", "multi_hop_questions", "single_shot_questions", "summarized"]
     for data_split in dataset_types:
-        dataset = load_from_disk(os.path.join(output_dir, data_split))
+        dataset = load_from_disk(storage.join(output_dir, data_split))
         df = dataset[data_split].to_pandas()
         # Save the generated data and upload to TransformerLab
         additional_metadata = {"source_docs": tlab_gen.params.documents_dir}
@@ -123,10 +125,10 @@ def run_yourbench():
     # Get output directory for the config file
     output_dir = tlab_gen.get_output_file_path(dir_only=True)
     tlab_gen.params.local_dataset_dir = output_dir
-    tlab_gen.params.output_dir = os.path.join(output_dir, "temp")
-    if not os.path.exists(tlab_gen.params.output_dir):
-        os.makedirs(tlab_gen.params.output_dir)
-    config_path = os.path.join(output_dir, f"yourbench_config_{tlab_gen.params.job_id}.yaml")
+    tlab_gen.params.output_dir = storage.join(output_dir, "temp")
+    if not storage.exists(tlab_gen.params.output_dir):
+        storage.makedirs(tlab_gen.params.output_dir)
+    config_path = storage.join(output_dir, f"yourbench_config_{tlab_gen.params.job_id}.yaml")
 
     # Generate the configuration
     tlab_gen.progress_update(10)
@@ -135,7 +137,7 @@ def run_yourbench():
     tlab_gen.progress_update(20)
 
     # Write the configuration to a file
-    with open(config_path, "w") as config_file:
+    with storage.open(config_path, "w") as config_file:
         yaml.dump(config, config_file, default_flow_style=False)
 
     print(f"Configuration written to {config_path}")
@@ -144,9 +146,8 @@ def run_yourbench():
     tlab_gen.progress_update(30)
 
     # Get the yourbench directory path
-    from transformerlab.plugin import WORKSPACE_DIR
-
-    current_dir = os.path.join(WORKSPACE_DIR, "plugins", "yourbench_data_gen")
+    workspace_dir = get_workspace_dir()
+    current_dir = storage.join(workspace_dir, "plugins", "yourbench_data_gen")
 
     # Run yourbench with the configuration
     try:

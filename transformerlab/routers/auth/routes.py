@@ -7,7 +7,6 @@ from fastapi.responses import RedirectResponse
 
 from transformerlab.schemas.auth import UserResponse
 from transformerlab.services.auth import AuthenticatedIdentity, auth_service
-from transformerlab.shared.s3_mount import setup_user_s3_mount
 
 from .api_key_auth import get_user_or_api_key
 
@@ -39,22 +38,6 @@ async def get_current_user_info(
     identity: AuthenticatedIdentity = Depends(get_user_or_api_key),
 ):
     payload = auth_service.get_user_info(identity)
-
-    # Setup S3 mount if user is authenticated and multitenant mode is enabled
-    # This ensures the mount is restored even if the user is already logged in
-    try:
-        if payload.get("authenticated") and payload.get("source") == "session":
-            user_id = payload.get("id")
-            organization_id = payload.get("organization_id")
-
-            if user_id:
-                success = setup_user_s3_mount(str(user_id), organization_id)
-                if not success:
-                    print("S3 mount setup failed via auth/me")
-    except Exception as exc:
-        # Don't let S3 mount errors break the auth/me endpoint
-        print(f"Error setting up S3 mount for user: {exc}")
-
     return UserResponse(**payload)
 
 
