@@ -229,9 +229,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                     return ["Output file not found after retry"]
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
-                print(
-                    f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
-                )
+                print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
                 output_file_name = job_obj.get_log_path()
@@ -320,9 +318,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 output_file_name = await shared.get_job_output_file_name(job_id)
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
-                print(
-                    f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
-                )
+                print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
                 output_file_name = job_obj.get_log_path()
@@ -454,23 +450,23 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
-    
+
     # Check if the job has eval_results
     if "eval_results" not in job_data or not job_data["eval_results"]:
         return Response("No evaluation results found for this job", media_type="text/csv")
-    
+
     eval_results_list = job_data["eval_results"]
     if not isinstance(eval_results_list, list) or len(eval_results_list) == 0:
         return Response("No evaluation results found for this job", media_type="text/csv")
-    
+
     # Get the file path (use file_index to select which file if multiple)
     if file_index >= len(eval_results_list):
         file_index = 0
     file_path = eval_results_list[file_index]
-    
+
     if not os.path.exists(file_path):
         return Response("Evaluation results file not found", media_type="text/csv")
-    
+
     # Determine file format
     if file_path.endswith(".csv"):
         file_format = "text/csv"
@@ -481,10 +477,10 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
     else:
         file_format = "text/plain"
         filename = f"eval_results_{job_id}.txt"
-    
+
     if task == "download":
         return FileResponse(file_path, filename=filename, media_type=file_format)
-    
+
     # For view, convert CSV to JSON format
     if file_path.endswith(".csv"):
         with open(file_path, "r") as csvfile:
@@ -623,12 +619,15 @@ async def get_eval_image(job_id: str, filename: str):
     # Ensure the file exists
     if not storage.exists(file_path):
         return Response("Image not found", status_code=404)
-    
+
     # For security, verify the file path is within the images directory
     # Normalize paths for comparison
     images_dir_normalized = images_dir.rstrip("/")
     file_path_normalized = file_path.rstrip("/")
-    if not file_path_normalized.startswith(images_dir_normalized + "/") and file_path_normalized != images_dir_normalized:
+    if (
+        not file_path_normalized.startswith(images_dir_normalized + "/")
+        and file_path_normalized != images_dir_normalized
+    ):
         return Response("Image not found", status_code=404)
 
     # Determine media type based on file extension
@@ -670,7 +669,6 @@ async def get_checkpoints(job_id: str, request: Request):
         # Get checkpoints using the SDK method
         sdk_job = Job(job_id)
         checkpoint_paths = sdk_job.get_checkpoint_paths()
-
 
         if checkpoint_paths and len(checkpoint_paths) > 0:
             checkpoints = []
@@ -760,6 +758,7 @@ async def get_checkpoints(job_id: str, request: Request):
     checkpoints_dir = job_data.get("checkpoints_dir")
     if not checkpoints_dir:
         from lab.dirs import get_job_checkpoints_dir
+
         checkpoints_dir = get_job_checkpoints_dir(job_id)
     if not checkpoints_dir or not storage.exists(checkpoints_dir):
         return {"checkpoints": []}
@@ -770,7 +769,7 @@ async def get_checkpoints(job_id: str, request: Request):
             for item in items:
                 file_path = item if isinstance(item, str) else str(item)
                 filename = file_path.split("/")[-1] if "/" in file_path else file_path
-                
+
                 if fnmatch(filename, "*_adapters.safetensors"):
                     # Try to get file info
                     try:
@@ -818,7 +817,7 @@ async def get_checkpoints(job_id: str, request: Request):
         for item in items:
             file_path = item if isinstance(item, str) else str(item)
             filename = file_path.split("/")[-1] if "/" in file_path else file_path
-            
+
             if fnmatch(filename, checkpoints_file_filter):
                 try:
                     # Try to get file info from storage
@@ -930,7 +929,7 @@ async def get_artifacts(job_id: str, request: Request):
                         except (OSError, AttributeError):
                             formatted_time = None
                             filesize = None
-                    
+
                     filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
                     artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
                 except Exception as e:

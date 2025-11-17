@@ -679,9 +679,7 @@ async def get_image_info_by_id(image_id: str, experimentId: str, http_request: R
     if storage.isdir(image_item.image_path):
         # Count PNG files in the directory
         entries = storage.ls(image_item.image_path, detail=False)
-        png_files = [
-            f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()
-        ]
+        png_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
         num_images = len(png_files)
 
     # Update the metadata to include actual number of images
@@ -718,9 +716,7 @@ async def get_image_count(image_id: str, experimentId: str, http_request: Reques
     if storage.isdir(image_item.image_path):
         # Count PNG files in the directory
         entries = storage.ls(image_item.image_path, detail=False)
-        png_files = [
-            f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()
-        ]
+        png_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
         num_images = len(png_files)
 
     return JSONResponse(content={"id": image_id, "num_images": num_images})
@@ -960,9 +956,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
         if storage.isdir(image_item.image_path):
             # Count images in folder
             entries = storage.ls(image_item.image_path, detail=False)
-            image_files = [
-                f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()
-            ]
+            image_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
             total_image_count += len(image_files)
         else:
             # Single image

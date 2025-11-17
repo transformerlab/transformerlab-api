@@ -894,7 +894,9 @@ async def diffusion_generate_job():
 
                         # Save preprocessed image
                         preprocessed_image_filename = f"preprocessed_{uuid_suffix}.png"
-                        preprocessed_image_path = os.path.join(get_images_dir(experiment_name), preprocessed_image_filename)
+                        preprocessed_image_path = os.path.join(
+                            get_images_dir(experiment_name), preprocessed_image_filename
+                        )
                         input_image_obj.save(preprocessed_image_path, format="PNG")
                         print(f"Preprocessed image saved: {preprocessed_image_path}")
                     except Exception as e:

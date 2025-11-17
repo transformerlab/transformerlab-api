@@ -181,14 +181,14 @@ async def read_process_output(process, job_id, log_handle=None):
         print("Worker Process stopped by user")
     else:
         print(f"ERROR: Worker Process ended with exit code {returncode}.")
-    
+
     # Close the log handle if one was passed (from async_run_python_daemon_and_update_status)
     if log_handle:
         try:
             log_handle.close()
         except Exception:
             pass
-    
+
     # Wrap log write in try-except to handle errors gracefully during shutdown
     try:
         with storage.open(get_global_log_path(), "a") as log:

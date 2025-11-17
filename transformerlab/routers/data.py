@@ -908,7 +908,7 @@ async def dataset_delete(dataset_id: str):
 async def create_upload_file(dataset_id: str, files: list[UploadFile]):
     dataset_id = slugify(dataset_id)
     uploaded_filenames = []
-    
+
     for file in files:
         print("uploading filename is: " + str(file.filename))
 

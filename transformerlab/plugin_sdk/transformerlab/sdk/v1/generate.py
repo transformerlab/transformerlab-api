@@ -169,6 +169,7 @@ class GenTLabPlugin(TLabPlugin):
         self._ensure_args_parsed()
 
         from lab.dirs import get_workspace_dir
+
         workspace_dir = get_workspace_dir()
 
         experiment_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name)

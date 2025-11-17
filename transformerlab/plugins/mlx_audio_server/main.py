@@ -76,7 +76,6 @@ class MLXAudioWorker(BaseModelWorker):
 
         task = params.get("task")
         if task == "tts":
-
             text = params.get("text", "")
             model = params.get("model", None)
             speed = params.get("speed", 1.0)
@@ -89,7 +88,7 @@ class MLXAudioWorker(BaseModelWorker):
             voice = params.get("voice", None)
             lang_code = params.get("lang_code", None)
             stream = params.get("stream", False)
-            
+
             experiment_dir = get_experiments_dir()
             audio_dir_name = secure_filename(params.get("audio_dir", "audio"))
             audio_dir = storage.join(experiment_dir, audio_dir_name)
@@ -192,14 +191,13 @@ class MLXAudioWorker(BaseModelWorker):
                     "status": "error",
                     "message": f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}",
                 }
-      
+
         else:
             logger.error(f"Unknown task type: {task}")
             return {
                 "status": "error",
                 "message": f"Unknown task type: {task}",
             }
-
 
 
 def release_worker_semaphore():

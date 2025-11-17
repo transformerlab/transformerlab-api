@@ -106,6 +106,7 @@ class AudioGenerationRequest(BaseModel):
     voice: Optional[str] = None
     audio_path: Optional[str] = None
 
+
 class AudioTranscriptionsRequest(BaseModel):
     experiment_id: str
     model: str
@@ -250,7 +251,7 @@ def log_prompt(prompt):
         try:
             with storage.open(prompt_log_path, "r") as f:
                 lines = f.readlines()
-            file_size = sum(len(line.encode('utf-8')) for line in lines)
+            file_size = sum(len(line.encode("utf-8")) for line in lines)
             if file_size > MAX_LOG_SIZE_BEFORE_ROTATE:
                 with storage.open(prompt_log_path, "w") as f:
                     f.writelines(lines[-1000:])
@@ -564,7 +565,6 @@ async def create_audio_tts(request: AudioGenerationRequest):
     }
     gen_params["task"] = "tts"
 
-
     # Add voice parameter if provided
     if request.voice:
         gen_params["voice"] = request.voice
@@ -596,6 +596,7 @@ async def upload_audio_reference(experimentId: str, audio: UploadFile = File(...
 
     return JSONResponse({"audioPath": file_path})
 
+
 @router.post("/v1/audio/transcriptions", tags=["audio"])
 async def create_text_stt(request: AudioTranscriptionsRequest):
     error_check_ret = await check_model(request)
@@ -614,7 +615,7 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
         "model": request.model,
         "audio_path": request.audio_path,
         "output_path": transcription_dir,
-        #"format": request.format,
+        # "format": request.format,
     }
     gen_params["task"] = "stt"
     try:
@@ -622,7 +623,6 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
         return content
     except Exception as e:
         return create_error_response(ErrorCode.INTERNAL_ERROR, str(e))
-
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])

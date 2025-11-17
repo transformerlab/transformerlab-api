@@ -418,11 +418,7 @@ async def get_task_file_content(task_dir: str, file_path: str):
     """
     try:
         # Validate file_path to prevent path traversal
-        if (
-            not file_path
-            or ".." in file_path
-            or "\x00" in file_path
-        ):
+        if not file_path or ".." in file_path or "\x00" in file_path:
             return {"status": "error", "message": "Invalid file path"}
 
         # Restrict task_dir to a simple, safe name

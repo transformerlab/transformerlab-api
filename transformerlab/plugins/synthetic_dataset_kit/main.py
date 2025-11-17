@@ -187,7 +187,8 @@ def run_generation():
         },
         "output": {
             "parsed": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output") + "/",
-            "generated": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated") + "/",
+            "generated": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated")
+            + "/",
             "cleaned": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "cleaned") + "/",
             "final": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "final") + "/",
         },
@@ -238,10 +239,36 @@ def run_generation():
     for i, path in enumerate(full_paths):
         # Construct output filenames based on document basename and generation type
         base = Path(path).stem
-        output_txt = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output", f"{base}.txt")
-        gen_json = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated", f"{base}_{generation_type}_pairs.json")
-        clean_json = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "cleaned", f"{base}_{generation_type}_pairs_cleaned.json")
-        final_jsonl = storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "final", f"{base}_{generation_type}_pairs_cleaned.jsonl")
+        output_txt = storage.join(
+            workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output", f"{base}.txt"
+        )
+        gen_json = storage.join(
+            workspace,
+            "plugins",
+            "synthetic_dataset_kit",
+            "data",
+            sub_folder,
+            "generated",
+            f"{base}_{generation_type}_pairs.json",
+        )
+        clean_json = storage.join(
+            workspace,
+            "plugins",
+            "synthetic_dataset_kit",
+            "data",
+            sub_folder,
+            "cleaned",
+            f"{base}_{generation_type}_pairs_cleaned.json",
+        )
+        final_jsonl = storage.join(
+            workspace,
+            "plugins",
+            "synthetic_dataset_kit",
+            "data",
+            sub_folder,
+            "final",
+            f"{base}_{generation_type}_pairs_cleaned.jsonl",
+        )
 
         try:
             # 1. Ingest: convert input file to plain text

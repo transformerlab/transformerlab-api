@@ -190,7 +190,7 @@ class OllamaModel(basemodel.BaseModel):
         # For now, we'll create the symlink using os.symlink since it's a local filesystem operation
         # If the storage backend is remote, this will need special handling
         try:
-            local_link_path = link_name if not link_name.startswith(('s3://', 'gs://', 'http://', 'https://')) else None
+            local_link_path = link_name if not link_name.startswith(("s3://", "gs://", "http://", "https://")) else None
             if local_link_path:
                 os.symlink(input_model_path, local_link_path)
         except Exception as e:

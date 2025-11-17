@@ -569,7 +569,7 @@ async def download_huggingface_model(
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         # Log the detailed error message
-        print(error_msg)  
+        print(error_msg)
         await job_update_status(
             job_id, "FAILED", experiment_id=experiment_id, error_msg="An internal error has occurred."
         )
@@ -1158,7 +1158,10 @@ async def model_import_local_path(model_path: str):
     abs_workspace_dir = os.path.abspath(os.path.normpath(workspace_dir))
     abs_model_path = os.path.abspath(os.path.normpath(model_path))
     if not abs_model_path.startswith(abs_workspace_dir + os.sep):
-        return {"status": "error", "message": f"Path traversal or invalid path detected: {model_path}. Only paths inside {workspace_dir} are allowed."}
+        return {
+            "status": "error",
+            "message": f"Path traversal or invalid path detected: {model_path}. Only paths inside {workspace_dir} are allowed.",
+        }
 
     if os.path.isdir(abs_model_path):
         model = filesystemmodel.FilesystemModel(abs_model_path)

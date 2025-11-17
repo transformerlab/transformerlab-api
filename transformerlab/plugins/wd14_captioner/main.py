@@ -19,7 +19,15 @@ def run_generation():
     workspace = get_workspace_dir()
 
     REPO_ROOT = storage.join(workspace, "plugins", "wd14_captioner", "sd-caption-wd14", "sd-scripts")
-    SCRIPT_PATH = storage.join(workspace, "plugins", "wd14_captioner", "sd-caption-wd14", "sd-scripts", "finetune", "tag_images_by_wd14_tagger.py")
+    SCRIPT_PATH = storage.join(
+        workspace,
+        "plugins",
+        "wd14_captioner",
+        "sd-caption-wd14",
+        "sd-scripts",
+        "finetune",
+        "tag_images_by_wd14_tagger.py",
+    )
     TMP_DATASET_DIR = Path(storage.join(workspace, "plugins", "wd14_captioner", "tmp_dataset"))
 
     repo_id = tlab_gen.params.generation_model
@@ -33,7 +41,7 @@ def run_generation():
             "sd-caption-wd14",
             "sd-scripts",
             "wd14_tagger_model",
-            repo_id.replace("/", "_")
+            repo_id.replace("/", "_"),
         )
     )
 

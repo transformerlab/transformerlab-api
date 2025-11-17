@@ -167,7 +167,6 @@ async def run_exporter_script(
                 }
 
     except Exception as e:
-
         print(f"Failed to export model. Exception: {e}")
         job = job_get(job_id)
         experiment_id = job["experiment_id"]

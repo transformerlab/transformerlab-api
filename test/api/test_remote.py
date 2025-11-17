@@ -31,27 +31,28 @@ def mock_experiment_id(client):
     import time
     import uuid
     from transformerlab.services import experiment_service
-    
+
     # Use a unique name to avoid conflicts - add UUID for better uniqueness
     unique_name = f"test_exp_remote_{os.getpid()}_{int(time.time())}_{uuid.uuid4().hex[:8]}"
-    
+
     # Check if experiment already exists and delete it if it does
     existing = experiment_service.experiment_get(unique_name)
     if existing:
         experiment_service.experiment_delete(unique_name)
-    
+
     # Create the experiment
     exp_id = experiment_service.experiment_create(unique_name, {})
-    
+
     yield exp_id
-    
+
     # Cleanup: delete all jobs in the experiment, then delete the experiment
     try:
         from transformerlab.services import job_service
+
         job_service.job_delete_all(exp_id)
     except Exception:
         pass
-    
+
     try:
         experiment_service.experiment_delete(exp_id)
     except Exception:
@@ -63,11 +64,12 @@ def mock_experiment_id(client):
 def job_cleanup():
     """Fixture to track and cleanup jobs created during tests"""
     created_jobs = []  # List of (job_id, experiment_id) tuples
-    
+
     yield created_jobs
-    
+
     # Cleanup: delete all tracked jobs
     from transformerlab.services import job_service
+
     for job_id, experiment_id in created_jobs:
         try:
             job_service.job_delete(job_id, experiment_id)
@@ -82,7 +84,7 @@ class TestValidateGPUOrchestratorEnvVars:
     def test_validate_env_vars_with_both_set(self, gpu_orchestration_env_vars):
         """Test validation when both env vars are set"""
         from transformerlab.routers.remote import validate_gpu_orchestrator_env_vars
-        
+
         url, port = validate_gpu_orchestrator_env_vars()
         assert url == "http://test-orchestrator.example.com"
         assert port == "8080"
@@ -91,9 +93,9 @@ class TestValidateGPUOrchestratorEnvVars:
         """Test validation when GPU_ORCHESTRATION_SERVER is missing"""
         monkeypatch.delenv("GPU_ORCHESTRATION_SERVER", raising=False)
         monkeypatch.setenv("GPU_ORCHESTRATION_SERVER_PORT", "8080")
-        
+
         from transformerlab.routers.remote import validate_gpu_orchestrator_env_vars
-        
+
         result = validate_gpu_orchestrator_env_vars()
         url, error_response = result
         assert url is None
@@ -105,9 +107,9 @@ class TestValidateGPUOrchestratorEnvVars:
         """Test validation when GPU_ORCHESTRATION_SERVER_PORT is missing"""
         monkeypatch.setenv("GPU_ORCHESTRATION_SERVER", "http://test-orchestrator.example.com")
         monkeypatch.delenv("GPU_ORCHESTRATION_SERVER_PORT", raising=False)
-        
+
         from transformerlab.routers.remote import validate_gpu_orchestrator_env_vars
-        
+
         result = validate_gpu_orchestrator_env_vars()
         url, error_response = result
         # When port is missing, the function returns None as the URL
@@ -117,11 +119,8 @@ class TestValidateGPUOrchestratorEnvVars:
         assert "GPU_ORCHESTRATION_SERVER_PORT" in error_response["message"]
 
 
-
-
 class TestStopRemote:
     """Test the /remote/stop endpoint"""
-
 
     def test_stop_remote_missing_env_vars(self, client, no_gpu_orchestration_env):
         """Test stopping when GPU orchestration env vars are not set"""
@@ -157,7 +156,7 @@ class TestUploadDirectory:
             "status": "uploaded",
             "upload_path": "/remote/path",
         }
-        
+
         mock_httpx_client = AsyncMock()
         mock_httpx_client.post = AsyncMock(return_value=mock_response)
         mock_httpx_client.__aenter__.return_value = mock_httpx_client
@@ -177,7 +176,7 @@ class TestUploadDirectory:
     def test_upload_directory_missing_env_vars(self, client, no_gpu_orchestration_env):
         """Test uploading when GPU orchestration env vars are not set"""
         files = [("dir_files", ("test.txt", BytesIO(b"content"), "text/plain"))]
-        
+
         response = client.post(
             "/remote/upload",
             files=files,
@@ -208,12 +207,12 @@ class TestGetOrchestratorLogs:
     def test_get_logs_success(self, mock_client_class, client, gpu_orchestration_env_vars):
         """Test getting logs successfully"""
         request_id = "test-request-123"
-        
+
         # Mock streaming response
         mock_stream_response = MagicMock()
         mock_stream_response.status_code = 200
         mock_stream_response.aiter_bytes = AsyncMock(return_value=iter([b"log line 1\n", b"log line 2\n"]))
-        
+
         mock_httpx_client = AsyncMock()
         mock_httpx_client.stream = AsyncMock(return_value=mock_stream_response)
         mock_httpx_client.__aenter__.return_value = mock_httpx_client
@@ -229,4 +228,3 @@ class TestGetOrchestratorLogs:
         response = client.get("/remote/logs/test-request-123")
         # The endpoint should return an error response
         assert response.status_code in [200, 500]  # May return error as JSON or raise exception
-
