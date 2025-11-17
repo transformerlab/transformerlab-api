@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from transformerlab.shared.models.user_model import User, Team, UserTeam, get_async_session
+from transformerlab.shared.models.user_model import User, Team, UserTeam, get_async_session, create_default_team
 from transformerlab.models.users import (
     fastapi_users,
     auth_backend,
@@ -92,7 +92,24 @@ async def refresh_access_token(
 
 @router.get("/users/me/teams")
 async def get_user_teams(user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)):
-    stmt = select(Team).join(UserTeam).where(UserTeam.user_id == str(user.id))
+    # Check if user has any team associations
+    stmt = select(UserTeam).where(UserTeam.user_id == str(user.id))
+    result = await session.execute(stmt)
+    user_teams = result.scalars().all()
+
+    # If user has no team associations, assign them to default team
+    if not user_teams:
+        default_team = await create_default_team(session)
+        user_team = UserTeam(user_id=str(user.id), team_id=default_team.id)
+        session.add(user_team)
+        await session.commit()
+        await session.refresh(user_team)
+        return {"user_id": str(user.id), "teams": [{"id": default_team.id, "name": default_team.name}]}
+
+    # User has team associations, get the actual team objects
+    team_ids = [ut.team_id for ut in user_teams]
+    stmt = select(Team).where(Team.id.in_(team_ids))
     result = await session.execute(stmt)
     teams = result.scalars().all()
+
     return {"user_id": str(user.id), "teams": [{"id": team.id, "name": team.name} for team in teams]}
