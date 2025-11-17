@@ -4,11 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import sessionmaker
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import Column, String, ForeignKey
+from sqlalchemy import Column, String, ForeignKey, select
 import uuid
 
 # Replace with your actual database URL (e.g., PostgreSQL, SQLite)
-from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
+from transformerlab.db.constants import DATABASE_URL
 
 Base: DeclarativeMeta = declarative_base()
 

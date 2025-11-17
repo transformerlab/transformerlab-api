@@ -84,7 +84,7 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from dotenv import load_dotenv
 
 
-from transformerlab.shared.models.user_model import create_db_and_tables, User
+from transformerlab.shared.models.user_model import create_db_and_tables
 
 load_dotenv()
 
