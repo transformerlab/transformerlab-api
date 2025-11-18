@@ -313,7 +313,6 @@ async def async_run_python_daemon_and_update_status(
                 job = job_service.job_get(job_id)
                 experiment_id = job["experiment_id"]
 
-                # mark RUNNING (do not mark COMPLETE here) — readiness means the daemon is up
                 await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
 
                 # Schedule the read_process_output coroutine in the current event
