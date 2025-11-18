@@ -1,5 +1,5 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, ForeignKey
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import uuid
 import enum
@@ -105,6 +105,6 @@ class UserTeam(Base):
 
     __tablename__ = "users_teams"
 
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("user.id"), primary_key=True)
-    team_id: Mapped[str] = mapped_column(String, ForeignKey("teams.id"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    team_id: Mapped[str] = mapped_column(String, primary_key=True)
     role: Mapped[str] = mapped_column(String, nullable=False, default=TeamRole.MEMBER.value)
