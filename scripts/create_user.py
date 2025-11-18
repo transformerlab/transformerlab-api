@@ -35,7 +35,7 @@ def create_user(email: str, password: str, base_url: str = "http://127.0.0.1:833
         response = requests.post(url, json=payload, headers=headers)
 
         if response.status_code == 201 or response.status_code == 200:
-            print(f"✓ User created successfully!")
+            print("✓ User created successfully!")
             print(f"Response: {json.dumps(response.json(), indent=2)}")
             return True
         else:
