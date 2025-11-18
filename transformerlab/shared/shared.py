@@ -303,7 +303,9 @@ async def async_run_python_daemon_and_update_status(
                 print(f"Worker job {job_id} started successfully")
                 job = job_service.job_get(job_id)
                 experiment_id = job["experiment_id"]
-                await job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
+
+                # mark RUNNING (do not mark COMPLETE here) — readiness means the daemon is up
+                await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
 
                 # Schedule the read_process_output coroutine in the current event
                 # so we can keep watching this process, but return back to the caller

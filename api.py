@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import logging
 import traceback
+import time
 
 import json
 import signal
@@ -423,6 +424,26 @@ async def server_worker_start(
 
     with storage.open(get_global_log_path(), "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
+
+    try:
+        job = job_get(job_id)
+        experiment_id = job.get("experiment_id")
+        await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+    except Exception:
+        # best effort only
+        pass
+    try:
+        from lab import Job  # noqa: used for manipulating job_data directly
+
+        j = Job.get(job_id)
+        jd = j.get_job_data() or {}
+        tail = jd.get("tail", [])
+        tail.append(f"{time.strftime('%Y-%m-%d %H:%M:%S')} | INFO | launcher | Process started, waiting for readiness")
+        jd["tail"] = tail
+        j.set_job_data(jd)
+    except Exception:
+        pass
+
     return {"status": "success", "job_id": job_id}
 
 
@@ -484,19 +505,6 @@ async def server_worker_health(request: Request):
         result.append({"id": model_data.id})
 
     return result
-
-
-@app.get("/server/job_logs", tags=["serverinfo"])
-async def server_job_logs(job_id: str):
-    try:
-        job = job_get(job_id)
-        print(job)
-        job_data = job.get("job_data", {})
-        tail = job_data.get("tail", [])
-        return {"status": "success", "job_id": job_id, "logs": tail}
-    except Exception:
-        logging.error("Exception in /server/job_logs: %s", traceback.format_exc())
-        return {"status": "error", "message": "An internal server error occurred. Please try again later."}
 
 
 @app.get("/healthz")
