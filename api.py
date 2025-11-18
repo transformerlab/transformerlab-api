@@ -5,8 +5,6 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
-import logging
-import traceback
 import time
 
 import json

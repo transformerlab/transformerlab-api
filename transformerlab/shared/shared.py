@@ -271,6 +271,15 @@ async def async_run_python_daemon_and_update_status(
         with storage.open(pid_file, "w") as f:
             f.write(str(pid))
 
+        # Mark job as RUNNING immediately after process starts so frontend sees progress
+        try:
+            job = job_service.job_get(job_id)
+            experiment_id = job.get("experiment_id")
+            await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+        except Exception:
+            # best effort only
+            pass
+
         # keep a tail of recent lines so we can show them on failure:
         recent_lines = deque(maxlen=50)
         last_update_time = 0.0
