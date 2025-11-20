@@ -1,3 +1,5 @@
+** Please Note that we are deactivating this repo soon because we have merged all work from here over to https://github.com/transformerlab/transformerlab-app under the /api directory. Please go there for latest updates. This repo will remain available for a while for archival purposes only. **
+
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
